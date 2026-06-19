@@ -1,0 +1,39 @@
+import { TopBar } from "../components/layout/TopBar";
+import { Navbar } from "../components/layout/Navbar";
+import { Footer } from "../components/layout/Footer";
+import { Hero } from "../components/sections/Hero";
+import { Philosophy } from "../components/sections/Philosophy";
+import { Methodology } from "../components/sections/Methodology";
+import { Services } from "../components/sections/Services";
+import { CorporateModal } from "../components/ui/CorporateModal";
+import { Quotes } from "../components/sections/Quotes";
+import { Facility } from "../components/sections/Facility";
+import { Enquiry } from "../components/sections/Enquiry";
+import { WhatsAppButton } from "../components/ui/WhatsAppButton";
+import { CookieConsent } from "../components/ui/CookieConsent";
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <TopBar />
+      <Navbar />
+
+      <main>
+        <Hero />
+        <Philosophy />
+        <Methodology />
+        <Services />
+        <div className="max-w-6xl mx-auto px-6">
+          <CorporateModal />
+        </div>
+        <Quotes />
+        <Facility />
+        <Enquiry />
+      </main>
+
+      <Footer />
+      <WhatsAppButton />
+      <CookieConsent />
+    </div>
+  );
+}
