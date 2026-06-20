@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "serve": "vite preview --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "serve": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.10",
