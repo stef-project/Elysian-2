@@ -76,9 +76,9 @@ export function Quotes() {
           className="mt-16 grid grid-cols-3 gap-8 text-center border-t border-[#F7F5F2]/10 pt-14"
         >
           {[
-            { value: "100%", label: "Satisfaction" },
-            { value: "100%", label: "Repeat clients" },
-            { value: "★★★★★", label: "Average rating" },
+            { value: "3+ yrs", label: "Returning clients" },
+            { value: "★★★★★", label: "Client rating" },
+            { value: "Since 2023", label: "Kensington, London" },
           ].map((s, i) => (
             <div key={i}>
               <p className="font-serif text-3xl text-[#BF944A] mb-2">{s.value}</p>

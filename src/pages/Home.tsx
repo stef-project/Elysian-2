@@ -2,6 +2,7 @@ import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Hero } from "../components/sections/Hero";
+import { SocialProof } from "../components/sections/SocialProof";
 import { Philosophy } from "../components/sections/Philosophy";
 import { Method } from "../components/sections/Method";
 import { Methodology } from "../components/sections/Methodology";
@@ -23,6 +24,7 @@ export default function Home() {
 
       <main>
         <Hero />
+        <SocialProof />
         <Philosophy />
         <Method />
         <Methodology />

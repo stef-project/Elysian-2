@@ -50,10 +50,11 @@ export function Method() {
             offered anywhere in the UK.
           </p>
           <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9]">
-            Trained in the renowned <span className="italic text-[#F7F5F2]/80">Manuela
-            Shala</span> technique — and in other established schools of lymphatic and
-            body work — our founder spent years refining and adapting what she learned,
-            evolving it into a method entirely her own.
+            Developed by <span className="italic text-[#F7F5F2]/80">Manuela Shala</span>,
+            a French-trained therapist specialising in lymphatic drainage, body
+            contouring and post-operative recovery. Drawing on established schools of
+            lymphatic and body work, she spent years refining and adapting what she
+            learned, evolving it into a method entirely her own.
           </p>
         </motion.div>
 

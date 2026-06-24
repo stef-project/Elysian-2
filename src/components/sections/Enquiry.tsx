@@ -1,8 +1,38 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { BOOKING_URL } from "../../lib/booking";
+
+const treatmentOptions = [
+  { value: "", label: "Select a treatment" },
+  { value: "Lymphatic Drainage 1 Zone — £120", label: "Lymphatic Drainage 1 Zone — £120" },
+  { value: "Lymphatic Drainage 2 Zones — £240", label: "Lymphatic Drainage 2 Zones — £240" },
+  { value: "Maderotherapy — £80", label: "Maderotherapy — £80" },
+  { value: "Post-Operative Care — £80", label: "Post-Operative Care — £80" },
+  { value: "Prenatal & Postnatal Massage — £80", label: "Prenatal & Postnatal Massage — £80" },
+  { value: "Cavitation Fusion — £150", label: "Cavitation Fusion — £150" },
+  { value: "Not sure — please advise", label: "Not sure — please advise" },
+];
 
 export function Enquiry() {
   const [submitted, setSubmitted] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [treatment, setTreatment] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lines = [
+      "Hello Elysian Paris, I would like to enquire about a treatment.",
+      `Name: ${name}`,
+      `Email: ${email}`,
+      treatment ? `Treatment: ${treatment}` : null,
+      message ? `Message: ${message}` : null,
+    ].filter(Boolean);
+    const url = `https://wa.me/447742091557?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setSubmitted(true);
+  };
 
   return (
     <section id="contact" className="py-32 bg-card border-t border-border">
@@ -17,29 +47,36 @@ export function Enquiry() {
             Begin Your Journey
           </p>
           <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light mb-4">
-            Reserve a Treatment
+            Book Your Consultation
           </h2>
-          <p className="font-sans text-muted-foreground font-light mb-14 leading-relaxed">
-            Contact us to arrange your appointment. We will respond within 24 hours
-            to confirm your preferred treatment and time.
+          <p className="font-sans text-muted-foreground font-light mb-10 leading-relaxed">
+            Reserve instantly in the online diary, or send an enquiry below and we
+            will respond within 24 hours to confirm your preferred treatment and time.
           </p>
+
+          <div className="mb-14">
+            <a
+              href={BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="button-book-consultation"
+              className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-14 py-4 hover:bg-primary transition-colors duration-300"
+            >
+              Book Online Now →
+            </a>
+          </div>
 
           {submitted ? (
             <div className="py-16 text-center">
               <div className="w-8 h-[1px] bg-primary mx-auto mb-8" />
               <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you.</p>
               <p className="font-sans text-muted-foreground font-light text-sm">
-                We will be in touch shortly.
+                Your enquiry is ready in WhatsApp — just press send, and we will be
+                in touch shortly.
               </p>
             </div>
           ) : (
-            <form
-              className="space-y-8 text-left"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSubmitted(true);
-              }}
-            >
+            <form className="space-y-8 text-left" onSubmit={handleSubmit}>
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-[0.2em] text-foreground/60 mb-3">
                   Full Name
@@ -47,6 +84,8 @@ export function Enquiry() {
                 <input
                   type="text"
                   required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   data-testid="input-name"
                   className="w-full bg-transparent border-b border-border py-3 px-0 focus:outline-none focus:border-primary transition-colors duration-300 font-sans text-foreground placeholder:text-muted-foreground/40 text-sm"
                   placeholder="Your full name"
@@ -60,6 +99,8 @@ export function Enquiry() {
                 <input
                   type="email"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   data-testid="input-email"
                   className="w-full bg-transparent border-b border-border py-3 px-0 focus:outline-none focus:border-primary transition-colors duration-300 font-sans text-foreground placeholder:text-muted-foreground/40 text-sm"
                   placeholder="Your email address"
@@ -71,17 +112,16 @@ export function Enquiry() {
                   Treatment of Interest
                 </label>
                 <select
+                  value={treatment}
+                  onChange={(e) => setTreatment(e.target.value)}
                   data-testid="select-treatment"
                   className="w-full bg-transparent border-b border-border py-3 px-0 focus:outline-none focus:border-primary transition-colors duration-300 font-sans text-foreground text-sm appearance-none cursor-pointer"
                 >
-                  <option value="">Select a treatment</option>
-                  <option value="lymphatic-1z">Lymphatic Drainage 1 Zone — £120</option>
-                  <option value="lymphatic-2z">Lymphatic Drainage 2 Zones — £240</option>
-                  <option value="maderotherapy">Maderotherapy — £80</option>
-                  <option value="post-op">Post-Operative Care — £80</option>
-                  <option value="prenatal">Prenatal &amp; Postnatal Massage — £80</option>
-                  <option value="cavitation">Cavitation Fusion — £150</option>
-                  <option value="unsure">Not sure — please advise</option>
+                  {treatmentOptions.map((o) => (
+                    <option key={o.label} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -91,6 +131,8 @@ export function Enquiry() {
                 </label>
                 <textarea
                   rows={4}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   data-testid="input-message"
                   className="w-full bg-transparent border-b border-border py-3 px-0 focus:outline-none focus:border-primary transition-colors duration-300 font-sans text-foreground placeholder:text-muted-foreground/40 text-sm resize-none"
                   placeholder="Any additional context or preferences..."

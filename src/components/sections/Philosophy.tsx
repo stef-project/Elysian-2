@@ -33,7 +33,7 @@ export function Philosophy() {
             <div className="mt-6 flex items-center gap-4">
               <div className="w-6 h-[1px] bg-primary" />
               <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Certified Practitioner · Est. 2023
+                Manuela Shala · French-trained therapist
               </p>
             </div>
           </motion.div>
@@ -111,8 +111,8 @@ export function Philosophy() {
           className="mt-20 pt-12 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
         >
           {[
-            { value: "100%", label: "Client satisfaction" },
-            { value: "2023", label: "Established" },
+            { value: "3+ yrs", label: "Returning clients" },
+            { value: "French", label: "Trained therapist" },
             { value: "6", label: "Signature treatments" },
             { value: "W8", label: "Kensington, London" },
           ].map((stat, i) => (
