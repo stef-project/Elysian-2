@@ -7,7 +7,7 @@ export function Hero() {
       <div className="absolute inset-0 z-0">
         <img
           src={heroImage}
-          alt="Lymphatic drainage and body contouring clinic — Elysian Institute, Kensington, London"
+          alt="Lymphatic drainage and body contouring clinic — Elysian Paris, Kensington, London"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-[#1A1A1A]/40" />

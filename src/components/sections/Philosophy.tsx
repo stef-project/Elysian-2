@@ -27,7 +27,7 @@ export function Philosophy() {
           >
             <img
               src={clinicianImage}
-              alt="Certified lymphatic drainage practitioner at Elysian Institute, Kensington, London"
+              alt="Certified lymphatic drainage practitioner at Elysian Paris, Kensington, London"
               className="w-full aspect-[3/4] object-cover object-top"
             />
             <div className="mt-6 flex items-center gap-4">
@@ -49,7 +49,7 @@ export function Philosophy() {
               className="mb-12"
             >
               <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-6">
-                Welcome to Elysian
+                Welcome to Elysian Paris
               </p>
               <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-8">
                 Wellness is<br />
