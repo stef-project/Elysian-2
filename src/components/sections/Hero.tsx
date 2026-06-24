@@ -21,7 +21,7 @@ export function Hero() {
           transition={{ duration: 1, delay: 0.2 }}
           className="font-sans text-[11px] tracking-[0.3em] uppercase text-[#BF944A] mb-8"
         >
-          Kensington, London · Established 2024
+          Kensington, London · Established 2023
         </motion.p>
 
         <motion.h1
