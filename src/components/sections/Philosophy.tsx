@@ -111,8 +111,8 @@ export function Philosophy() {
           className="mt-20 pt-12 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
         >
           {[
-            { value: "3+ yrs", label: "Returning clients" },
             { value: "French", label: "Trained therapist" },
+            { value: "80%", label: "Clients by referral" },
             { value: "6", label: "Signature treatments" },
             { value: "W8", label: "Kensington, London" },
           ].map((stat, i) => (
