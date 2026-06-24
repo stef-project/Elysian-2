@@ -81,12 +81,18 @@ export function LymphaticDrainage() {
           className="mt-16 border-t border-border pt-10 max-w-3xl"
         >
           <p className="font-sans text-muted-foreground font-light leading-[1.9]">
-            Every treatment follows the signature <span className="italic text-[#1A1A1A]">Manuela
-            Shala Method</span> — never templated, always calibrated to what your body
+            Every treatment follows the signature <span className="italic text-[#1A1A1A]">Elysian
+            Paris Method®</span> — never templated, always calibrated to what your body
             shows. Lymphatic drainage is a wellness and recovery treatment, not a
             medical cure; if you live with a diagnosed condition such as lymphoedema,
-            or you are recovering from surgery, we work alongside your doctor's
-            guidance.
+            or you are{" "}
+            <a
+              href="/lymphatic-drainage-after-surgery"
+              className="text-primary underline underline-offset-2 hover:text-[#1A1A1A] transition-colors"
+            >
+              recovering from surgery
+            </a>
+            , we work alongside your doctor's guidance.
           </p>
         </motion.div>
       </div>

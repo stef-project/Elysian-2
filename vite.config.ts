@@ -11,5 +11,14 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        afterSurgery: path.resolve(
+          __dirname,
+          "lymphatic-drainage-after-surgery/index.html"
+        ),
+      },
+    },
   },
 });
