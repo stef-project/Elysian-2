@@ -68,7 +68,7 @@ export function Methodology() {
           >
             <img
               src={texturesImage}
-              alt="Elysian — Refined Detail"
+              alt="Manual lymphatic drainage technique — hands-led treatment at Elysian Institute, London"
               className="w-full aspect-square object-cover"
             />
           </motion.div>

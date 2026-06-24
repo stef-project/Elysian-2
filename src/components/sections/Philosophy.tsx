@@ -27,7 +27,7 @@ export function Philosophy() {
           >
             <img
               src={clinicianImage}
-              alt="Elysian Institute — Certified Practitioner"
+              alt="Certified lymphatic drainage practitioner at Elysian Institute, Kensington, London"
               className="w-full aspect-[3/4] object-cover object-top"
             />
             <div className="mt-6 flex items-center gap-4">

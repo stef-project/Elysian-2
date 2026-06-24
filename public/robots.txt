@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://elysian-institute.com/sitemap.xml
