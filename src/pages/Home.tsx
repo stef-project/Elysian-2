@@ -4,7 +4,9 @@ import { Footer } from "../components/layout/Footer";
 import { Hero } from "../components/sections/Hero";
 import { Philosophy } from "../components/sections/Philosophy";
 import { Methodology } from "../components/sections/Methodology";
+import { LymphaticDrainage } from "../components/sections/LymphaticDrainage";
 import { Services } from "../components/sections/Services";
+import { FAQ } from "../components/sections/FAQ";
 import { CorporateModal } from "../components/ui/CorporateModal";
 import { Quotes } from "../components/sections/Quotes";
 import { Facility } from "../components/sections/Facility";
@@ -22,12 +24,14 @@ export default function Home() {
         <Hero />
         <Philosophy />
         <Methodology />
+        <LymphaticDrainage />
         <Services />
         <div className="max-w-6xl mx-auto px-6">
           <CorporateModal />
         </div>
         <Quotes />
         <Facility />
+        <FAQ />
         <Enquiry />
       </main>
 
