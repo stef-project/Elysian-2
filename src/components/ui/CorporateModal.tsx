@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import l1Image from "../../assets/l1.png";
+import l1Image from "../../assets/l1.webp";
 
 const CORPORATE_CALENDAR = "https://calendar.app.google/Vdgk5XD1apxPp36U6";
 const GET_COMPANIES_URL = "https://www.elysian-institute.com/get-companies.php";

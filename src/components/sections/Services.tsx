@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import l2Image from "../../assets/l2.png";
-import l1Image from "../../assets/l1.png";
-import sponImage from "../../assets/spon.png";
-import massageImage from "../../assets/massage.png";
-import prenatalImage from "../../assets/prenatal.png";
-import cavitationImage from "../../assets/cavitation.png";
+import l2Image from "../../assets/l2.webp";
+import l1Image from "../../assets/l1.webp";
+import sponImage from "../../assets/spon.webp";
+import massageImage from "../../assets/massage.webp";
+import prenatalImage from "../../assets/prenatal.webp";
+import cavitationImage from "../../assets/cavitation.webp";
 
 const treatments = [
   {

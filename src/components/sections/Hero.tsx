@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import heroImage from "../../assets/hero-wellness.png";
+import heroImage from "../../assets/hero-wellness.webp";
 
 export function Hero() {
   return (

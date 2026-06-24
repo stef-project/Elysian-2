@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import texturesImage from "../../assets/treatment-hands.png";
+import texturesImage from "../../assets/treatment-hands.webp";
 
 const steps = [
   {
