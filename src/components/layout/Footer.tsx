@@ -18,18 +18,18 @@ export function Footer() {
             </p>
             <ul className="space-y-2.5">
               {[
-                "Lymphatic Drainage",
-                "Maderotherapy",
-                "Post-Operative Care",
-                "Prenatal & Postnatal",
-                "Cavitation Fusion",
+                { label: "Lymphatic Drainage", href: "/#treatments" },
+                { label: "Maderotherapy", href: "/#treatments" },
+                { label: "Lymphatic Drainage After Surgery", href: "/lymphatic-drainage-after-surgery" },
+                { label: "Prenatal & Postnatal", href: "/#treatments" },
+                { label: "Cavitation Fusion", href: "/#treatments" },
               ].map((t) => (
-                <li key={t}>
+                <li key={t.label}>
                   <a
-                    href="#treatments"
+                    href={t.href}
                     className="font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
                   >
-                    {t}
+                    {t.label}
                   </a>
                 </li>
               ))}
