@@ -7,7 +7,7 @@ export function Hero() {
       <div className="absolute inset-0 z-0">
         <img
           src={heroImage}
-          alt="Elysian Institute — Kensington"
+          alt="Lymphatic drainage and body contouring clinic — Elysian Institute, Kensington, London"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-[#1A1A1A]/40" />
@@ -40,8 +40,9 @@ export function Hero() {
           transition={{ duration: 1.2, delay: 0.9 }}
           className="font-sans text-base md:text-lg text-[#F7F5F2]/70 font-light max-w-xl mx-auto leading-relaxed mb-12"
         >
-          Your private sanctuary for bespoke body contouring and holistic treatments.
-          Restoring balance, enhancing confidence, elevating wellbeing.
+          Your private Kensington sanctuary for manual lymphatic drainage and
+          bespoke body contouring in Central London. Restoring balance,
+          enhancing confidence, elevating wellbeing.
         </motion.p>
 
         <motion.div
