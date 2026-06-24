@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import equipmentImage from "../../assets/clinic-reception.png";
+import equipmentImage from "../../assets/clinic-reception.webp";
 
 export function Facility() {
   return (

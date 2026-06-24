@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import clinicianImage from "../../assets/rooms.png";
+import clinicianImage from "../../assets/rooms.webp";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
