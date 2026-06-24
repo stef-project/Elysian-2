@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import abdomen1 from "../../assets/result-abdomen-1.webp";
 import abdomen2 from "../../assets/result-abdomen-2.webp";
-import abdomen3 from "../../assets/result-abdomen-3.webp";
 import abdomen4 from "../../assets/result-abdomen-4.webp";
 import stomach from "../../assets/result-stomach.webp";
 import thighs from "../../assets/result-thighs.webp";
@@ -13,7 +12,6 @@ const results = [
   { src: waist, caption: "Waist · sculpted contour", alt: "Waist lymphatic drainage before and after, sculpted contour, Elysian Paris London" },
   { src: stomach, caption: "Stomach · flatter & smoother", alt: "Stomach lymphatic drainage before and after, flatter and smoother, Elysian Paris London" },
   { src: thighs, caption: "Thighs · −3 cm in one session", alt: "Thigh lymphatic drainage before and after, minus 3 cm in one session, Elysian Paris London" },
-  { src: abdomen3, caption: "Lower abdomen · decongested", alt: "Lower abdomen lymphatic drainage before and after, decongested, Elysian Paris London" },
   { src: legs2, caption: "Legs · lighter & sculpted", alt: "Legs lymphatic drainage before and after, lighter and sculpted, Elysian Paris London" },
   { src: abdomen4, caption: "Abdomen · before & after", alt: "Abdominal lymphatic drainage before and after, Elysian Paris London" },
   { src: abdomen1, caption: "Abdomen · immediate decongestion", alt: "Abdominal lymphatic drainage before and after, immediate decongestion, Elysian Paris London" },
