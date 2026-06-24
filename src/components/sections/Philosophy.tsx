@@ -112,7 +112,7 @@ export function Philosophy() {
         >
           {[
             { value: "French", label: "Trained therapist" },
-            { value: "80%", label: "Clients by referral" },
+            { value: "Session 1", label: "Visible results" },
             { value: "6", label: "Signature treatments" },
             { value: "W8", label: "Kensington, London" },
           ].map((stat, i) => (

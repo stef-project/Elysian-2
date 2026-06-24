@@ -76,7 +76,7 @@ export function Quotes() {
           className="mt-16 grid grid-cols-3 gap-8 text-center border-t border-[#F7F5F2]/10 pt-14"
         >
           {[
-            { value: "80%", label: "Clients by referral" },
+            { value: "★★★★★", label: "Client rating" },
             { value: "3 yrs+", label: "Of loyal clients" },
             { value: "1 of 1", label: "Method® in the UK" },
           ].map((s, i) => (

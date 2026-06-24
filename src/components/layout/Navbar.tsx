@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import logo from "../../assets/logo-dark.png";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -43,9 +44,11 @@ export function Navbar() {
         </div>
 
         <a href="/" className="flex-1 flex justify-center cursor-pointer select-none">
-          <span className="font-serif text-2xl tracking-[0.25em] uppercase text-[#1A1A1A]">
-            Elysian Paris
-          </span>
+          <img
+            src={logo}
+            alt="Elysian Paris"
+            className="h-7 md:h-8 w-auto"
+          />
         </a>
 
         <div className="flex-1 flex justify-end items-center">
