@@ -3,7 +3,7 @@ import equipmentImage from "../../assets/clinic-reception.webp";
 
 export function Facility() {
   return (
-    <section id="location" className="py-32 bg-background">
+    <section id="location" className="py-20 md:py-32 bg-background">
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <motion.div

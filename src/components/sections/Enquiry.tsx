@@ -35,7 +35,7 @@ export function Enquiry() {
   };
 
   return (
-    <section id="contact" className="py-32 bg-card border-t border-border">
+    <section id="contact" className="py-20 md:py-32 bg-card border-t border-border">
       <div className="max-w-2xl mx-auto px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

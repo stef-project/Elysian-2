@@ -12,7 +12,7 @@ const fadeUp = {
 
 export function Philosophy() {
   return (
-    <section id="about" className="py-32 bg-background">
+    <section id="about" className="py-20 md:py-32 bg-background">
       <div className="max-w-6xl mx-auto px-6">
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">

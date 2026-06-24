@@ -25,7 +25,7 @@ const testimonials = [
 
 export function Quotes() {
   return (
-    <section className="py-32 bg-[#1A1A1A]">
+    <section className="py-20 md:py-32 bg-[#1A1A1A]">
       <div className="max-w-6xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

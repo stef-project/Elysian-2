@@ -21,7 +21,7 @@ const pillars = [
 
 export function Method() {
   return (
-    <section id="method" className="py-32 bg-[#1A1A1A] overflow-hidden">
+    <section id="method" className="py-20 md:py-32 bg-[#1A1A1A] overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

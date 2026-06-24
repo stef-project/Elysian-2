@@ -43,7 +43,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="py-32 bg-[#F7F5F2] overflow-hidden">
+    <section id="faq" className="py-20 md:py-32 bg-[#F7F5F2] overflow-hidden">
       <div className="max-w-3xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

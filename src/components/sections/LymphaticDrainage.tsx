@@ -3,33 +3,25 @@ import { motion } from "framer-motion";
 const benefits = [
   {
     title: "Reduces fluid retention",
-    body: "Eases puffiness and that heavy, swollen feeling by helping stagnant fluid move and settle naturally.",
+    body: "Eases puffiness and that heavy, swollen feeling — fluid moves and settles naturally.",
   },
   {
     title: "Supports post-surgery recovery",
-    body: "A favoured choice after aesthetic and cosmetic procedures to help settle post-operative swelling and support the body's healing rhythm — once your surgeon has given clearance.",
+    body: "Helps settle post-operative swelling after aesthetic procedures, once your surgeon has cleared you.",
   },
   {
     title: "Enhances body-contouring results",
-    body: "Paired with ultrasound cavitation, manual drainage helps your results show by clearing what the body releases.",
+    body: "Paired with cavitation, manual drainage helps your results show.",
   },
   {
     title: "Calms and restores",
-    body: "The slow, repetitive rhythm is deeply relaxing — many clients describe it as the most restful hour of their week.",
-  },
-  {
-    title: "Pre- & post-natal comfort",
-    body: "Gentle, pregnancy-safe work to ease heaviness and water retention, always with medical clearance.",
-  },
-  {
-    title: "Looks after your wellbeing",
-    body: "Part of a considered routine for circulation, lightness and an overall sense of balance.",
+    body: "A slow, deeply relaxing rhythm — many call it the most restful hour of their week.",
   },
 ];
 
 export function LymphaticDrainage() {
   return (
-    <section id="lymphatic-drainage" className="py-32 bg-background overflow-hidden">
+    <section id="lymphatic-drainage" className="py-20 md:py-32 bg-background overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -46,16 +38,13 @@ export function LymphaticDrainage() {
             <span className="italic">restore lightness, and recover well.</span>
           </h2>
           <p className="font-sans text-muted-foreground font-light leading-[1.9] mb-5">
-            Manual lymphatic drainage is a slow, rhythmic, hands-led massage that
-            encourages the natural movement of lymph — the fluid that carries waste
-            away from your tissues and supports your immune system. At Elysian
-            Paris, a private clinic in the heart of Kensington, Central London,
-            every session is delivered by a certified practitioner and tailored to
-            your body in real time.
+            A slow, hands-led massage that encourages the natural movement of lymph
+            — clearing waste and supporting your immune system. At our private
+            Kensington clinic, every session is tailored to your body in real time.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10 mt-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-10 mt-16">
           {benefits.map((b, i) => (
             <motion.div
               key={b.title}

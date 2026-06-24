@@ -4,12 +4,11 @@ import { Footer } from "../components/layout/Footer";
 import { Hero } from "../components/sections/Hero";
 import { Philosophy } from "../components/sections/Philosophy";
 import { Method } from "../components/sections/Method";
-import { Methodology } from "../components/sections/Methodology";
+import { Results } from "../components/sections/Results";
 import { LymphaticDrainage } from "../components/sections/LymphaticDrainage";
 import { Services } from "../components/sections/Services";
 import { FAQ } from "../components/sections/FAQ";
 import { CorporateModal } from "../components/ui/CorporateModal";
-import { Results } from "../components/sections/Results";
 import { Quotes } from "../components/sections/Quotes";
 import { Facility } from "../components/sections/Facility";
 import { Enquiry } from "../components/sections/Enquiry";
@@ -26,13 +25,12 @@ export default function Home() {
         <Hero />
         <Philosophy />
         <Method />
-        <Methodology />
+        <Results />
         <LymphaticDrainage />
         <Services />
         <div className="max-w-6xl mx-auto px-6">
           <CorporateModal />
         </div>
-        <Results />
         <Quotes />
         <Facility />
         <FAQ />

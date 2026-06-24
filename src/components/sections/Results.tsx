@@ -11,7 +11,7 @@ const results = [
 
 export function Results() {
   return (
-    <section id="results" className="py-32 bg-background border-t border-border">
+    <section id="results" className="py-20 md:py-32 bg-background border-t border-border">
       <div className="max-w-6xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
