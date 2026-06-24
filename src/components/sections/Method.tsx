@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 const pillars = [
   {
     title: "Fully tailored",
-    body: "Every treatment is built around you — heavy legs, bloating, fluid retention, swelling or sculpting goals are mapped before we begin.",
+    body: "Every treatment is built around you. Heavy legs, bloating, fluid retention, swelling or sculpting goals are mapped before we begin.",
   },
   {
     title: "Visible from session one",
@@ -15,7 +15,7 @@ const pillars = [
   },
   {
     title: "Exclusive to the UK",
-    body: "A signature, in-house method you will not find anywhere else in the country — refined over years of dedicated practice.",
+    body: "A signature, in-house method you will not find anywhere else in the country, refined over years of dedicated practice.",
   },
 ];
 
@@ -39,14 +39,14 @@ export function Method() {
           </h2>
           <div className="w-12 h-[1px] bg-[#BF944A] mb-8" />
           <p className="font-sans text-lg text-[#F7F5F2]/80 font-light leading-[1.9] mb-5">
-            Where body contouring meets lasting wellbeing — an in-house method
+            Where body contouring meets lasting wellbeing. An in-house method
             combining manual lymphatic drainage and body contouring for visible
             results from the very first session. The only method of its kind in the UK.
           </p>
           <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9]">
             Our founder trained in the renowned <span className="italic text-[#F7F5F2]/80">Manuela
             Shala</span> technique, then adapted it with her own expertise into the
-            Elysian Paris Method® — a method entirely her own.
+            Elysian Paris Method®, a method entirely her own.
           </p>
         </motion.div>
 

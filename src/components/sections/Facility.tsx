@@ -14,7 +14,7 @@ export function Facility() {
           >
             <img
               src={equipmentImage}
-              alt="Elysian Paris lymphatic drainage clinic interior — Kensington, Central London"
+              alt="Elysian Paris lymphatic drainage clinic interior, Kensington, Central London"
               className="w-full aspect-[4/5] object-cover"
             />
           </motion.div>
