@@ -9,6 +9,7 @@ import { LymphaticDrainage } from "../components/sections/LymphaticDrainage";
 import { Services } from "../components/sections/Services";
 import { FAQ } from "../components/sections/FAQ";
 import { CorporateModal } from "../components/ui/CorporateModal";
+import { Results } from "../components/sections/Results";
 import { Quotes } from "../components/sections/Quotes";
 import { Facility } from "../components/sections/Facility";
 import { Enquiry } from "../components/sections/Enquiry";
@@ -31,6 +32,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6">
           <CorporateModal />
         </div>
+        <Results />
         <Quotes />
         <Facility />
         <FAQ />

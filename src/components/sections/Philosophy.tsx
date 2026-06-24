@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import clinicianImage from "../../assets/rooms.webp";
+import clinicianImage from "../../assets/founder.webp";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -27,7 +27,7 @@ export function Philosophy() {
           >
             <img
               src={clinicianImage}
-              alt="Certified lymphatic drainage practitioner at Elysian Paris, Kensington, London"
+              alt="Founder and French-trained lymphatic drainage therapist at Elysian Paris, Kensington, London"
               className="w-full aspect-[3/4] object-cover object-top"
             />
             <div className="mt-6 flex items-center gap-4">
