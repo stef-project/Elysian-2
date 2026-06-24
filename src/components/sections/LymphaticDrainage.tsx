@@ -1,0 +1,95 @@
+import { motion } from "framer-motion";
+
+const benefits = [
+  {
+    title: "Reduces fluid retention",
+    body: "Eases puffiness and that heavy, swollen feeling by helping stagnant fluid move and settle naturally.",
+  },
+  {
+    title: "Supports post-surgery recovery",
+    body: "A favoured choice after aesthetic and cosmetic procedures to help settle post-operative swelling and support the body's healing rhythm — once your surgeon has given clearance.",
+  },
+  {
+    title: "Enhances body-contouring results",
+    body: "Paired with ultrasound cavitation, manual drainage helps your results show by clearing what the body releases.",
+  },
+  {
+    title: "Calms and restores",
+    body: "The slow, repetitive rhythm is deeply relaxing — many clients describe it as the most restful hour of their week.",
+  },
+  {
+    title: "Pre- & post-natal comfort",
+    body: "Gentle, pregnancy-safe work to ease heaviness and water retention, always with medical clearance.",
+  },
+  {
+    title: "Looks after your wellbeing",
+    body: "Part of a considered routine for circulation, lightness and an overall sense of balance.",
+  },
+];
+
+export function LymphaticDrainage() {
+  return (
+    <section id="lymphatic-drainage" className="py-32 bg-background overflow-hidden">
+      <div className="max-w-6xl mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-3xl"
+        >
+          <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-6">
+            Manual Lymphatic Drainage · Kensington, London
+          </p>
+          <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-8">
+            A gentler way to reduce swelling,<br />
+            <span className="italic">restore lightness, and recover well.</span>
+          </h2>
+          <p className="font-sans text-muted-foreground font-light leading-[1.9] mb-5">
+            Manual lymphatic drainage is a slow, rhythmic, hands-led massage that
+            encourages the natural movement of lymph — the fluid that carries waste
+            away from your tissues and supports your immune system. At Elysian
+            Institute, a private clinic in the heart of Kensington, Central London,
+            every session is delivered by a certified practitioner and tailored to
+            your body in real time.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10 mt-16">
+          {benefits.map((b, i) => (
+            <motion.div
+              key={b.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: (i % 3) * 0.1 }}
+            >
+              <div className="w-8 h-[1px] bg-primary mb-5" />
+              <h3 className="font-serif text-xl text-[#1A1A1A] mb-3">{b.title}</h3>
+              <p className="font-sans text-muted-foreground font-light leading-[1.8] text-sm">
+                {b.body}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="mt-16 border-t border-border pt-10 max-w-3xl"
+        >
+          <p className="font-sans text-muted-foreground font-light leading-[1.9]">
+            Every treatment follows the signature <span className="italic text-[#1A1A1A]">Manuela
+            Shala Method</span> — never templated, always calibrated to what your body
+            shows. Lymphatic drainage is a wellness and recovery treatment, not a
+            medical cure; if you live with a diagnosed condition such as lymphoedema,
+            or you are recovering from surgery, we work alongside your doctor's
+            guidance.
+          </p>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
