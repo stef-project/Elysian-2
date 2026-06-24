@@ -58,9 +58,8 @@ export function Hero() {
           transition={{ duration: 1.2, delay: 1 }}
           className="font-sans text-sm text-[#F7F5F2]/60 font-light max-w-xl mx-auto leading-relaxed mb-10"
         >
-          Created by a French-trained therapist specialising in lymphatic
-          drainage, body contouring and post-operative recovery — refined into a
-          signature method entirely her own.
+          By a French-trained therapist in lymphatic drainage, body contouring
+          and post-operative recovery.
         </motion.p>
 
         <motion.div

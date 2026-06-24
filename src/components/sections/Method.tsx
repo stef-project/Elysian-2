@@ -39,22 +39,14 @@ export function Method() {
           </h2>
           <div className="w-12 h-[1px] bg-[#BF944A] mb-8" />
           <p className="font-sans text-lg text-[#F7F5F2]/80 font-light leading-[1.9] mb-5">
-            Where body contouring meets lasting wellbeing. An exclusive treatment
-            approach developed in-house over years of practice — helping women feel
-            lighter, reduce water retention and enhance their natural body contours.
-          </p>
-          <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9] mb-5">
-            This signature method combines advanced lymphatic drainage, body-contouring
-            expertise and holistic wellness principles to deliver visible results from
-            the very first session for many clients. It is the only method of its kind
-            offered anywhere in the UK.
+            Where body contouring meets lasting wellbeing — an in-house method
+            combining manual lymphatic drainage and body contouring for visible
+            results from the very first session. The only method of its kind in the UK.
           </p>
           <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9]">
             Our founder trained in the renowned <span className="italic text-[#F7F5F2]/80">Manuela
-            Shala</span> technique — and in other established schools of lymphatic and
-            body work — then spent years adapting what she learned with her own
-            expertise, evolving it into the Elysian Paris Method®: a method entirely
-            her own.
+            Shala</span> technique, then adapted it with her own expertise into the
+            Elysian Paris Method® — a method entirely her own.
           </p>
         </motion.div>
 

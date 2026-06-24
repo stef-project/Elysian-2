@@ -56,15 +56,10 @@ export function Philosophy() {
                 <span className="italic">a private art.</span>
               </h2>
               <div className="w-12 h-[1px] bg-primary mb-8" />
-              <p className="font-sans text-muted-foreground font-light leading-[1.9] mb-5 max-w-lg">
-                In our Kensington sanctuary, bespoke journeys unite timeless rituals
-                with discreet innovation — restoring balance, refining beauty, and
-                elevating your sense of self.
-              </p>
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg">
-                A house dedicated to elegance, individuality, and the pursuit of
-                timeless well-being. Each experience is tailored with precision
-                and discretion. Nothing is routine. Everything is intentional.
+                A private Kensington clinic for manual lymphatic drainage and
+                bespoke body contouring. Every session is tailored with precision
+                and discretion — nothing routine, everything intentional.
               </p>
             </motion.div>
 
@@ -72,15 +67,15 @@ export function Philosophy() {
               {[
                 {
                   label: "The Elysian Paris Method®",
-                  body: "Our exclusive signature method — developed in-house over years of practice — merges manual lymphatic drainage with advanced body-contouring and holistic wellness. Crafted to sculpt, restore and elevate, it is the only approach of its kind in the UK.",
+                  body: "Our signature method merges manual lymphatic drainage with body contouring — the only approach of its kind in the UK.",
                 },
                 {
                   label: "Certified Practitioner",
-                  body: "Every treatment is delivered by a certified specialist. There are no shortcuts, no delegation. Your care remains in expert hands, from first consultation to final session.",
+                  body: "Every treatment is delivered by a certified specialist — no shortcuts, no delegation, from first consultation to last.",
                 },
                 {
                   label: "Total Discretion",
-                  body: "Your transformation is your own. We operate by appointment only, ensuring each client receives undivided attention in complete privacy.",
+                  body: "By appointment only, so each client receives undivided attention in complete privacy.",
                 },
               ].map((item, i) => (
                 <motion.div
