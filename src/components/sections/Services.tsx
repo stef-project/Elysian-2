@@ -17,7 +17,7 @@ const treatments = [
     calendarUrl: "https://calendar.app.google/Ev8ZV3UJwHgaE8uE9",
     image: l2Image,
     description:
-      "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of the Manuela Shala Method.",
+      "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of The Elysian Paris Method®.",
     benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-surgery recovery"],
   },
   {
