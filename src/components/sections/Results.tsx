@@ -1,30 +1,39 @@
 import { motion } from "framer-motion";
-import abdomen from "../../assets/result-abdomen-1.webp";
+import abdomen1 from "../../assets/result-abdomen-1.webp";
+import abdomen2 from "../../assets/result-abdomen-2.webp";
 import legs from "../../assets/result-legs.webp";
 
 const results = [
   {
-    src: abdomen,
+    src: abdomen1,
     caption: "Abdomen · immediate decongestion",
-    alt: "Abdominal lymphatic drainage results: decongestion and flatter stomach, Elysian Paris",
+    alt: "Abdominal lymphatic drainage before and after: decongestion and flatter stomach, Elysian Paris",
+  },
+  {
+    src: abdomen2,
+    caption: "Abdomen · sculpted & flatter",
+    alt: "Abdominal lymphatic drainage before and after: visibly sculpted and flatter stomach, Elysian Paris",
   },
   {
     src: legs,
-    caption: "Legs · lighter & sculpted",
-    alt: "Lighter, decongested legs after lymphatic drainage at Elysian Paris, London",
+    caption: "Legs · lighter & decongested",
+    alt: "Legs before and after lymphatic drainage: lighter and decongested, Elysian Paris, London",
   },
 ];
 
+// Duplicated so the band scrolls seamlessly
+const track = [...results, ...results];
+
 export function Results() {
   return (
-    <section id="results" className="py-20 md:py-32 bg-background border-t border-border">
+    <section id="results" className="py-20 md:py-32 bg-background border-t border-border overflow-hidden">
       <div className="max-w-5xl mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="text-center mb-14"
         >
           <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4">
             Real Results
@@ -34,18 +43,14 @@ export function Results() {
             <span className="italic text-primary">very first session.</span>
           </h2>
         </motion.div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {results.map((r, i) => (
-            <motion.figure
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: i * 0.12 }}
-              data-testid={`card-result-${i}`}
-            >
-              <div className="aspect-square overflow-hidden bg-[#1A1A1A]">
+      {/* Auto-scrolling band (pauses on hover) */}
+      <div className="group relative">
+        <div className="flex w-max gap-6 animate-[results-marquee_38s_linear_infinite] group-hover:[animation-play-state:paused]">
+          {track.map((r, i) => (
+            <figure key={i} className="shrink-0 w-[260px] md:w-[320px]">
+              <div className="h-[340px] md:h-[420px] overflow-hidden bg-[#1A1A1A]">
                 <img
                   src={r.src}
                   alt={r.alt}
@@ -56,14 +61,21 @@ export function Results() {
               <figcaption className="mt-4 text-center font-sans text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
                 {r.caption}
               </figcaption>
-            </motion.figure>
+            </figure>
           ))}
         </div>
-
-        <p className="mt-12 text-center font-sans text-[11px] tracking-[0.1em] uppercase text-muted-foreground/70">
-          Genuine client results, taken in-clinic · Individual results may vary
-        </p>
       </div>
+
+      <p className="mt-12 text-center font-sans text-[11px] tracking-[0.1em] uppercase text-muted-foreground/70">
+        Genuine client results, taken in-clinic · Individual results may vary
+      </p>
+
+      <style>{`
+        @keyframes results-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(calc(-50% - 0.75rem)); }
+        }
+      `}</style>
     </section>
   );
 }
