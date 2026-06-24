@@ -44,7 +44,7 @@ export function Navbar() {
 
         <a href="/" className="flex-1 flex justify-center cursor-pointer select-none">
           <span className="font-serif text-2xl tracking-[0.25em] uppercase text-[#1A1A1A]">
-            Elysian
+            Elysian Paris
           </span>
         </a>
 

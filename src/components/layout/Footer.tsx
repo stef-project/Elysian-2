@@ -5,7 +5,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pb-12 border-b border-[#F7F5F2]/10">
           <div>
             <p className="font-serif text-2xl tracking-[0.2em] uppercase text-[#F7F5F2] mb-4">
-              Elysian
+              Elysian Paris
             </p>
             <p className="font-sans text-xs text-[#F7F5F2]/40 font-light leading-relaxed">
               London's private sanctuary for refined wellbeing and bespoke body treatments.
@@ -60,7 +60,7 @@ export function Footer() {
 
         <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-sans text-[11px] text-[#F7F5F2]/30 tracking-widest uppercase">
-            &copy; {new Date().getFullYear()} Elysian Institute. All rights reserved.
+            &copy; {new Date().getFullYear()} Elysian Paris. All rights reserved.
           </p>
           <div className="flex gap-8">
             {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((link) => (

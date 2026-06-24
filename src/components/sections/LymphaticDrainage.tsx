@@ -49,7 +49,7 @@ export function LymphaticDrainage() {
             Manual lymphatic drainage is a slow, rhythmic, hands-led massage that
             encourages the natural movement of lymph — the fluid that carries waste
             away from your tissues and supports your immune system. At Elysian
-            Institute, a private clinic in the heart of Kensington, Central London,
+            Paris, a private clinic in the heart of Kensington, Central London,
             every session is delivered by a certified practitioner and tailored to
             your body in real time.
           </p>
