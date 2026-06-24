@@ -1,24 +1,24 @@
 import { motion } from "framer-motion";
 import abdomen1 from "../../assets/result-abdomen-1.webp";
 import abdomen2 from "../../assets/result-abdomen-2.webp";
+import abdomen3 from "../../assets/result-abdomen-3.webp";
+import abdomen4 from "../../assets/result-abdomen-4.webp";
+import stomach from "../../assets/result-stomach.webp";
+import thighs from "../../assets/result-thighs.webp";
+import waist from "../../assets/result-waist.webp";
 import legs from "../../assets/result-legs.webp";
+import legs2 from "../../assets/result-legs-2.webp";
 
 const results = [
-  {
-    src: abdomen1,
-    caption: "Abdomen · immediate decongestion",
-    alt: "Abdominal lymphatic drainage before and after: decongestion and flatter stomach, Elysian Paris",
-  },
-  {
-    src: abdomen2,
-    caption: "Abdomen · sculpted & flatter",
-    alt: "Abdominal lymphatic drainage before and after: visibly sculpted and flatter stomach, Elysian Paris",
-  },
-  {
-    src: legs,
-    caption: "Legs · lighter & decongested",
-    alt: "Legs before and after lymphatic drainage: lighter and decongested, Elysian Paris, London",
-  },
+  { src: waist, caption: "Waist · sculpted contour", alt: "Waist lymphatic drainage before and after, sculpted contour, Elysian Paris London" },
+  { src: stomach, caption: "Stomach · flatter & smoother", alt: "Stomach lymphatic drainage before and after, flatter and smoother, Elysian Paris London" },
+  { src: thighs, caption: "Thighs · −3 cm in one session", alt: "Thigh lymphatic drainage before and after, minus 3 cm in one session, Elysian Paris London" },
+  { src: abdomen3, caption: "Lower abdomen · decongested", alt: "Lower abdomen lymphatic drainage before and after, decongested, Elysian Paris London" },
+  { src: legs2, caption: "Legs · lighter & sculpted", alt: "Legs lymphatic drainage before and after, lighter and sculpted, Elysian Paris London" },
+  { src: abdomen4, caption: "Abdomen · before & after", alt: "Abdominal lymphatic drainage before and after, Elysian Paris London" },
+  { src: abdomen1, caption: "Abdomen · immediate decongestion", alt: "Abdominal lymphatic drainage before and after, immediate decongestion, Elysian Paris London" },
+  { src: abdomen2, caption: "Abdomen · sculpted & flatter", alt: "Abdominal lymphatic drainage before and after, sculpted and flatter, Elysian Paris London" },
+  { src: legs, caption: "Legs · lighter & decongested", alt: "Legs before and after lymphatic drainage, lighter and decongested, Elysian Paris London" },
 ];
 
 // Duplicated so the band scrolls seamlessly
@@ -47,10 +47,10 @@ export function Results() {
 
       {/* Auto-scrolling band (pauses on hover) */}
       <div className="group relative">
-        <div className="flex w-max gap-6 animate-[results-marquee_38s_linear_infinite] group-hover:[animation-play-state:paused]">
+        <div className="flex w-max gap-6 animate-[results-marquee_60s_linear_infinite] group-hover:[animation-play-state:paused]">
           {track.map((r, i) => (
-            <figure key={i} className="shrink-0 w-[260px] md:w-[320px]">
-              <div className="h-[340px] md:h-[420px] overflow-hidden bg-[#1A1A1A]">
+            <figure key={i} className="shrink-0 w-[280px] md:w-[340px]">
+              <div className="w-full aspect-square overflow-hidden bg-[#1A1A1A]">
                 <img
                   src={r.src}
                   alt={r.alt}
