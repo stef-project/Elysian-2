@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 const benefits = [
   {
     title: "Reduces fluid retention",
-    body: "Eases puffiness and that heavy, swollen feeling — fluid moves and settles naturally.",
+    body: "Eases puffiness and that heavy, swollen feeling. Fluid moves and settles naturally.",
   },
   {
     title: "Supports post-surgery recovery",
@@ -15,7 +15,7 @@ const benefits = [
   },
   {
     title: "Calms and restores",
-    body: "A slow, deeply relaxing rhythm — many call it the most restful hour of their week.",
+    body: "A slow, deeply relaxing rhythm. Many call it the most restful hour of their week.",
   },
 ];
 
@@ -38,8 +38,8 @@ export function LymphaticDrainage() {
             <span className="italic">restore lightness, and recover well.</span>
           </h2>
           <p className="font-sans text-muted-foreground font-light leading-[1.9] mb-5">
-            A slow, hands-led massage that encourages the natural movement of lymph
-            — clearing waste and supporting your immune system. At our private
+            A slow, hands-led massage that encourages the natural movement of lymph,
+            clearing waste and supporting your immune system. At our private
             Kensington clinic, every session is tailored to your body in real time.
           </p>
         </motion.div>
@@ -71,7 +71,7 @@ export function LymphaticDrainage() {
         >
           <p className="font-sans text-muted-foreground font-light leading-[1.9]">
             Every treatment follows the signature <span className="italic text-[#1A1A1A]">Elysian
-            Paris Method®</span> — never templated, always calibrated to what your body
+            Paris Method®</span>, never templated, always calibrated to what your body
             shows. Lymphatic drainage is a wellness and recovery treatment, not a
             medical cure; if you live with a diagnosed condition such as lymphoedema,
             or you are{" "}

@@ -36,7 +36,7 @@ const faqs = [
   },
   {
     q: "Where are you located?",
-    a: "Our private studio is at 61 Kensington Church Street, London W8 4BA — in the heart of Kensington, Central London. By appointment only.",
+    a: "Our private studio is at 61 Kensington Church Street, London W8 4BA, in the heart of Kensington, Central London. By appointment only.",
   },
 ];
 
@@ -91,7 +91,7 @@ export default function AfterSurgery() {
             >
               Gentle, hands-led manual lymphatic drainage to help reduce swelling,
               ease discomfort and support a smoother recovery after cosmetic and
-              aesthetic surgery — delivered through The Elysian Paris Method® in a
+              aesthetic surgery, delivered through The Elysian Paris Method® in a
               private Kensington studio.
             </motion.p>
           </div>
@@ -111,7 +111,7 @@ export default function AfterSurgery() {
             </p>
             <p className="font-sans text-muted-foreground font-light leading-[1.9]">
               It is one of the most widely recommended forms of post-operative care
-              after procedures such as liposuction, BBL and tummy tucks — always begun
+              after procedures such as liposuction, BBL and tummy tucks, always begun
               once your surgeon has given clearance.
             </p>
           </div>
@@ -146,7 +146,7 @@ export default function AfterSurgery() {
             <ul className="space-y-5">
               {benefits.map((b) => (
                 <li key={b} className="flex gap-4 items-start">
-                  <span className="font-serif text-primary italic text-xl leading-none pt-1">—</span>
+                  <span className="font-serif text-primary italic text-xl leading-none pt-1">·</span>
                   <span className="font-sans text-muted-foreground font-light leading-[1.8]">{b}</span>
                 </li>
               ))}
@@ -163,7 +163,7 @@ export default function AfterSurgery() {
         <section className="py-24 bg-[#F7F5F2]">
           <div className="max-w-3xl mx-auto px-6">
             <h2 className="font-serif text-3xl md:text-4xl text-[#1A1A1A] font-light mb-12">
-              Post-surgery drainage — your questions
+              Post-surgery drainage: your questions
             </h2>
             <div className="divide-y divide-border">
               {faqs.map((f) => (

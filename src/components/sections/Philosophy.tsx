@@ -59,7 +59,7 @@ export function Philosophy() {
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg">
                 A private Kensington clinic for manual lymphatic drainage and
                 bespoke body contouring. Every session is tailored with precision
-                and discretion — nothing routine, everything intentional.
+                and discretion. Nothing routine, everything intentional.
               </p>
             </motion.div>
 
@@ -67,11 +67,11 @@ export function Philosophy() {
               {[
                 {
                   label: "The Elysian Paris Method®",
-                  body: "Our signature method merges manual lymphatic drainage with body contouring — the only approach of its kind in the UK.",
+                  body: "Our signature method merges manual lymphatic drainage with body contouring, the only approach of its kind in the UK.",
                 },
                 {
                   label: "Certified Practitioner",
-                  body: "Every treatment is delivered by a certified specialist — no shortcuts, no delegation, from first consultation to last.",
+                  body: "Every treatment is delivered by a certified specialist. No shortcuts, no delegation, from first consultation to last.",
                 },
                 {
                   label: "Total Discretion",

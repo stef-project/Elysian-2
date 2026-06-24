@@ -70,7 +70,7 @@ export function Footer() {
                 London, W8 4BA
               </p>
               <p className="font-sans text-xs text-[#F7F5F2]/50 font-light">
-                Mon–Sun · By appointment only
+                Mon to Sun · By appointment only
               </p>
               <a
                 href="mailto:info@elysian-institute.com"

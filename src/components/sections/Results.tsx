@@ -6,7 +6,7 @@ const results = [
   {
     src: abdomen,
     caption: "Abdomen · immediate decongestion",
-    alt: "Abdominal lymphatic drainage results — decongestion and flatter stomach, Elysian Paris",
+    alt: "Abdominal lymphatic drainage results: decongestion and flatter stomach, Elysian Paris",
   },
   {
     src: legs,

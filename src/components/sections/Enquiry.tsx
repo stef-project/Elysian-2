@@ -4,13 +4,13 @@ import { BOOKING_URL } from "../../lib/booking";
 
 const treatmentOptions = [
   { value: "", label: "Select a treatment" },
-  { value: "Lymphatic Drainage 1 Zone — £120", label: "Lymphatic Drainage 1 Zone — £120" },
-  { value: "Lymphatic Drainage 2 Zones — £240", label: "Lymphatic Drainage 2 Zones — £240" },
-  { value: "Maderotherapy — £80", label: "Maderotherapy — £80" },
-  { value: "Post-Operative Care — £80", label: "Post-Operative Care — £80" },
-  { value: "Prenatal & Postnatal Massage — £80", label: "Prenatal & Postnatal Massage — £80" },
-  { value: "Cavitation Fusion — £150", label: "Cavitation Fusion — £150" },
-  { value: "Not sure — please advise", label: "Not sure — please advise" },
+  { value: "Lymphatic Drainage 1 Zone · £120", label: "Lymphatic Drainage 1 Zone · £120" },
+  { value: "Lymphatic Drainage 2 Zones · £240", label: "Lymphatic Drainage 2 Zones · £240" },
+  { value: "Maderotherapy · £80", label: "Maderotherapy · £80" },
+  { value: "Post-Operative Care · £80", label: "Post-Operative Care · £80" },
+  { value: "Prenatal & Postnatal Massage · £80", label: "Prenatal & Postnatal Massage · £80" },
+  { value: "Cavitation Fusion · £150", label: "Cavitation Fusion · £150" },
+  { value: "Not sure, please advise", label: "Not sure, please advise" },
 ];
 
 export function Enquiry() {
@@ -71,7 +71,7 @@ export function Enquiry() {
               <div className="w-8 h-[1px] bg-primary mx-auto mb-8" />
               <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you.</p>
               <p className="font-sans text-muted-foreground font-light text-sm">
-                Your enquiry is ready in WhatsApp — just press send, and we will be
+                Your enquiry is ready in WhatsApp. Just press send, and we will be
                 in touch shortly.
               </p>
             </div>

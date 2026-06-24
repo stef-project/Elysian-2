@@ -43,14 +43,14 @@ const treatments = [
     price: "£80",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
-      "A gentle treatment designed to support the body after surgery. Specialist techniques encourage circulation, reduce swelling, and restore mobility — always respecting the pace of your recovery.",
+      "A gentle treatment designed to support the body after surgery. Specialist techniques encourage circulation, reduce swelling, and restore mobility, always respecting the pace of your recovery.",
     benefits: ["Accelerates recovery", "Relieves discomfort", "Softens scar tissue", "Enhances healing"],
   },
   {
     number: "05",
     name: "Prenatal & Postnatal Massage",
     subtitle: null,
-    duration: "45–60 min",
+    duration: "45 to 60 min",
     price: "£80",
     calendarUrl: "https://calendar.app.google/ZsAmpyZGnuiGTukW6",
     description:
@@ -109,7 +109,7 @@ export function Services() {
               transition={{ duration: 0.7, delay: i * 0.05 }}
               data-testid={`card-treatment-${i}`}
             >
-              {/* Row header — always visible, clickable to expand */}
+              {/* Row header, always visible, clickable to expand */}
               <button
                 className="w-full text-left py-8 grid grid-cols-12 gap-4 items-center group"
                 onClick={() => setExpanded(expanded === i ? null : i)}
@@ -124,7 +124,7 @@ export function Services() {
                   <h3 className="font-serif text-xl md:text-2xl text-[#1A1A1A] leading-tight">
                     {t.name}
                     {t.subtitle && (
-                      <span className="italic text-muted-foreground font-light"> — {t.subtitle}</span>
+                      <span className="italic text-muted-foreground font-light"> · {t.subtitle}</span>
                     )}
                   </h3>
                 </div>

@@ -17,11 +17,11 @@ const faqs = [
   },
   {
     q: "Is lymphatic drainage good after cosmetic surgery?",
-    a: "Yes — it is widely used after aesthetic and cosmetic procedures to help settle post-operative swelling and support healing. We recommend starting once your surgeon has given clearance.",
+    a: "Yes. It is widely used after aesthetic and cosmetic procedures to help settle post-operative swelling and support healing. We recommend starting once your surgeon has given clearance.",
   },
   {
     q: "Does lymphatic drainage hurt?",
-    a: "No. It is one of the gentlest treatments available — light, slow and rhythmic. Most clients find it deeply relaxing rather than uncomfortable.",
+    a: "No. It is one of the gentlest treatments available: light, slow and rhythmic. Most clients find it deeply relaxing rather than uncomfortable.",
   },
   {
     q: "How many sessions will I need?",
@@ -33,7 +33,7 @@ const faqs = [
   },
   {
     q: "Where is your lymphatic drainage clinic located?",
-    a: "Our private studio is at 61 Kensington Church Street, London W8 4BA — in the heart of Kensington, Central London. Treatments are by appointment only.",
+    a: "Our private studio is at 61 Kensington Church Street, London W8 4BA, in the heart of Kensington, Central London. Treatments are by appointment only.",
   },
   {
     q: "How do I book an appointment?",
