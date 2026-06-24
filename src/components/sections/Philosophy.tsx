@@ -33,7 +33,7 @@ export function Philosophy() {
             <div className="mt-6 flex items-center gap-4">
               <div className="w-6 h-[1px] bg-primary" />
               <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Certified Practitioner · Est. 2024
+                Certified Practitioner · Est. 2023
               </p>
             </div>
           </motion.div>
@@ -112,7 +112,7 @@ export function Philosophy() {
         >
           {[
             { value: "100%", label: "Client satisfaction" },
-            { value: "2024", label: "Established" },
+            { value: "2023", label: "Established" },
             { value: "6", label: "Signature treatments" },
             { value: "W8", label: "Kensington, London" },
           ].map((stat, i) => (
