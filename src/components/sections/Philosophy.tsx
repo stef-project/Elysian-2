@@ -33,7 +33,7 @@ export function Philosophy() {
             <div className="mt-6 flex items-center gap-4">
               <div className="w-6 h-[1px] bg-primary" />
               <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Manuela Shala · French-trained therapist
+                French-trained therapist · Est. 2023
               </p>
             </div>
           </motion.div>
