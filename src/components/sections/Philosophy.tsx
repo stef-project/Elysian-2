@@ -111,7 +111,7 @@ export function Philosophy() {
           className="mt-20 pt-12 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
         >
           {[
-            { value: "100%", label: "Client satisfaction" },
+            { value: "80%", label: "Clients by referral" },
             { value: "2023", label: "Established" },
             { value: "6", label: "Signature treatments" },
             { value: "W8", label: "Kensington, London" },
