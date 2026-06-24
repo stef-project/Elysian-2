@@ -6,7 +6,6 @@ const credentials = [
   "French Therapist Expert",
   "London · Paris · Dubai",
   "Immediate decongestion",
-  "Post-op recovery",
 ];
 
 export function Hero() {
