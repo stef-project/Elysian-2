@@ -1,4 +1,4 @@
-const WHATSAPP_URL = "https://wa.me/4407742091557?text=Hello%20I%20want%20to%20know%20more";
+const WHATSAPP_URL = "https://wa.me/447742091557?text=Hello%20I%20want%20to%20know%20more";
 const CALENDAR_URL = "https://calendar.app.google/Vdgk5XD1apxPp36U6";
 
 export function TopBar() {
