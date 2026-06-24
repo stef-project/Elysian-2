@@ -2,14 +2,24 @@ import { motion } from "framer-motion";
 
 const testimonials = [
   {
-    quote: "The results were immediate. My skin texture improved and I felt lighter after the first session. Truly elevated care.",
-    name: "Amelia Carter",
-    title: "Founder",
+    quote: "I had tried several treatments before, but with Elysian Paris the results were immediate. I felt lighter as soon as the session was over.",
+    name: "Kim",
+    title: "London",
   },
   {
-    quote: "A rare experience — entirely private, deeply effective, and handled with extraordinary attention to detail.",
-    name: "Samantha Miller",
-    title: "Digital Creator",
+    quote: "My legs constantly felt heavy and swollen. After every session, I notice a real difference and feel so much more comfortable.",
+    name: "Emma",
+    title: "Surrey",
+  },
+  {
+    quote: "The results are amazing, but what I appreciate most is the advice. I always leave with simple recommendations that genuinely make a difference.",
+    name: "A.",
+    title: "London",
+  },
+  {
+    quote: "I have been coming regularly for over three years and simply couldn't be without it. The results are consistent, and I always feel my best after each treatment.",
+    name: "Stella",
+    title: "London",
   },
 ];
 

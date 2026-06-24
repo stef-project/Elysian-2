@@ -71,8 +71,8 @@ export function Philosophy() {
             <div className="space-y-0 divide-y divide-border">
               {[
                 {
-                  label: "The Manuela Shala Method",
-                  body: "Our signature approach merges lymphatic drainage with advanced body sculpting techniques. Developed by a certified practitioner, crafted to sculpt, restore, and elevate — combining refined manual technique with medical-grade precision.",
+                  label: "The Elysian Paris Method®",
+                  body: "Our exclusive signature method — developed in-house over years of practice — merges manual lymphatic drainage with advanced body-contouring and holistic wellness. Crafted to sculpt, restore and elevate, it is the only approach of its kind in the UK.",
                 },
                 {
                   label: "Certified Practitioner",

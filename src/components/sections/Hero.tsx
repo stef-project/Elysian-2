@@ -40,9 +40,9 @@ export function Hero() {
           transition={{ duration: 1.2, delay: 0.9 }}
           className="font-sans text-base md:text-lg text-[#F7F5F2]/70 font-light max-w-xl mx-auto leading-relaxed mb-12"
         >
-          Your private Kensington sanctuary for manual lymphatic drainage and
-          bespoke body contouring in Central London. Restoring balance,
-          enhancing confidence, elevating wellbeing.
+          Home of The Elysian Paris Method® — a private Kensington sanctuary for
+          manual lymphatic drainage and bespoke body contouring, found nowhere
+          else in the UK. Restoring balance, enhancing confidence, elevating wellbeing.
         </motion.p>
 
         <motion.div

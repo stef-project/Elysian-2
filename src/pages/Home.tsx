@@ -3,6 +3,7 @@ import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Hero } from "../components/sections/Hero";
 import { Philosophy } from "../components/sections/Philosophy";
+import { Method } from "../components/sections/Method";
 import { Methodology } from "../components/sections/Methodology";
 import { LymphaticDrainage } from "../components/sections/LymphaticDrainage";
 import { Services } from "../components/sections/Services";
@@ -23,6 +24,7 @@ export default function Home() {
       <main>
         <Hero />
         <Philosophy />
+        <Method />
         <Methodology />
         <LymphaticDrainage />
         <Services />
