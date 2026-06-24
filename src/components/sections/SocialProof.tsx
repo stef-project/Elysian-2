@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 
 const proofPoints = [
+  { value: "★★★★★", label: "Five-star rated" },
   { value: "3+ years", label: "Of loyal returning clients" },
   { value: "Hundreds", label: "Of treatments performed" },
   { value: "London · Paris · Dubai", label: "Trusted by clients across" },
@@ -33,7 +34,7 @@ export function SocialProof() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="mt-16 pt-12 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-10 text-center"
+          className="mt-16 pt-12 border-t border-border grid grid-cols-2 lg:grid-cols-4 gap-10 text-center"
         >
           {proofPoints.map((p) => (
             <div key={p.value}>
