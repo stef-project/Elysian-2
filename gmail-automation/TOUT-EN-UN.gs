@@ -252,7 +252,7 @@ function modele_(cat, ctx) {
     corps = 'Dear ' + nom + ',\n\nThank you for your interest in Elysian Paris. '
       + 'Here is our current treatment menu:\n\n'
       + '• Lymphatic Drainage – 1 Zone (60 min): £120\n'
-      + '• Lymphatic Drainage – 2 Zones (90 min): £240\n'
+      + '• Lymphatic Drainage – 2 Zones (90 min): £220\n'
       + '• Maderotherapy (60 min): £80\n'
       + '• Post-Operative Care (60 min): £80\n'
       + '• Prenatal & Postnatal Massage (45–60 min): £80\n'

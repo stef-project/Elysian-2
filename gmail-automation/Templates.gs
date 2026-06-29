@@ -11,7 +11,7 @@
 // Grille tarifaire (reprise du site). Mets à jour ici si tes prix changent.
 const PRICE_LIST = [
   '• Lymphatic Drainage – 1 Zone (60 min): £120',
-  '• Lymphatic Drainage – 2 Zones (90 min): £240',
+  '• Lymphatic Drainage – 2 Zones (90 min): £220',
   '• Maderotherapy (60 min): £80',
   '• Post-Operative Care (60 min): £80',
   '• Prenatal & Postnatal Massage (45–60 min): £80',

@@ -103,12 +103,12 @@ export default function Legal() {
             <p>
               <strong className="text-foreground">Cancellations &amp; rescheduling.</strong> We
               kindly ask for at least <strong className="text-foreground">24 hours&rsquo; notice</strong>{" "}
-              to cancel or reschedule an appointment. Cancellations made with less than 24
-              hours&rsquo; notice, or appointments missed without notice (&ldquo;no-shows&rdquo;), may be
-              charged at up to 50% of the treatment price. Where a deposit has been taken to
-              secure a booking, it may be retained for late cancellations or no-shows. We
-              understand that emergencies happen — please contact us as early as you can and we
-              will always do our best to accommodate you.
+              to cancel or reschedule an appointment. Cancellations made with{" "}
+              <strong className="text-foreground">less than 24 hours&rsquo; notice</strong> are charged
+              at <strong className="text-foreground">50% of the treatment price</strong>. Missed
+              appointments (&ldquo;no-shows&rdquo;) are{" "}
+              <strong className="text-foreground">non-refundable</strong> and charged in full. Any
+              deposit paid is applied towards these charges.
             </p>
             <p>
               <strong className="text-foreground">Health &amp; suitability.</strong> Manual
