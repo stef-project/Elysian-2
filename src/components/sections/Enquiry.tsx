@@ -57,8 +57,6 @@ export function Enquiry() {
           <div className="mb-14">
             <a
               href={BOOKING_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               data-testid="button-book-consultation"
               className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-14 py-4 hover:bg-primary transition-colors duration-300"
             >

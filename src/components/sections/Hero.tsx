@@ -69,8 +69,6 @@ export function Hero() {
         >
           <a
             href={BOOKING_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             data-testid="button-reserve-hero"
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
           >

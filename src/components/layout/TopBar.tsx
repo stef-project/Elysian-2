@@ -1,5 +1,6 @@
+import { BOOKING_URL } from "../../lib/booking";
+
 const WHATSAPP_URL = "https://wa.me/447742091557?text=Hello%20I%20want%20to%20know%20more";
-const CALENDAR_URL = "https://calendar.app.google/Vdgk5XD1apxPp36U6";
 
 export function TopBar() {
   return (
@@ -10,9 +11,7 @@ export function TopBar() {
         </p>
         <div className="flex items-center gap-5 ml-auto">
           <a
-            href={CALENDAR_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={BOOKING_URL}
             data-testid="link-topbar-book"
             className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
           >

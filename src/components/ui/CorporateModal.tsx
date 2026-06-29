@@ -2,7 +2,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import l1Image from "../../assets/l1.webp";
 
-const CORPORATE_CALENDAR = "https://calendar.app.google/Vdgk5XD1apxPp36U6";
+import { BOOKING_URL } from "../../lib/booking";
+
 const GET_COMPANIES_URL = "https://www.elysian-institute.com/get-companies.php";
 
 export function CorporateModal() {
@@ -28,7 +29,7 @@ export function CorporateModal() {
         setName("");
         setId("");
         setOpen(false);
-        window.location.href = CORPORATE_CALENDAR;
+        window.location.href = BOOKING_URL;
       } else {
         setError("Invalid company name or ID");
         setName("");
