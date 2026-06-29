@@ -1,11 +1,15 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════╗
- * ║   ELYSIAN PARIS — Tri automatique des e-mails du site                ║
- * ║   👉 UN SEUL FICHIER. Copie-colle TOUT ça dans script.google.com.    ║
- * ║   Puis modifie UNIQUEMENT la zone "À REMPLIR" juste en dessous.       ║
+ * ║   ELYSIAN PARIS — Assistant de réponse aux e-mails                   ║
  * ║                                                                       ║
- * ║   🔒 Ce script NE PEUT PAS envoyer de mail tout seul.                 ║
- * ║      Il crée des BROUILLONS. Tu les relis et tu envoies à la main.   ║
+ * ║   👉 TU choisis les mails à traiter en leur mettant l'étiquette       ║
+ * ║      "Répondre-IA" dans Gmail. Le script prépare un BROUILLON.        ║
+ * ║                                                                       ║
+ * ║   🔒 Il NE PEUT PAS envoyer de mail tout seul. Il crée des            ║
+ * ║      BROUILLONS. Tu les relis et tu envoies à la main.               ║
+ * ║                                                                       ║
+ * ║   ✅ Comme c'est TOI qui mets l'étiquette, aucun risque de répondre   ║
+ * ║      par erreur à ClassPass, Stripe, Google ou aux invitations.      ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
 
@@ -15,16 +19,11 @@
 
 const REGLAGES = {
 
-  // 1) Comment reconnaître les mails de ton formulaire ?
-  //    Ouvre un VRAI mail reçu via ton site, regarde l'objet, et mets ici
-  //    un ou plusieurs mots qui apparaissent dans cet objet.
-  motsDansObjet: ['contact form', 'formulaire', 'enquiry', 'website'],
+  // 1) L'étiquette que TU poses dans Gmail sur les mails à traiter.
+  //    (Le script la crée tout seul la 1re fois. Ne la change pas après.)
+  labelARepondre: 'Répondre-IA',
 
-  //    (Optionnel) L'adresse qui envoie ces mails (le "De :").
-  //    Laisse '' si tu ne sais pas — les mots de l'objet suffisent.
-  adresseExpediteur: '',
-
-  // 2) Ton agenda Google
+  // 2) Ton agenda Google (pour proposer des créneaux de rendez-vous)
   heureDebut: 9,      // tu ouvres à 9h
   heureFin: 18,       // tu fermes à 18h
   joursTravailles: [1, 2, 3, 4, 5, 6],  // 1=lundi ... 7=dimanche
@@ -34,7 +33,7 @@ const REGLAGES = {
   signature: [
     'Warm regards,',
     'Stéphanie',
-    'Elysian Paris — Manual Lymphatic Drainage',
+    'Elysian Paris — Lymphatic Drainage',
     'Kensington, London',
     'WhatsApp: 07742 091557 (+44 7742 091557)',
     'www.elysian-institute.com',
@@ -54,35 +53,42 @@ const REGLAGES = {
  *  ▶️ FONCTIONS À LANCER (depuis le menu en haut de script.google.com)
  * ────────────────────────────────────────────────────────────────────── */
 
-// 🧪 TEST 1 — Montre les mails détectés. Ne crée RIEN, n'envoie RIEN.
+// 🏷️ À LANCER 1 FOIS — crée l'étiquette "Répondre-IA" dans ton Gmail.
+function _0_creer_letiquette() {
+  ensureLabel_(REGLAGES.labelARepondre);
+  Logger.log('✅ Étiquette "' + REGLAGES.labelARepondre + '" prête dans Gmail. '
+    + 'Mets-la sur les mails à traiter, puis lance _3_creer_les_brouillons.');
+}
+
+// 🧪 TEST — Montre les mails étiquetés. Ne crée RIEN, n'envoie RIEN.
 function _1_tester_detection() {
   const fils = trouverMails_();
   Logger.log('=== TEST — rien n\'est créé ni envoyé ===');
-  Logger.log(fils.length + ' mail(s) détecté(s).');
+  Logger.log(fils.length + ' mail(s) avec l\'étiquette "' + REGLAGES.labelARepondre + '".');
   fils.forEach(function (fil, i) {
-    const m = fil.getMessages()[0];
+    const m = dernierMessage_(fil);
     Logger.log((i + 1) + ') [' + classer_(m.getSubject(), m.getPlainBody()) +
                '] ' + m.getSubject() + '  — de ' + m.getFrom());
   });
 }
 
-// 🧪 TEST 2 — Montre les créneaux libres qui seraient proposés.
+// 🧪 TEST — Montre les créneaux libres qui seraient proposés.
 function _2_tester_agenda() {
   Logger.log('Créneaux proposés :\n' + (formaterCreneaux_(creneauxLibres_()) || '(aucun)'));
 }
 
-// ✅ ÉTAPE 3 — Crée les BROUILLONS de réponse + pose les labels.
+// ✅ Crée les BROUILLONS de réponse pour les mails étiquetés.
 function _3_creer_les_brouillons() {
   traiterBoite_();
 }
 
-// 🔁 ÉTAPE 4 — Lance l'automatisation (toutes les 15 min). À faire UNE fois.
+// 🔁 Lance l'automatisation (toutes les 15 min). À faire UNE fois.
 function _4_activer_automatique() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'traiterBoite_') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('traiterBoite_').timeBased().everyMinutes(15).create();
-  Logger.log('✅ C\'est activé. Le script tournera tout seul toutes les 15 min.');
+  Logger.log('✅ C\'est activé. Le script vérifie tout seul toutes les 15 min.');
 }
 
 // 🛑 Pour ARRÊTER l'automatisation.
@@ -109,15 +115,13 @@ const LABELS_CAT = {
 
 function traiterBoite_() {
   const labelTraite = label_(LABEL_TRAITE);
+  const labelTodo = label_(REGLAGES.labelARepondre);
   const fils = trouverMails_();
-  Logger.log(fils.length + ' mail(s) à examiner.');
+  Logger.log(fils.length + ' mail(s) à traiter.');
 
-  fils.slice(0, 10).forEach(function (fil) {
-    const noms = fil.getLabels().map(function (l) { return l.getName(); });
-    if (noms.indexOf(LABEL_TRAITE) !== -1) return; // déjà traité
-
+  fils.slice(0, 15).forEach(function (fil) {
     try {
-      const m = fil.getMessages()[0];
+      const m = dernierMessage_(fil);
       const cat = classer_(m.getSubject(), m.getPlainBody());
       const ctx = { nom: prenom_(m.getPlainBody(), m.getFrom()), creneaux: '' };
 
@@ -127,11 +131,12 @@ function traiterBoite_() {
       }
 
       const texte = modele_(cat, ctx);
-      if (REGLAGES.mode === 'envoi') { fil.reply(texte); Logger.log('✉️ Envoyé.'); }
+      if (REGLAGES.mode === 'envoi') { fil.reply(texte); Logger.log('✉️ Envoyé : ' + cat); }
       else { fil.createDraftReply(texte); Logger.log('📝 Brouillon créé : ' + cat); }
 
       if (LABELS_CAT[cat]) fil.addLabel(label_(LABELS_CAT[cat]));
       fil.addLabel(labelTraite);
+      fil.removeLabel(labelTodo);   // retire "Répondre-IA" -> c'est fait
     } catch (err) {
       Logger.log('Erreur : ' + err);
     }
@@ -139,15 +144,16 @@ function traiterBoite_() {
 }
 
 function trouverMails_() {
-  const crit = [];
-  if (REGLAGES.adresseExpediteur) crit.push('from:(' + REGLAGES.adresseExpediteur + ')');
-  REGLAGES.motsDansObjet.forEach(function (mot) {
-    if (mot) crit.push('subject:(' + JSON.stringify(mot) + ')');
-  });
-  if (!crit.length) throw new Error('Remplis "motsDansObjet" dans les REGLAGES.');
-  const q = '(' + crit.join(' OR ') + ') -label:"' + LABEL_TRAITE + '" newer_than:30d';
+  ensureLabel_(REGLAGES.labelARepondre);
+  const q = 'label:"' + REGLAGES.labelARepondre + '" -label:"' + LABEL_TRAITE + '"';
   Logger.log('Recherche Gmail : ' + q);
   return GmailApp.search(q, 0, 50);
+}
+
+// Dernier message du fil = le message le plus récent (la demande du client).
+function dernierMessage_(fil) {
+  const msgs = fil.getMessages();
+  return msgs[msgs.length - 1];
 }
 
 function classer_(objet, corps) {
@@ -207,6 +213,8 @@ function formaterCreneaux_(creneaux) {
     return '• ' + j + ', ' + a + '–' + b;
   }).join('\n');
 }
+
+function ensureLabel_(nom) { return label_(nom); }
 
 function label_(nom) {
   return GmailApp.getUserLabelByName(nom) || GmailApp.createLabel(nom);
