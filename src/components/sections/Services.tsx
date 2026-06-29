@@ -114,6 +114,7 @@ export function Services() {
                 className="w-full text-left py-8 grid grid-cols-12 gap-4 items-center group"
                 onClick={() => setExpanded(expanded === i ? null : i)}
                 aria-expanded={expanded === i}
+                aria-label={`${expanded === i ? "Collapse" : "Expand"} details for ${t.name}${t.subtitle ? " " + t.subtitle : ""}`}
               >
                 <div className="col-span-1 hidden md:block">
                   <span className="font-sans text-[11px] tracking-[0.15em] text-muted-foreground/50">

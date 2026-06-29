@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import logo from "../../assets/logo-dark.png";
+import { BOOKING_URL } from "../../lib/booking";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -53,9 +54,7 @@ export function Navbar() {
 
         <div className="flex-1 flex justify-end items-center">
           <a
-            href="https://calendar.app.google/Vdgk5XD1apxPp36U6"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={BOOKING_URL}
             data-testid="link-book-now"
             className="text-[11px] font-sans font-light tracking-[0.18em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-6 py-2.5 hover:bg-[#BF944A] transition-colors duration-300"
           >

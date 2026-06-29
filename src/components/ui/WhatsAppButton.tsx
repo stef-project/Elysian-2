@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-
-const WHATSAPP_URL = "https://wa.me/447742091557?text=Hello%20I%20want%20to%20know%20more";
+import { WHATSAPP_URL } from "../../lib/booking";
 
 export function WhatsAppButton() {
   return (

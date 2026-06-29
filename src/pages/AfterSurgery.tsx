@@ -3,7 +3,8 @@ import { TopBar } from "../components/layout/TopBar";
 import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 
-const BOOK_URL = "https://calendar.app.google/Vdgk5XD1apxPp36U6";
+// Lien de réservation du soin « Post-Operative Care » (page dédiée au post-opératoire).
+const BOOK_URL = "https://calendar.app.google/B9JEmHdYKT9i5AbbA";
 
 const procedures = [
   { title: "Liposuction & Lipo 360", body: "Support for the swelling and fluid that follow liposuction and 360 contouring." },

@@ -40,7 +40,7 @@ export function CookieConsent() {
           <h3 className="font-serif text-lg text-[#1A1A1A] mb-2">We Value Your Privacy</h3>
           <p className="font-sans text-xs text-muted-foreground font-light leading-relaxed mb-5">
             We use cookies to ensure you get the best experience on our website.{" "}
-            <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
+            <a href="/cookie-policy" className="text-primary hover:underline">Cookie Policy</a>.
           </p>
           <div className="flex gap-3">
             <button
