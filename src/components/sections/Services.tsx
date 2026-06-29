@@ -18,7 +18,7 @@ const treatments = [
     name: "Lymphatic Drainage",
     subtitle: "2 Zones",
     duration: "90 min",
-    price: "£240",
+    price: "£220",
     calendarUrl: "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ03Mt0KA7xJm4fp59G8i-8132VCCEBaNf6tAUbZ6cf-aHA0WGCe-2eHo1Aq4U4l4c-ezs2igFpq",
     description:
       "Focusing on the legs and abdominal area, including the sides of the back. Delivers immediate lightness, improved contour, and lasting wellness benefits where fluid retention most often accumulates.",

@@ -101,9 +101,14 @@ export default function Legal() {
               Please arrive on time; late arrivals may result in a shortened session.
             </p>
             <p>
-              <strong className="text-foreground">Cancellations.</strong> We kindly ask for at
-              least 24 hours&rsquo; notice to cancel or reschedule. [Indique ici ta politique
-              d&rsquo;annulation et tout acompte applicable.]
+              <strong className="text-foreground">Cancellations &amp; rescheduling.</strong> We
+              kindly ask for at least <strong className="text-foreground">24 hours&rsquo; notice</strong>{" "}
+              to cancel or reschedule an appointment. Cancellations made with{" "}
+              <strong className="text-foreground">less than 24 hours&rsquo; notice</strong> are charged
+              at <strong className="text-foreground">50% of the treatment price</strong>. Missed
+              appointments (&ldquo;no-shows&rdquo;) are{" "}
+              <strong className="text-foreground">non-refundable</strong> and charged in full. Any
+              deposit paid is applied towards these charges.
             </p>
             <p>
               <strong className="text-foreground">Health &amp; suitability.</strong> Manual

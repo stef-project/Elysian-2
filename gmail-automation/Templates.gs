@@ -8,6 +8,25 @@
  *  {{slots}} -> liste des créneaux (catégorie "appointment" uniquement)
  */
 
+// Grille tarifaire (reprise du site). Mets à jour ici si tes prix changent.
+const PRICE_LIST = [
+  '• Lymphatic Drainage – 1 Zone (60 min): £120',
+  '• Lymphatic Drainage – 2 Zones (90 min): £220',
+  '• Maderotherapy (60 min): £80',
+  '• Post-Operative Care (60 min): £80',
+  '• Prenatal & Postnatal Massage (45–60 min): £80',
+  '• Cavitation Fusion (90 min): £150',
+].join('\n');
+
+// Courtes descriptions des soins.
+const SERVICES_LIST = [
+  '• Lymphatic Drainage — stimulates the lymphatic system, reduces swelling and restores balance (1 or 2 zones).',
+  '• Maderotherapy — sculpting wood-tool massage that boosts circulation and refines body contour.',
+  '• Post-Operative Care — gentle, specialist drainage to support recovery and reduce swelling after surgery.',
+  '• Prenatal & Postnatal Massage — tailored treatment to relieve tension and swelling during and after pregnancy.',
+  '• Cavitation Fusion — non-invasive body contouring combining ultrasound cavitation with lymphatic drainage.',
+].join('\n');
+
 function buildDraftBody(category, ctx) {
   const name = ctx.name || 'there';
   const slots = ctx.slots || '';
@@ -35,9 +54,8 @@ function buildDraftBody(category, ctx) {
       body =
         'Dear ' + name + ',\n\n' +
         'Thank you for your interest in Elysian Paris. ' +
-        'I would be happy to share details of our treatments and pricing.\n\n' +
-        '[À COMPLÉTER : insère ici ta grille tarifaire ou un lien vers la page ' +
-        'tarifs.] \n\n' +
+        'Here is our current treatment menu:\n\n' +
+        PRICE_LIST + '\n\n' +
         'If you let me know which treatment you have in mind, I can give you a ' +
         'precise quote and recommend the most suitable option.';
       break;
@@ -48,7 +66,7 @@ function buildDraftBody(category, ctx) {
         'Thank you for your message. At Elysian Paris we specialise in The ' +
         'Elysian Paris Method® — manual lymphatic drainage and bespoke body ' +
         'contouring, including post-surgery and prenatal care.\n\n' +
-        '[À COMPLÉTER : décris brièvement le soin qui correspond à sa demande.]\n\n' +
+        'Our treatments:\n\n' + SERVICES_LIST + '\n\n' +
         'I would be glad to answer any further questions and help you choose ' +
         'the treatment best suited to your needs.';
       break;
@@ -70,7 +88,8 @@ function buildDraftBody(category, ctx) {
         'Thank you for your message — it is much appreciated. ' +
         'I have received your enquiry and will get back to you very shortly ' +
         'with a personal reply.\n\n' +
-        '[À COMPLÉTER : réponds ici au point précis soulevé par la personne.]';
+        'In the meantime, please feel free to share any further details that ' +
+        'would help me assist you.';
       break;
   }
 

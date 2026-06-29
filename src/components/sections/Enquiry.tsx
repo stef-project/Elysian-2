@@ -5,7 +5,7 @@ import { BOOKING_URL, EMAIL, whatsappWith, mailtoWith } from "../../lib/booking"
 const treatmentOptions = [
   { value: "", label: "Select a treatment" },
   { value: "Lymphatic Drainage 1 Zone · £120", label: "Lymphatic Drainage 1 Zone · £120" },
-  { value: "Lymphatic Drainage 2 Zones · £240", label: "Lymphatic Drainage 2 Zones · £240" },
+  { value: "Lymphatic Drainage 2 Zones · £220", label: "Lymphatic Drainage 2 Zones · £220" },
   { value: "Maderotherapy · £80", label: "Maderotherapy · £80" },
   { value: "Post-Operative Care · £80", label: "Post-Operative Care · £80" },
   { value: "Prenatal & Postnatal Massage · £80", label: "Prenatal & Postnatal Massage · £80" },

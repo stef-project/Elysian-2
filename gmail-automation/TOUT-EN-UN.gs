@@ -232,7 +232,7 @@ function cap_(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 /* ──────────────────────────────────────────────────────────────────────
  *  MODÈLES DE RÉPONSE  —  change librement les textes entre guillemets.
- *  Les [À COMPLÉTER] sont à remplacer par TES infos (tarifs, soins...).
+ *  Les tarifs et descriptions sont déjà pré-remplis (mets-les à jour si besoin).
  * ────────────────────────────────────────────────────────────────────── */
 
 function modele_(cat, ctx) {
@@ -250,14 +250,23 @@ function modele_(cat, ctx) {
       + '\n\nIf you have had a recent surgery or any specific condition, feel free to mention it.';
   } else if (cat === 'prix') {
     corps = 'Dear ' + nom + ',\n\nThank you for your interest in Elysian Paris. '
-      + 'I would be happy to share details of our treatments and pricing.\n\n'
-      + '[À COMPLÉTER : ta grille tarifaire ou un lien vers la page tarifs.]\n\n'
+      + 'Here is our current treatment menu:\n\n'
+      + '• Lymphatic Drainage – 1 Zone (60 min): £120\n'
+      + '• Lymphatic Drainage – 2 Zones (90 min): £220\n'
+      + '• Maderotherapy (60 min): £80\n'
+      + '• Post-Operative Care (60 min): £80\n'
+      + '• Prenatal & Postnatal Massage (45–60 min): £80\n'
+      + '• Cavitation Fusion (90 min): £150\n\n'
       + 'If you let me know which treatment you have in mind, I can give you a precise quote.';
   } else if (cat === 'services') {
     corps = 'Dear ' + nom + ',\n\nThank you for your message. At Elysian Paris we specialise in '
       + 'The Elysian Paris Method® — manual lymphatic drainage and bespoke body contouring, '
-      + 'including post-surgery and prenatal care.\n\n'
-      + '[À COMPLÉTER : décris le soin qui correspond à sa demande.]\n\n'
+      + 'including post-surgery and prenatal care.\n\nOur treatments:\n\n'
+      + '• Lymphatic Drainage — reduces swelling and restores balance (1 or 2 zones).\n'
+      + '• Maderotherapy — sculpting wood-tool massage to refine body contour.\n'
+      + '• Post-Operative Care — gentle drainage to support recovery after surgery.\n'
+      + '• Prenatal & Postnatal Massage — relieves tension and swelling during and after pregnancy.\n'
+      + '• Cavitation Fusion — non-invasive body contouring with lymphatic drainage.\n\n'
       + 'I would be glad to help you choose the treatment best suited to your needs.';
   } else if (cat === 'collaboration') {
     corps = 'Dear ' + nom + ',\n\nThank you very much for getting in touch and for your interest '
@@ -266,7 +275,7 @@ function modele_(cat, ctx) {
   } else {
     corps = 'Dear ' + nom + ',\n\nThank you for your message. I have received your enquiry and '
       + 'will get back to you very shortly with a personal reply.\n\n'
-      + '[À COMPLÉTER : réponds au point précis soulevé par la personne.]';
+      + 'In the meantime, please feel free to share any further details that would help me assist you.';
   }
 
   return corps + '\n\n' + REGLAGES.signature;

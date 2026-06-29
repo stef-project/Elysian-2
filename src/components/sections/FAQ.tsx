@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     q: "How much does lymphatic drainage cost in London?",
-    a: "At Elysian Paris, manual lymphatic drainage starts at £120 for one zone (legs or abdomen) and £240 for two zones.",
+    a: "At Elysian Paris, manual lymphatic drainage starts at £120 for one zone (legs or abdomen) and £220 for two zones.",
   },
   {
     q: "Where is your lymphatic drainage clinic located?",
