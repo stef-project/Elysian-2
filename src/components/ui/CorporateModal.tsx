@@ -62,7 +62,9 @@ export function CorporateModal() {
           <div className="aspect-[21/6] overflow-hidden relative">
             <img
               src={l1Image}
-              alt="Corporate Session"
+              alt="Corporate wellness session at Elysian Paris, Kensington"
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-[#1A1A1A]/50 group-hover:bg-[#1A1A1A]/60 transition-colors duration-300" />
@@ -101,6 +103,9 @@ export function CorporateModal() {
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className="bg-[#FEFDFB] w-full max-w-md p-8"
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Company verification for corporate booking"
             >
               <div className="w-8 h-[1px] bg-primary mb-6" />
               <h2 className="font-serif text-2xl text-[#1A1A1A] mb-2">

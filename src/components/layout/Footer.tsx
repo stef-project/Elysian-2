@@ -87,13 +87,17 @@ export function Footer() {
             &copy; {new Date().getFullYear()} Elysian Paris. All rights reserved.
           </p>
           <div className="flex gap-8">
-            {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((link) => (
+            {[
+              { label: "Privacy Policy", href: "/privacy" },
+              { label: "Terms of Service", href: "/terms" },
+              { label: "Cookie Policy", href: "/cookie-policy" },
+            ].map((link) => (
               <a
-                key={link}
-                href="#"
+                key={link.label}
+                href={link.href}
                 className="font-sans text-[11px] text-[#F7F5F2]/30 hover:text-[#F7F5F2]/60 tracking-widest uppercase transition-colors duration-300"
               >
-                {link}
+                {link.label}
               </a>
             ))}
           </div>

@@ -18,10 +18,16 @@ import { CookieConsent } from "../components/ui/CookieConsent";
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-3 focus:left-3 focus:bg-[#1A1A1A] focus:text-[#F7F5F2] focus:px-5 focus:py-2.5 focus:text-xs focus:tracking-[0.15em] focus:uppercase"
+      >
+        Skip to content
+      </a>
       <TopBar />
       <Navbar />
 
-      <main>
+      <main id="main-content">
         <Hero />
         <Philosophy />
         <Method />

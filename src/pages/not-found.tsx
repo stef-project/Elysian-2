@@ -1,21 +1,25 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
-
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground font-sans px-6">
+      <div className="text-center max-w-md">
+        <div className="w-8 h-[1px] bg-primary mx-auto mb-8" />
+        <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4">
+          Page not found
+        </p>
+        <h1 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light mb-5">
+          We couldn&rsquo;t find that page
+        </h1>
+        <p className="font-sans text-sm text-muted-foreground font-light leading-relaxed mb-10">
+          The page you are looking for may have moved or no longer exists.
+          Let us guide you back.
+        </p>
+        <a
+          href="/"
+          className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-12 py-4 hover:bg-primary transition-colors duration-300"
+        >
+          Return Home
+        </a>
+      </div>
     </div>
   );
 }
