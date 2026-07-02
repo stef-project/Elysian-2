@@ -68,7 +68,7 @@ export function Philosophy() {
             <div className="space-y-0 divide-y divide-border">
               {[
                 {
-                  label: "The Elysian Paris Method®",
+                  label: "The Elysian Paris Method™",
                   body: "Our signature method merges manual lymphatic drainage with body contouring, the only approach of its kind in the UK.",
                 },
                 {

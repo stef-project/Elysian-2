@@ -9,6 +9,8 @@
     "serve": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/inter": "^5.2.8",
     "@radix-ui/react-accordion": "^1.2.14",
     "@radix-ui/react-alert-dialog": "^1.1.17",
     "@radix-ui/react-aspect-ratio": "^1.1.10",

@@ -10,7 +10,7 @@ const treatments = [
     price: "£120",
     calendarUrl: "https://calendar.app.google/Ev8ZV3UJwHgaE8uE9",
     description:
-      "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of The Elysian Paris Method®.",
+      "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of The Elysian Paris Method™.",
     benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-surgery recovery"],
   },
   {

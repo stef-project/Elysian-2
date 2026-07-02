@@ -78,7 +78,7 @@ export function Quotes() {
           {[
             { value: "★★★★★", label: "Client rating" },
             { value: "3 yrs+", label: "Of loyal clients" },
-            { value: "1 of 1", label: "Method® in the UK" },
+            { value: "1 of 1", label: "Method™ in the UK" },
           ].map((s, i) => (
             <div key={i}>
               <p className="font-serif text-3xl text-[#BF944A] mb-2">{s.value}</p>

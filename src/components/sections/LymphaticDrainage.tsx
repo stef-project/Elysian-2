@@ -71,7 +71,7 @@ export function LymphaticDrainage() {
         >
           <p className="font-sans text-muted-foreground font-light leading-[1.9]">
             Every treatment follows the signature <span className="italic text-[#1A1A1A]">Elysian
-            Paris Method®</span>, never templated, always calibrated to what your body
+            Paris Method™</span>, never templated, always calibrated to what your body
             shows. Lymphatic drainage is a wellness and recovery treatment, not a
             medical cure; if you live with a diagnosed condition such as lymphoedema,
             or you are{" "}

@@ -92,7 +92,7 @@ export default function AfterSurgery() {
             >
               Gentle, hands-led manual lymphatic drainage to help reduce swelling,
               ease discomfort and support a smoother recovery after cosmetic and
-              aesthetic surgery, delivered through The Elysian Paris Method® in a
+              aesthetic surgery, delivered through The Elysian Paris Method™ in a
               private Kensington studio.
             </motion.p>
           </div>
