@@ -2,13 +2,20 @@ import { useEffect } from "react";
 import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
-import { EMAIL, ADDRESS } from "../lib/booking";
+import {
+  EMAIL,
+  ADDRESS,
+  COMPANY_LEGAL_NAME,
+  COMPANY_NUMBER,
+  COMPANY_JURISDICTION,
+  COMPANY_REGISTERED_OFFICE,
+} from "../lib/booking";
 
 // NOTE (interne) : contenu rédigé comme base raisonnable et conforme à l'esprit
-// du UK GDPR. Fais-le relire par un professionnel et complète les éléments entre
-// crochets (n° d'enregistrement société, etc.) avant publication définitive.
+// du UK GDPR et des Trading Disclosures Regulations 2015. Fais-le relire par
+// un professionnel avant toute évolution substantielle.
 
-const LAST_UPDATED = "June 2026";
+const LAST_UPDATED = "July 2026";
 
 export default function Legal() {
   // Défile vers la section visée (#privacy / #terms / #cookies) à l'arrivée.
@@ -37,6 +44,30 @@ export default function Legal() {
         <p className="font-sans text-sm text-muted-foreground font-light mb-14">
           Last updated: {LAST_UPDATED}
         </p>
+
+        {/* COMPANY INFORMATION */}
+        <section id="company" className="mb-16 scroll-mt-28">
+          <h2 className="font-serif text-2xl text-[#1A1A1A] mb-5">Company Information</h2>
+          <div className="space-y-4 font-sans text-sm text-muted-foreground font-light leading-[1.9]">
+            <p>
+              &ldquo;Elysian Paris&rdquo; is the trading name of{" "}
+              <strong className="text-foreground">{COMPANY_LEGAL_NAME}</strong>, a company
+              registered in {COMPANY_JURISDICTION} under company number{" "}
+              <strong className="text-foreground">{COMPANY_NUMBER}</strong>.
+            </p>
+            <p>
+              <strong className="text-foreground">Registered office:</strong>{" "}
+              {COMPANY_REGISTERED_OFFICE}.
+            </p>
+            <p>
+              <strong className="text-foreground">Trading address:</strong> {ADDRESS}.
+            </p>
+            <p>
+              <strong className="text-foreground">Contact:</strong>{" "}
+              <a href={`mailto:${EMAIL}`} className="text-primary hover:underline">{EMAIL}</a>.
+            </p>
+          </div>
+        </section>
 
         {/* PRIVACY POLICY */}
         <section id="privacy" className="mb-16 scroll-mt-28">
@@ -81,8 +112,9 @@ export default function Legal() {
               You may also complain to the UK Information Commissioner&rsquo;s Office (ico.org.uk).
             </p>
             <p>
-              <strong className="text-foreground">Contact.</strong> Elysian Paris, {ADDRESS}.
-              Email: <a href={`mailto:${EMAIL}`} className="text-primary hover:underline">{EMAIL}</a>.
+              <strong className="text-foreground">Contact.</strong> {COMPANY_LEGAL_NAME}, trading
+              as Elysian Paris, {ADDRESS}. Email:{" "}
+              <a href={`mailto:${EMAIL}`} className="text-primary hover:underline">{EMAIL}</a>.
             </p>
           </div>
         </section>
@@ -146,9 +178,9 @@ export default function Legal() {
               again on every visit. This stays on your device and is not shared.
             </p>
             <p>
-              <strong className="text-foreground">Fonts.</strong> We load typefaces from Google
-              Fonts to display the site. You can clear this site&rsquo;s storage at any time in
-              your browser settings.
+              <strong className="text-foreground">Fonts.</strong> Our typefaces are hosted on our
+              own server, not Google&rsquo;s, so no font request is sent to a third party. You can
+              clear this site&rsquo;s storage at any time in your browser settings.
             </p>
           </div>
         </section>
