@@ -10,6 +10,15 @@ export const PHONE_DISPLAY = "07742 091557";
 export const EMAIL = "info@elysian-institute.com";
 export const ADDRESS = "61 Kensington Church Street, London W8 4BA";
 
+// Identité légale de la société (mentions légales — Companies Act 2006 /
+// Trading Disclosures Regulations 2015). "Elysian Paris" est le nom
+// commercial ; ceci est l'entité juridique qui l'exploite.
+export const COMPANY_LEGAL_NAME = "ELYSIAN-PARIS LTD";
+export const COMPANY_NUMBER = "15631370";
+export const COMPANY_JURISDICTION = "England and Wales";
+export const COMPANY_REGISTERED_OFFICE =
+  "61 Kensington Church Street, Saachi Wellness, London, England, W8 4BA";
+
 // WhatsApp (message pré-rempli par défaut)
 export const WHATSAPP_URL =
   `https://wa.me/${PHONE_E164}?text=Hello%20I%20want%20to%20know%20more`;
