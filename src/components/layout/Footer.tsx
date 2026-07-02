@@ -1,10 +1,3 @@
-import {
-  COMPANY_LEGAL_NAME,
-  COMPANY_NUMBER,
-  COMPANY_JURISDICTION,
-  COMPANY_REGISTERED_OFFICE,
-} from "../../lib/booking";
-
 export function Footer() {
   return (
     <footer className="bg-[#1A1A1A] py-16">
@@ -109,12 +102,6 @@ export function Footer() {
             ))}
           </div>
         </div>
-
-        <p className="mt-6 font-sans text-[10px] text-[#F7F5F2]/20 tracking-wide">
-          Elysian Paris is a trading name of {COMPANY_LEGAL_NAME}, a company registered in{" "}
-          {COMPANY_JURISDICTION}, company no. {COMPANY_NUMBER}. Registered office:{" "}
-          {COMPANY_REGISTERED_OFFICE}.
-        </p>
       </div>
     </footer>
   );
