@@ -38,7 +38,7 @@ export function Hero() {
           className="font-serif text-4xl md:text-6xl lg:text-[80px] text-[#F7F5F2] font-light leading-[1.05] tracking-tight mb-6"
         >
           The Home of The<br />
-          <span className="italic text-[#E2CAA2]">Elysian Paris Method®</span>
+          <span className="italic text-[#E2CAA2]">Elysian Paris Method™</span>
         </motion.h1>
 
         <motion.p

@@ -35,7 +35,7 @@ export function Method() {
           </p>
           <h2 className="font-serif text-4xl md:text-6xl text-[#F7F5F2] font-light leading-[1.05] mb-8">
             The Elysian Paris<br />
-            <span className="italic text-[#E2CAA2]">Method®.</span>
+            <span className="italic text-[#E2CAA2]">Method™.</span>
           </h2>
           <div className="w-12 h-[1px] bg-[#BF944A] mb-8" />
           <p className="font-sans text-lg text-[#F7F5F2]/80 font-light leading-[1.9] mb-5">
@@ -46,7 +46,7 @@ export function Method() {
           <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9]">
             Our founder trained in the renowned <span className="italic text-[#F7F5F2]/80">Manuela
             Shala</span> technique, then adapted it with her own expertise into the
-            Elysian Paris Method®, a method entirely her own.
+            Elysian Paris Method™, a method entirely her own.
           </p>
         </motion.div>
 

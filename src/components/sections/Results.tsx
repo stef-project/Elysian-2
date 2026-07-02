@@ -9,14 +9,14 @@ import legs from "../../assets/result-legs.webp";
 import legs2 from "../../assets/result-legs-2.webp";
 
 const results = [
-  { src: waist, caption: "Waist · sculpted contour", alt: "Waist lymphatic drainage before and after, sculpted contour, Elysian Paris London" },
-  { src: stomach, caption: "Stomach · flatter & smoother", alt: "Stomach lymphatic drainage before and after, flatter and smoother, Elysian Paris London" },
-  { src: thighs, caption: "Thighs · −3 cm in one session", alt: "Thigh lymphatic drainage before and after, minus 3 cm in one session, Elysian Paris London" },
-  { src: legs2, caption: "Legs · lighter & sculpted", alt: "Legs lymphatic drainage before and after, lighter and sculpted, Elysian Paris London" },
-  { src: abdomen4, caption: "Abdomen · before & after", alt: "Abdominal lymphatic drainage before and after, Elysian Paris London" },
-  { src: abdomen1, caption: "Abdomen · immediate decongestion", alt: "Abdominal lymphatic drainage before and after, immediate decongestion, Elysian Paris London" },
-  { src: abdomen2, caption: "Abdomen · sculpted & flatter", alt: "Abdominal lymphatic drainage before and after, sculpted and flatter, Elysian Paris London" },
-  { src: legs, caption: "Legs · lighter & decongested", alt: "Legs before and after lymphatic drainage, lighter and decongested, Elysian Paris London" },
+  { src: waist, caption: "Waist · visibly decongested", alt: "Waist manual lymphatic drainage before and after, visible temporary decongestion, Elysian Paris London" },
+  { src: stomach, caption: "Stomach · visibly decongested", alt: "Stomach manual lymphatic drainage before and after, visible temporary decongestion, Elysian Paris London" },
+  { src: thighs, caption: "Thighs · visibly decongested", alt: "Thigh manual lymphatic drainage before and after, visible temporary reduction in fluid retention, Elysian Paris London" },
+  { src: legs2, caption: "Legs · lighter, visibly decongested", alt: "Legs manual lymphatic drainage before and after, lighter and visibly decongested, Elysian Paris London" },
+  { src: abdomen4, caption: "Abdomen · before & after", alt: "Abdominal manual lymphatic drainage before and after, Elysian Paris London" },
+  { src: abdomen1, caption: "Abdomen · immediate decongestion", alt: "Abdominal manual lymphatic drainage before and after, immediate decongestion, Elysian Paris London" },
+  { src: abdomen2, caption: "Abdomen · visibly decongested", alt: "Abdominal manual lymphatic drainage before and after, visible temporary decongestion, Elysian Paris London" },
+  { src: legs, caption: "Legs · lighter & decongested", alt: "Legs before and after manual lymphatic drainage, lighter and decongested, Elysian Paris London" },
 ];
 
 // Duplicated so the band scrolls seamlessly
@@ -64,8 +64,9 @@ export function Results() {
         </div>
       </div>
 
-      <p className="mt-12 text-center font-sans text-[11px] tracking-[0.1em] uppercase text-muted-foreground/70">
-        Genuine client results, taken in-clinic · Individual results may vary
+      <p className="mt-12 text-center font-sans text-[11px] tracking-[0.1em] uppercase text-muted-foreground/70 max-w-2xl mx-auto px-6">
+        Genuine client results, taken in-clinic · Results relate to a visible, temporary
+        reduction in fluid retention, not fat loss · Individual results may vary
       </p>
 
       <style>{`

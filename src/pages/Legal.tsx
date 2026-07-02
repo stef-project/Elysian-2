@@ -111,6 +111,13 @@ export default function Legal() {
               deposit paid is applied towards these charges.
             </p>
             <p>
+              <strong className="text-foreground">Right to cancel (distance contracts).</strong>{" "}
+              Under the Consumer Contracts (Information, Cancellation and Additional Charges)
+              Regulations 2013, the standard 14-day right to cancel does not apply to contracts
+              for services performed on a specific date, such as a booked treatment appointment
+              (regulation 28(1)(b)). Our appointment-specific cancellation terms above apply instead.
+            </p>
+            <p>
               <strong className="text-foreground">Health &amp; suitability.</strong> Manual
               lymphatic drainage and body treatments are not suitable for everyone. Please
               disclose relevant medical conditions, recent surgery or pregnancy so we can
