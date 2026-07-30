@@ -18,27 +18,36 @@ const TABS = {
   SESSION_TOKENS: 'Session_Tokens',
   AUDIT_LOG: 'Audit_Log',
   RECONCILIATION_ISSUES: 'Reconciliation_Issues',
+  // --- Phase 2, Étape A ---
+  PACKAGE_TEMPLATES: 'Package_Templates',
+  PAYMENTS: 'Payments',
+  CLIENT_PROFILE_VIEW: 'Fiche_Client',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
+// Ajouts Phase 2 toujours en fin de liste existante : additif, jamais de
+// réordonnancement, pour ne jamais casser les lignes déjà écrites par la V1.
 const HEADERS = {
   [TABS.SETTINGS]: ['key', 'value', 'notes'],
 
   [TABS.CLIENTS]: [
     'client_id', 'prenom', 'nom', 'email', 'telephone',
     'notes_admin', 'date_creation',
+    'origine_premiere_reservation', 'consentement_marketing',
   ],
 
   [TABS.PACKAGES]: [
     'package_id', 'client_id', 'nom_forfait', 'soins_inclus',
     'total_sessions', 'available_sessions', 'reserved_sessions', 'used_sessions',
     'date_achat', 'date_expiration', 'moyen_paiement', 'statut', 'notes_admin',
+    'package_template_id',
   ],
 
   [TABS.BOOKINGS]: [
     'booking_id', 'booking_request_id', 'client_id', 'package_id', 'service_id',
     'status', 'calendar_event_id', 'start_datetime', 'end_datetime',
     'session_movement', 'created_at', 'updated_at', 'history_notes',
+    'source',
   ],
 
   [TABS.VERIFICATION_CODES]: [
@@ -59,7 +68,28 @@ const HEADERS = {
     'timestamp_detection', 'type_anomalie', 'entite_concernee',
     'details', 'statut', 'resolution_notes',
   ],
+
+  // --- Phase 2, Étape A ---
+
+  [TABS.PACKAGE_TEMPLATES]: [
+    'package_template_id', 'nom', 'description', 'soins_inclus',
+    'nombre_seances', 'prix_public', 'duree_validite_jours',
+    'categorie', 'visibilite', 'statut', 'ordre_affichage', 'notes_internes',
+  ],
+
+  [TABS.PAYMENTS]: [
+    'payment_id', 'client_id', 'package_id',
+    'montant_brut', 'devise', 'moyen_paiement', 'fournisseur_paiement',
+    'frais_paiement', 'montant_net', 'taux_frais',
+    'date_paiement', 'reference_transaction', 'statut_paiement',
+    'justificatif_notes', 'mode_saisie',
+  ],
 };
+
+// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') n'a volontairement pas
+// d'entrée dans HEADERS — c'est un onglet de rapport en texte libre, recréé
+// à chaque consultation par ClientProfile.gs, pas une source de données
+// tabulaire comme les autres onglets.
 
 // Statuts possibles d'une réservation (Bookings.status).
 const BOOKING_STATUS = {
@@ -69,14 +99,73 @@ const BOOKING_STATUS = {
   CANCELLED_AUTHORIZED: 'cancelled_authorized',
   NO_SHOW_OR_LATE_CANCEL: 'no_show_or_late_cancel',
   RESCHEDULED: 'rescheduled',
+  EXTERNAL_MANUAL: 'external_manual', // saisie manuelle (ClassPass, WhatsApp...), hors saga Calendar
+};
+
+// Origine possible d'une réservation (Bookings.source) — libre, pour reporting uniquement.
+const BOOKING_SOURCE = {
+  CLASSPASS: 'classpass',
+  GOOGLE_APPOINTMENT_PAID: 'google_appointment_paid',
+  PACKAGE_BOOKING: 'package_booking',
+  WHATSAPP: 'whatsapp',
+  ADMIN_MANUAL: 'admin_manual',
+  OTHER: 'other',
 };
 
 // Statuts possibles d'un forfait (Packages.statut).
 const PACKAGE_STATUS = {
+  PENDING_PAYMENT: 'pending_payment', // créé, en attente de confirmation de paiement — non réservable
   ACTIVE: 'active',
   EXPIRED: 'expired',
   SUSPENDED: 'suspended',
   COMPLETED: 'completed',
+};
+
+// Statuts possibles d'un modèle de forfait (Package_Templates.statut).
+const PACKAGE_TEMPLATE_STATUS = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+};
+
+// Catégories de forfait (Package_Templates.categorie) — 3 catégories maximum au lancement.
+const PACKAGE_TEMPLATE_CATEGORY = {
+  DECOUVERTE: 'decouverte',
+  PRINCIPAL: 'principal',
+  PREMIUM: 'premium',
+};
+
+// Visibilité d'un modèle (Package_Templates.visibilite).
+const PACKAGE_TEMPLATE_VISIBILITY = {
+  PUBLIC: 'public',   // pourra un jour être publié sur le site, après validation explicite
+  PRIVATE: 'private', // ex. programme premium : proposé uniquement par l'administratrice
+};
+
+// Moyens de paiement possibles (Payments.moyen_paiement).
+const PAYMENT_METHOD = {
+  REVOLUT_CARD: 'revolut_card_payment',
+  REVOLUT_PAY: 'revolut_pay',
+  BANK_TRANSFER: 'bank_transfer',
+  STRIPE: 'stripe',
+  CLASSPASS: 'classpass',
+  CARD_IN_PERSON: 'card_in_person',
+  CASH: 'cash',
+  COMPLIMENTARY: 'complimentary',
+  OTHER: 'other',
+};
+
+// Statuts possibles d'un paiement (Payments.statut_paiement).
+const PAYMENT_STATUS = {
+  A_CONFIRMER: 'a_confirmer',
+  CONFIRME: 'confirme',
+  REFUSE: 'refuse',
+  REMBOURSE: 'rembourse',
+};
+
+// Mode de saisie d'un paiement (Payments.mode_saisie) — 'automatique' réservé à
+// une future intégration API réelle ; en V1 de cette phase, toujours 'manuel'.
+const PAYMENT_ENTRY_MODE = {
+  MANUEL: 'manuel',
+  AUTOMATIQUE: 'automatique',
 };
 
 // Clés de l'onglet Settings, avec valeurs par défaut si absentes.

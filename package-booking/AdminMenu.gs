@@ -25,6 +25,18 @@ function onOpen() {
     .addSeparator()
     .addItem('Prolonger / suspendre un forfait', 'adminExtendOrSuspendPackage')
     .addItem('Lancer la réconciliation maintenant', 'runReconciliationCheck')
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Catalogue de forfaits (Phase 2)')
+      .addItem('Ajouter un modèle de forfait', 'adminAddPackageTemplate')
+      .addItem('Modifier un modèle de forfait', 'adminEditPackageTemplate')
+      .addItem('Activer / désactiver un modèle', 'adminSetPackageTemplateStatus'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Paiements (Phase 2)')
+      .addItem('Enregistrer un paiement', 'adminRecordPayment')
+      .addItem('Confirmer un paiement en attente', 'adminConfirmPayment')
+      .addItem('Marquer un paiement refusé', 'adminMarkPaymentRefused'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Fiche cliente (Phase 2)')
+      .addItem('Voir la fiche consolidée d\'une cliente', 'adminViewClientProfile')
+      .addItem('Ajouter une réservation manuelle (ClassPass / WhatsApp)', 'adminAddManualBooking'))
     .addToUi();
 }
 
@@ -55,6 +67,17 @@ function adminAddClient() {
   ui.alert(`Cliente ajoutée : ${clientId}`);
 }
 
+/**
+ * Attribue un forfait à une cliente. Peut sourcer les valeurs depuis un
+ * modèle du catalogue (Package_Templates) — dans ce cas les valeurs sont
+ * COPIÉES telles quelles à cet instant (voir en-tête PackageTemplates.gs) —
+ * ou être saisies manuellement comme en V1.
+ *
+ * Depuis Phase 2 Étape A : le forfait démarre au statut PENDING_PAYMENT et
+ * n'est PAS réservable tant qu'un paiement n'a pas été enregistré/confirmé
+ * (voir Payments.gs). Utilise "Enregistrer un paiement" juste après pour
+ * l'activer.
+ */
 function adminAddPackage() {
   const ui = ui_();
   const email = ui.prompt('Email de la cliente :').getResponseText().trim().toLowerCase();
@@ -64,16 +87,36 @@ function adminAddPackage() {
     return;
   }
 
-  const nomForfait = ui.prompt('Nom du forfait (ex. "Pack 5 séances Drainage") :').getResponseText().trim();
-  const soinsInclus = ui.prompt('Soins inclus, séparés par des virgules (ex. lymphatic-1z, lymphatic-2z) :').getResponseText().trim();
-  const totalSessionsRaw = ui.prompt('Nombre total de séances :').getResponseText().trim();
-  const totalSessions = parseInt(totalSessionsRaw, 10);
-  if (isNaN(totalSessions) || totalSessions <= 0) {
-    ui.alert('Nombre de séances invalide, opération annulée.');
-    return;
+  const templateId = ui.prompt(
+    'package_template_id à utiliser (laisser vide pour saisie manuelle comme avant) :'
+  ).getResponseText().trim();
+
+  let nomForfait, soinsInclus, totalSessions, dateExpirationRaw = '';
+
+  if (templateId) {
+    const tpl = findPackageTemplateById_(templateId);
+    if (!tpl) { ui.alert('Modèle introuvable.'); return; }
+    nomForfait = tpl.nom;
+    soinsInclus = tpl.soins_inclus;
+    totalSessions = Number(tpl.nombre_seances);
+    if (tpl.duree_validite_jours) {
+      const exp = new Date(Date.now() + Number(tpl.duree_validite_jours) * 24 * 60 * 60 * 1000);
+      dateExpirationRaw = Utilities.formatDate(exp, getSettings().timezone, 'yyyy-MM-dd');
+    }
+    ui.alert(`Modèle "${tpl.nom}" : ${totalSessions} séances, ${tpl.prix_public} prix public. Ajuste si besoin aux étapes suivantes.`);
+  } else {
+    nomForfait = ui.prompt('Nom du forfait (ex. "Pack 5 séances Drainage") :').getResponseText().trim();
+    soinsInclus = ui.prompt('Soins inclus, séparés par des virgules (ex. lymphatic-1z, lymphatic-2z) :').getResponseText().trim();
+    const totalSessionsRaw = ui.prompt('Nombre total de séances :').getResponseText().trim();
+    totalSessions = parseInt(totalSessionsRaw, 10);
+    if (isNaN(totalSessions) || totalSessions <= 0) {
+      ui.alert('Nombre de séances invalide, opération annulée.');
+      return;
+    }
+    dateExpirationRaw = ui.prompt('Date d\'expiration (AAAA-MM-JJ), laisser vide si aucune :').getResponseText().trim();
   }
-  const moyenPaiement = ui.prompt('Moyen de paiement (Stripe / ClassPass / carte / espèces / virement / autre) :').getResponseText().trim();
-  const dateExpirationRaw = ui.prompt('Date d\'expiration (AAAA-MM-JJ), laisser vide si aucune :').getResponseText().trim();
+
+  const moyenPaiement = ui.prompt('Moyen de paiement prévu (informatif — le paiement réel se saisit ensuite via "Enregistrer un paiement") :').getResponseText().trim();
 
   const packageId = genId_('PKG');
   appendRow_(TABS.PACKAGES, {
@@ -88,11 +131,57 @@ function adminAddPackage() {
     date_achat: new Date(),
     date_expiration: dateExpirationRaw || '',
     moyen_paiement: moyenPaiement,
-    statut: PACKAGE_STATUS.ACTIVE,
+    statut: PACKAGE_STATUS.PENDING_PAYMENT,
     notes_admin: '',
+    package_template_id: templateId || '',
   });
-  writeAuditLog_('admin', 'add_package', packageId, '', `${totalSessions} séances`, '');
-  ui.alert(`Forfait ajouté : ${packageId}`);
+  writeAuditLog_('admin', 'add_package', packageId, '', `${totalSessions} séances (pending_payment)`, '');
+  ui.alert(`Forfait créé : ${packageId} — statut "pending_payment", pas encore réservable.\n\nUtilise "Enregistrer un paiement" pour l'activer une fois le paiement reçu.`);
+}
+
+/**
+ * Saisie manuelle d'une réservation externe (ClassPass ou WhatsApp), pour la
+ * fiche cliente uniquement — ne crée AUCUN événement Calendar et ne touche à
+ * aucun compteur de forfait. N'importe/synchronise jamais automatiquement
+ * ClassPass : purement déclaratif, saisi à la main par l'administratrice.
+ */
+function adminAddManualBooking() {
+  const ui = ui_();
+  const email = ui.prompt('Email de la cliente :').getResponseText().trim().toLowerCase();
+  const client = findClientByEmail_(email);
+  if (!client) { ui.alert('Aucune cliente avec cet email. Ajoute-la d\'abord.'); return; }
+
+  const sourceRaw = ui.prompt('Source : "classpass" ou "whatsapp" (ou "other") :').getResponseText().trim().toLowerCase();
+  if ([BOOKING_SOURCE.CLASSPASS, BOOKING_SOURCE.WHATSAPP, BOOKING_SOURCE.OTHER].indexOf(sourceRaw) === -1) {
+    ui.alert('Source invalide.');
+    return;
+  }
+
+  const serviceId = ui.prompt('Soin (ex. lymphatic-1z) :').getResponseText().trim();
+  const startRaw = ui.prompt('Date/heure du rendez-vous (AAAA-MM-JJ HH:MM) :').getResponseText().trim();
+  const start = new Date(startRaw.replace(' ', 'T'));
+  if (isNaN(start.getTime())) { ui.alert('Date invalide.'); return; }
+  const notes = ui.prompt('Notes (optionnel) :').getResponseText().trim();
+
+  const bookingId = genId_('BKG');
+  appendRow_(TABS.BOOKINGS, {
+    booking_id: bookingId,
+    booking_request_id: '',
+    client_id: client.client_id,
+    package_id: '',
+    service_id: serviceId,
+    status: BOOKING_STATUS.EXTERNAL_MANUAL,
+    calendar_event_id: '',
+    start_datetime: start.toISOString(),
+    end_datetime: start.toISOString(),
+    session_movement: 'aucun (réservation externe, hors forfait)',
+    created_at: new Date(),
+    updated_at: new Date(),
+    history_notes: notes,
+    source: sourceRaw,
+  });
+  writeAuditLog_('admin', 'add_manual_booking', bookingId, '', sourceRaw, 'Saisie manuelle pour fiche cliente');
+  ui.alert(`Réservation manuelle enregistrée : ${bookingId} (source : ${sourceRaw}). Visible dans la fiche cliente.`);
 }
 
 function adminAdjustBalance() {
