@@ -80,12 +80,12 @@ function buildClientProfileReport_(client) {
 
   section('Rendez-vous futurs');
   bookings.filter((b) => b.status === BOOKING_STATUS.CONFIRMED && new Date(b.start_datetime) > now).forEach((b) => {
-    line(b.booking_id, `${b.service_id} — ${formatDateForReport_(b.start_datetime)} (source : ${b.source || 'package_booking'})`);
+    line(b.booking_id, formatBookingLineForReport_(b));
   });
 
   section('Historique des rendez-vous passés');
   bookings.filter((b) => new Date(b.start_datetime) <= now || b.status === BOOKING_STATUS.EXTERNAL_MANUAL).forEach((b) => {
-    line(b.booking_id, `${b.service_id} — ${formatDateForReport_(b.start_datetime)} — ${b.status} (source : ${b.source || 'package_booking'})`);
+    line(b.booking_id, formatBookingLineForReport_(b));
   });
 
   section('Annulations, reports et no-shows');
@@ -111,6 +111,13 @@ function buildClientProfileReport_(client) {
   line('Total confirmé', `${totalBrut.toFixed(2)} brut — ${totalFrais.toFixed(2)} frais — ${totalNet.toFixed(2)} net`);
 
   return rows;
+}
+
+/** Ligne standard pour un Booking dans la Fiche_Client : date, soin, origine, forfait, statut, calendar_event_id, créé par. */
+function formatBookingLineForReport_(b) {
+  return `${b.service_id} — ${formatDateForReport_(b.start_datetime)} — ${b.status} — ` +
+    `forfait : ${b.package_id || '(aucun, réservation externe)'} — origine : ${b.source || 'package_booking'} — ` +
+    `calendar_event_id : ${b.calendar_event_id || '(aucun)'} — créé par : ${b.created_by || 'client'}`;
 }
 
 function formatDateForReport_(value) {

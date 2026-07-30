@@ -72,7 +72,7 @@ const HEADERS = {
     'booking_id', 'booking_request_id', 'client_id', 'package_id', 'service_id',
     'status', 'calendar_event_id', 'start_datetime', 'end_datetime',
     'session_movement', 'created_at', 'updated_at', 'history_notes',
-    'source',
+    'source', 'created_by',
   ],
 
   [TABS.VERIFICATION_CODES]: [
@@ -133,6 +133,8 @@ const BOOKING_SOURCE = {
   GOOGLE_APPOINTMENT_PAID: 'google_appointment_paid',
   PACKAGE_BOOKING: 'package_booking',
   WHATSAPP: 'whatsapp',
+  PHONE: 'phone',
+  PACKAGE_CLIENT_REQUEST: 'package_client_request',
   ADMIN_MANUAL: 'admin_manual',
   OTHER: 'other',
 };
@@ -563,17 +565,21 @@ function findPackageById_(packageId) {
   return findRowBy_(TABS.PACKAGES, 'package_id', packageId);
 }
 
+/** Un forfait est expiré si date_expiration est renseignée et dans le passé (référence = maintenant par défaut). */
+function isPackageExpired_(pkg, referenceDate) {
+  if (!pkg.date_expiration) return false;
+  const exp = new Date(pkg.date_expiration);
+  if (isNaN(exp.getTime())) return false;
+  return exp < (referenceDate || new Date());
+}
+
 /** Renvoie les forfaits actifs d'un client couvrant un soin donné, avec au moins 1 séance disponible et non expirés. */
 function findEligiblePackages_(clientId, serviceId) {
-  const now = new Date();
   return readAllRows_(TABS.PACKAGES).filter((pkg) => {
     if (pkg.client_id !== clientId) return false;
     if (pkg.statut !== PACKAGE_STATUS.ACTIVE) return false;
     if (Number(pkg.available_sessions) < 1) return false;
-    if (pkg.date_expiration) {
-      const exp = new Date(pkg.date_expiration);
-      if (!isNaN(exp.getTime()) && exp < now) return false;
-    }
+    if (isPackageExpired_(pkg)) return false;
     const included = String(pkg.soins_inclus || '')
       .split(',')
       .map((s) => s.trim());
@@ -582,8 +588,45 @@ function findEligiblePackages_(clientId, serviceId) {
   });
 }
 
+/** Forfaits actifs et non expirés d'un client, quel que soit le soin — utilisé par le formulaire admin (choix du forfait avant le soin). */
+function findActivePackagesForClient_(clientId) {
+  return readAllRows_(TABS.PACKAGES).filter((pkg) =>
+    pkg.client_id === clientId && pkg.statut === PACKAGE_STATUS.ACTIVE && !isPackageExpired_(pkg)
+  );
+}
+
 function findBookingByRequestId_(bookingRequestId) {
   return findRowBy_(TABS.BOOKINGS, 'booking_request_id', bookingRequestId);
+}
+
+/**
+ * Protection contre les doublons pour les rendez-vous créés manuellement
+ * (voir AdminMenu.gs → adminAddPackageBooking) : un Booking pending/confirmed
+ * existe-t-il déjà pour la même cliente, le même forfait, le même soin et le
+ * même horaire ? Empêche qu'une re-soumission du formulaire (avec un nouveau
+ * booking_request_id, donc non couverte par l'idempotence classique) ne crée
+ * un deuxième rendez-vous et ne déduise une deuxième séance.
+ */
+function findDuplicateActiveBooking_(clientId, packageId, serviceId, startIso) {
+  return readAllRows_(TABS.BOOKINGS).find((b) =>
+    b.client_id === clientId &&
+    b.package_id === packageId &&
+    b.service_id === serviceId &&
+    b.start_datetime === startIso &&
+    [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED].indexOf(b.status) !== -1
+  ) || null;
+}
+
+/** Normalise un numéro de téléphone pour comparaison (ne garde que chiffres et +). */
+function normalizePhone_(raw) {
+  return String(raw || '').replace(/[^0-9+]/g, '');
+}
+
+/** Recherche rapide de clientes par numéro de téléphone (peut renvoyer 0, 1 ou plusieurs résultats). */
+function findClientsByPhone_(phone) {
+  const normalized = normalizePhone_(phone);
+  if (!normalized) return [];
+  return readAllRows_(TABS.CLIENTS).filter((c) => normalizePhone_(c.telephone) === normalized);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -711,7 +754,7 @@ function BookingBusinessError_(message) {
 BookingBusinessError_.prototype = Object.create(Error.prototype);
 
 /**
- * Point d'entrée principal, appelé par WebApp.gs.
+ * Point d'entrée principal du parcours PUBLIC (site), appelé par WebApp.gs.
  *
  * @param {string} sessionTokenPlain - jeton reçu du client (en clair, jamais stocké tel quel).
  * @param {string} bookingRequestId - UUID généré côté site, unique par tentative de réservation.
@@ -732,21 +775,11 @@ function confirmPackageBooking(sessionTokenPlain, bookingRequestId, serviceId, s
 
   try {
     // --- Étape 3 : idempotence — cette demande a-t-elle déjà été traitée ? ---
-    const existingBooking = findBookingByRequestId_(bookingRequestId);
-    if (existingBooking) {
-      if (existingBooking.status === BOOKING_STATUS.CONFIRMED) {
-        return { status: 'confirmed', calendarEventId: existingBooking.calendar_event_id };
-      }
-      if (existingBooking.status === BOOKING_STATUS.FAILED) {
-        throw new BookingBusinessError_('Cette tentative de réservation a échoué précédemment. Merci de choisir à nouveau un créneau.');
-      }
-      if (existingBooking.status === BOOKING_STATUS.PENDING) {
-        // Le process précédent a pu s'arrêter avant ou après la création
-        // Calendar. On recherche un événement déjà créé avant de retenter,
-        // pour ne JAMAIS en créer un deuxième pour la même demande.
-        return resumePendingBooking_(existingBooking);
-      }
-    }
+    // (Volontairement AVANT la validation du jeton : une demande déjà
+    // confirmed/pending/failed se résout par son booking_request_id seul,
+    // sans dépendre à nouveau du jeton — comportement V1 inchangé.)
+    const idempotent = resolveIdempotentBookingResult_(bookingRequestId);
+    if (idempotent) return idempotent;
 
     // --- Étape 4 : validation du jeton de session ---
     const tokenHash = hashWithPepper_(sessionTokenPlain);
@@ -761,104 +794,231 @@ function confirmPackageBooking(sessionTokenPlain, bookingRequestId, serviceId, s
       throw new BookingBusinessError_('Cette session a déjà été utilisée pour une autre réservation.');
     }
 
-    const clientId = tokenRow.client_id;
-    const packageId = tokenRow.package_id;
-
-    // Re-vérification complète du forfait (jamais confiance dans ce qu'affiche le site).
-    const pkg = findPackageById_(packageId);
-    if (!pkg || pkg.client_id !== clientId) {
-      throw new BookingBusinessError_('Forfait introuvable.');
-    }
-    if (pkg.statut !== PACKAGE_STATUS.ACTIVE) {
-      throw new BookingBusinessError_('Ce forfait n\'est pas actif.');
-    }
-    if (pkg.date_expiration) {
-      const exp = new Date(pkg.date_expiration);
-      if (!isNaN(exp.getTime()) && exp < new Date()) {
-        throw new BookingBusinessError_('Ce forfait est expiré.');
-      }
-    }
-    const included = String(pkg.soins_inclus || '').split(',').map((s) => s.trim());
-    if (included.indexOf(serviceId) === -1) {
-      throw new BookingBusinessError_('Ce soin n\'est pas inclus dans ce forfait.');
-    }
-    if (Number(pkg.available_sessions) < 1) {
-      throw new BookingBusinessError_('Aucune séance disponible sur ce forfait.');
-    }
-    if (!isSlotStillFree(startIso, endIso)) {
-      throw new BookingBusinessError_('Ce créneau vient d\'être réservé par quelqu\'un d\'autre. Merci d\'en choisir un autre.');
-    }
-
-    // --- Étape 5 : créer la ligne Bookings en pending ---
-    const bookingId = genId_('BKG');
-    appendRow_(TABS.BOOKINGS, {
-      booking_id: bookingId,
-      booking_request_id: bookingRequestId,
-      client_id: clientId,
-      package_id: packageId,
-      service_id: serviceId,
-      status: BOOKING_STATUS.PENDING,
-      calendar_event_id: '',
-      start_datetime: startIso,
-      end_datetime: endIso,
-      session_movement: 'available -1 / reserved +1',
-      created_at: new Date(),
-      updated_at: new Date(),
-      history_notes: '',
+    // --- Étapes 5 à 9 : cœur du saga, partagé avec le parcours admin (voir adminCreatePackageBooking_) ---
+    const result = createNewPackageBooking_(tokenRow.client_id, tokenRow.package_id, serviceId, startIso, endIso, bookingRequestId, {
+      source: BOOKING_SOURCE.PACKAGE_BOOKING,
+      createdBy: 'client',
+      auditActor: tokenRow.client_id,
+      auditAction: 'create_booking',
+      auditNote: 'Réservation via forfait',
     });
 
-    // --- Étape 6 : available -1, reserved +1 ---
-    const packagesSheetRow = findPackageById_(packageId).rowNumber;
-    updateRow_(TABS.PACKAGES, packagesSheetRow, {
-      available_sessions: Number(pkg.available_sessions) - 1,
-      reserved_sessions: Number(pkg.reserved_sessions) + 1,
-    });
-
-    // --- Étape 7 : forcer l'écriture avant l'appel Calendar ---
-    SpreadsheetApp.flush();
-
-    // --- Étape 8 : créer l'événement Calendar ---
-    let event;
-    try {
-      event = createCalendarEventForBooking_(bookingId, clientId, serviceId, startIso, endIso);
-    } catch (calendarError) {
-      // --- Étape 10 : échec — restauration, jamais de confirmation ---
-      restoreFailedBooking_(bookingId, packageId, packagesSheetRow, calendarError);
-      throw new BookingBusinessError_('La réservation n\'a pas pu être finalisée. Merci de réessayer.');
-    }
-
-    // --- Étape 9 : succès — enregistrement + confirmation ---
-    const bookingRow = findBookingByRequestId_(bookingRequestId);
-    updateRow_(TABS.BOOKINGS, bookingRow.rowNumber, {
-      calendar_event_id: event.getId(),
-      status: BOOKING_STATUS.CONFIRMED,
-      updated_at: new Date(),
-    });
     updateRow_(TABS.SESSION_TOKENS, tokenRow.rowNumber, {
       used_for_booking_request_id: bookingRequestId,
     });
-    writeAuditLog_(clientId, 'create_booking', bookingId, '', 'confirmed', 'Réservation via forfait');
 
-    return { status: 'confirmed', calendarEventId: event.getId() };
+    return result;
   } finally {
     lock.releaseLock();
   }
 }
 
-/** Crée l'événement Calendar avec une référence traçable au booking_id dans la description. */
-function createCalendarEventForBooking_(bookingId, clientId, serviceId, startIso, endIso) {
+/**
+ * Point d'entrée du parcours ADMINISTRATEUR (menu "Ajouter un rendez-vous
+ * forfait", AdminMenu.gs). Même cœur transactionnel que confirmPackageBooking
+ * (createNewPackageBooking_) — rien n'est dupliqué. Pas de jeton de session
+ * ici : l'administratrice a déjà identifié la cliente et le forfait
+ * elle-même dans le formulaire.
+ *
+ * @param {{origin: string, actor: string, historyNotes: string}} meta
+ */
+function adminCreatePackageBooking_(clientId, packageId, serviceId, startIso, endIso, bookingRequestId, meta) {
+  if (!clientId || !packageId || !serviceId || !startIso || !endIso || !bookingRequestId) {
+    throw new BookingBusinessError_('Requête incomplète.');
+  }
+
+  const lock = LockService.getScriptLock();
+  const gotLock = lock.tryLock(30000);
+  if (!gotLock) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+
+  try {
+    const idempotent = resolveIdempotentBookingResult_(bookingRequestId);
+    if (idempotent) return idempotent;
+
+    const actor = (meta && meta.actor) || 'admin';
+    return createNewPackageBooking_(clientId, packageId, serviceId, startIso, endIso, bookingRequestId, {
+      source: (meta && meta.origin) || BOOKING_SOURCE.ADMIN_MANUAL,
+      createdBy: actor,
+      isAdminCreated: true,
+      origin: meta && meta.origin,
+      historyNotes: meta && meta.historyNotes,
+      auditActor: actor,
+      auditAction: 'admin_create_booking',
+      auditNote: `Rendez-vous forfait ajouté manuellement (origine : ${(meta && meta.origin) || 'n/a'})` +
+        (meta && meta.historyNotes ? ` — ${meta.historyNotes}` : ''),
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Étape 3 (idempotence), factorisée pour être partagée entre le parcours
+ * public et le parcours admin : une demande portant un booking_request_id
+ * déjà traité se résout uniquement par cet identifiant, sans re-jouer aucune
+ * autre vérification. Renvoie null si aucune demande existante — dans ce cas
+ * l'appelant doit continuer vers createNewPackageBooking_.
+ */
+function resolveIdempotentBookingResult_(bookingRequestId) {
+  const existingBooking = findBookingByRequestId_(bookingRequestId);
+  if (!existingBooking) return null;
+
+  if (existingBooking.status === BOOKING_STATUS.CONFIRMED) {
+    return { status: 'confirmed', calendarEventId: existingBooking.calendar_event_id };
+  }
+  if (existingBooking.status === BOOKING_STATUS.FAILED) {
+    throw new BookingBusinessError_('Cette tentative de réservation a échoué précédemment. Merci de choisir à nouveau un créneau.');
+  }
+  if (existingBooking.status === BOOKING_STATUS.PENDING) {
+    // Le process précédent a pu s'arrêter avant ou après la création
+    // Calendar. On recherche un événement déjà créé avant de retenter,
+    // pour ne JAMAIS en créer un deuxième pour la même demande.
+    return resumePendingBooking_(existingBooking);
+  }
+  return null;
+}
+
+/**
+ * Cœur du saga (étapes 5 à 9 du cadrage) : re-vérification complète, création
+ * de la ligne Bookings en pending, déduction de séance, écriture Calendar,
+ * confirmation ou restauration en cas d'échec. Appelé UNIQUEMENT depuis
+ * l'intérieur d'un ScriptLock déjà acquis par l'appelant (confirmPackageBooking
+ * ou adminCreatePackageBooking_) — ne verrouille pas lui-même.
+ *
+ * @param {{source: string, createdBy: string, isAdminCreated: boolean,
+ *          origin: string, historyNotes: string, auditActor: string,
+ *          auditAction: string, auditNote: string}} meta
+ */
+function createNewPackageBooking_(clientId, packageId, serviceId, startIso, endIso, bookingRequestId, meta) {
+  // Re-vérification complète du forfait (jamais confiance dans ce qu'affiche le site ou saisit l'admin).
+  const pkg = findPackageById_(packageId);
+  if (!pkg || pkg.client_id !== clientId) {
+    throw new BookingBusinessError_('Forfait introuvable.');
+  }
+  if (pkg.statut !== PACKAGE_STATUS.ACTIVE) {
+    throw new BookingBusinessError_('Ce forfait n\'est pas actif.');
+  }
+  if (isPackageExpired_(pkg)) {
+    throw new BookingBusinessError_('Ce forfait est expiré.');
+  }
+  const included = String(pkg.soins_inclus || '').split(',').map((s) => s.trim());
+  if (included.indexOf(serviceId) === -1) {
+    throw new BookingBusinessError_('Ce soin n\'est pas inclus dans ce forfait.');
+  }
+  if (Number(pkg.available_sessions) < 1) {
+    throw new BookingBusinessError_('Aucune séance disponible sur ce forfait.');
+  }
+  if (!isSlotStillFree(startIso, endIso)) {
+    throw new BookingBusinessError_('Ce créneau vient d\'être réservé par quelqu\'un d\'autre. Merci d\'en choisir un autre.');
+  }
+  if (findDuplicateActiveBooking_(clientId, packageId, serviceId, startIso)) {
+    throw new BookingBusinessError_('Un rendez-vous identique existe déjà pour cette cliente.');
+  }
+  // Calendrier accessible ? Vérifié tôt, avant toute écriture Sheet, pour ne
+  // jamais décrémenter une séance si le calendrier configuré est en réalité
+  // introuvable/inaccessible (erreur de configuration plutôt qu'échec ponctuel).
+  const settingsCheck = getSettings();
+  if (!CalendarApp.getCalendarById(settingsCheck.calendar_id)) {
+    throw new BookingBusinessError_('Calendrier configuré introuvable ou inaccessible. Contacte l\'administratrice.');
+  }
+
+  // --- Étape 5 : créer la ligne Bookings en pending ---
+  const bookingId = genId_('BKG');
+  appendRow_(TABS.BOOKINGS, {
+    booking_id: bookingId,
+    booking_request_id: bookingRequestId,
+    client_id: clientId,
+    package_id: packageId,
+    service_id: serviceId,
+    status: BOOKING_STATUS.PENDING,
+    calendar_event_id: '',
+    start_datetime: startIso,
+    end_datetime: endIso,
+    session_movement: 'available -1 / reserved +1',
+    created_at: new Date(),
+    updated_at: new Date(),
+    history_notes: (meta && meta.historyNotes) || '',
+    source: (meta && meta.source) || BOOKING_SOURCE.PACKAGE_BOOKING,
+    created_by: (meta && meta.createdBy) || 'client',
+  });
+
+  // --- Étape 6 : available -1, reserved +1 ---
+  const packagesSheetRow = findPackageById_(packageId).rowNumber;
+  updateRow_(TABS.PACKAGES, packagesSheetRow, {
+    available_sessions: Number(pkg.available_sessions) - 1,
+    reserved_sessions: Number(pkg.reserved_sessions) + 1,
+  });
+
+  // --- Étape 7 : forcer l'écriture avant l'appel Calendar ---
+  SpreadsheetApp.flush();
+
+  // --- Étape 8 : créer l'événement Calendar ---
+  let event;
+  try {
+    event = createCalendarEventForBooking_(bookingId, clientId, serviceId, startIso, endIso, meta);
+  } catch (calendarError) {
+    // --- Étape 10 : échec — restauration, jamais de confirmation ---
+    restoreFailedBooking_(bookingId, packageId, packagesSheetRow, calendarError);
+    throw new BookingBusinessError_('La réservation n\'a pas pu être finalisée. Merci de réessayer.');
+  }
+
+  // --- Étape 9 : succès — enregistrement + confirmation ---
+  const bookingRow = findBookingByRequestId_(bookingRequestId);
+  updateRow_(TABS.BOOKINGS, bookingRow.rowNumber, {
+    calendar_event_id: event.getId(),
+    status: BOOKING_STATUS.CONFIRMED,
+    updated_at: new Date(),
+  });
+  writeAuditLog_(
+    (meta && meta.auditActor) || clientId,
+    (meta && meta.auditAction) || 'create_booking',
+    bookingId, '', 'confirmed',
+    (meta && meta.auditNote) || 'Réservation via forfait'
+  );
+
+  return { status: 'confirmed', calendarEventId: event.getId() };
+}
+
+/**
+ * Crée l'événement Calendar avec une référence traçable au booking_id dans
+ * la description. Le comportement du parcours PUBLIC (client) est
+ * inchangé bit pour bit (même titre, même description) — la description
+ * enrichie (téléphone, email, origine) n'apparaît que pour les rendez-vous
+ * créés par l'administratrice (meta.isAdminCreated), jamais dans le titre.
+ *
+ * ⚠️ "Zone privée" imparfaite : ceci utilise le service CalendarApp de
+ * base, où la description est visible par les invités (ici, uniquement la
+ * cliente elle-même — jamais un tiers). Une vraie zone privée invisible
+ * même à la cliente nécessiterait le service avancé Calendar (extendedProperties.private),
+ * qui changerait la façon dont les événements sont créés dans tout ce
+ * fichier — non fait ici pour ne pas fragiliser la V1 ; amélioration
+ * possible plus tard si besoin réel.
+ */
+function createCalendarEventForBooking_(bookingId, clientId, serviceId, startIso, endIso, meta) {
   const settings = getSettings();
   const calendar = CalendarApp.getCalendarById(settings.calendar_id);
   const client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
   const clientLabel = client ? `${client.prenom} ${client.nom}` : clientId;
+
+  let description = `booking_id: ${bookingId}\nclient_id: ${clientId}\nservice: ${serviceId}\n`;
+  if (meta && meta.isAdminCreated) {
+    if (meta.origin) description += `origine: ${meta.origin}\n`;
+    if (client && client.telephone) description += `telephone: ${client.telephone}\n`;
+    if (client && client.email) description += `email: ${client.email}\n`;
+    description += 'Rendez-vous forfait ajouté manuellement par l\'administratrice.';
+  } else {
+    description += 'Réservé via forfait prépayé.';
+  }
 
   return calendar.createEvent(
     `${serviceId} — ${clientLabel} (forfait)`,
     new Date(startIso),
     new Date(endIso),
     {
-      description: `booking_id: ${bookingId}\nclient_id: ${clientId}\nservice: ${serviceId}\nRéservé via forfait prépayé.`,
-      guests: client ? client.email : undefined,
+      description: description,
+      guests: client && client.email ? client.email : undefined,
       sendInvites: true,
     }
   );
@@ -908,6 +1068,13 @@ function resumePendingBooking_(pendingBooking) {
   }
 
   // Aucun événement trouvé : sûr de continuer la création maintenant.
+  // Reconstruit un meta minimal à partir de la ligne Bookings elle-même
+  // (source/created_by déjà enregistrés à l'étape 5), pour que la
+  // description reste cohérente même si la création reprend après coupure.
+  const reconstructedMeta = {
+    isAdminCreated: !!(pendingBooking.created_by && pendingBooking.created_by !== 'client'),
+    origin: pendingBooking.source,
+  };
   const packagesSheetRow = findPackageById_(pendingBooking.package_id).rowNumber;
   let event;
   try {
@@ -916,7 +1083,8 @@ function resumePendingBooking_(pendingBooking) {
       pendingBooking.client_id,
       pendingBooking.service_id,
       pendingBooking.start_datetime,
-      pendingBooking.end_datetime
+      pendingBooking.end_datetime,
+      reconstructedMeta
     );
   } catch (calendarError) {
     restoreFailedBooking_(pendingBooking.booking_id, pendingBooking.package_id, packagesSheetRow, calendarError);
@@ -946,6 +1114,18 @@ function searchCalendarEventByBookingId_(calendar, bookingId, approxStart, appro
     const desc = e.getDescription() || '';
     return desc.indexOf(`booking_id: ${bookingId}`) !== -1;
   }) || null;
+}
+
+/**
+ * Extrait le booking_id du marqueur "booking_id: <id>" dans une description
+ * d'événement Calendar, ou null si absent. Convention partagée par
+ * createCalendarEventForBooking_ (écriture), Reconciliation.gs et
+ * AdminMenu.gs → adminLinkCalendarEventToPackage (lecture) — un seul endroit
+ * qui connaît le format exact du marqueur.
+ */
+function extractBookingIdFromDescription_(description) {
+  const match = String(description || '').match(/booking_id:\s*(\S+)/);
+  return match ? match[1] : null;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1165,6 +1345,9 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Fiche cliente (Phase 2)')
       .addItem('Voir la fiche consolidée d\'une cliente', 'adminViewClientProfile')
       .addItem('Ajouter une réservation manuelle (ClassPass / WhatsApp)', 'adminAddManualBooking'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Rendez-vous forfait (Phase 2)')
+      .addItem('Ajouter un rendez-vous forfait', 'adminAddPackageBooking')
+      .addItem('Associer un événement Calendar existant à un forfait', 'adminLinkCalendarEventToPackage'))
     .addToUi();
 }
 
@@ -1335,9 +1518,221 @@ function adminAddManualBooking() {
     updated_at: new Date(),
     history_notes: notes,
     source: sourceRaw,
+    created_by: Session.getActiveUser().getEmail() || 'admin',
   });
   writeAuditLog_('admin', 'add_manual_booking', bookingId, '', sourceRaw, 'Saisie manuelle pour fiche cliente');
   ui.alert(`Réservation manuelle enregistrée : ${bookingId} (source : ${sourceRaw}). Visible dans la fiche cliente.`);
+}
+
+/**
+ * "Ajouter un rendez-vous forfait" — crée manuellement un rendez-vous pour
+ * une cliente disposant déjà d'un forfait actif (ex. après un échange
+ * WhatsApp), en utilisant EXACTEMENT le même cœur transactionnel sécurisé
+ * que la réservation en self-service (createNewPackageBooking_, Booking.gs) :
+ * verrou, idempotence, re-vérification complète, restauration en cas
+ * d'échec Calendar. Rien n'est dupliqué.
+ *
+ * Un événement ajouté directement dans Google Calendar (hors de cette
+ * fonction) ne déduit JAMAIS de séance automatiquement — voir aussi
+ * "Associer un événement Calendar existant à un forfait" ci-dessous pour
+ * le cas où l'événement existe déjà.
+ */
+function adminAddPackageBooking() {
+  const ui = ui_();
+
+  // --- Identifier la cliente : recherche par téléphone d'abord ---
+  const phoneRaw = ui.prompt('Numéro de téléphone de la cliente (recherche) :').getResponseText().trim();
+  let client = null;
+  const matches = phoneRaw ? findClientsByPhone_(phoneRaw) : [];
+
+  if (matches.length === 1) {
+    client = matches[0];
+  } else if (matches.length > 1) {
+    // Ne jamais deviner : afficher la liste, demander une sélection manuelle explicite.
+    const list = matches.map((c) => `${c.client_id} — ${c.prenom} ${c.nom} — ${c.email || '(pas d\'email)'} — ${c.telephone}`).join('\n');
+    const clientIdChoice = ui.prompt(
+      `Plusieurs clientes correspondent à ce numéro :\n${list}\n\nSaisis le client_id exact à utiliser :`
+    ).getResponseText().trim();
+    client = findRowBy_(TABS.CLIENTS, 'client_id', clientIdChoice);
+    if (!client) { ui.alert('client_id introuvable, opération annulée.'); return; }
+  } else {
+    const emailFallback = ui.prompt('Aucune cliente trouvée avec ce numéro. Email de la cliente (secours, laisser vide pour annuler) :').getResponseText().trim().toLowerCase();
+    client = emailFallback ? findClientByEmail_(emailFallback) : null;
+    if (!client) {
+      ui.alert('Aucune cliente trouvée. Utilise d\'abord "Ajouter une cliente", ou vérifie le numéro/email — jamais de création automatique ici.');
+      return;
+    }
+  }
+
+  // Email facultatif : ne remplace jamais un email déjà connu, complète seulement s'il manquait.
+  if (!client.email) {
+    const emailFacultatif = ui.prompt('Email de la cliente (facultatif, laisser vide si inconnu) :').getResponseText().trim().toLowerCase();
+    if (emailFacultatif) {
+      updateRow_(TABS.CLIENTS, client.rowNumber, { email: emailFacultatif });
+      writeAuditLog_('admin', 'update_client_email', client.client_id, '', emailFacultatif, 'Complété via "Ajouter un rendez-vous forfait"');
+      client = findRowBy_(TABS.CLIENTS, 'client_id', client.client_id);
+    }
+  }
+
+  // --- Forfait actif ---
+  const activePackages = findActivePackagesForClient_(client.client_id);
+  if (activePackages.length === 0) {
+    ui.alert(`Aucun forfait actif pour ${client.prenom} ${client.nom}. Impossible de créer un rendez-vous forfait.`);
+    return;
+  }
+  const pkgList = activePackages.map((p) => `${p.package_id} — ${p.nom_forfait} — dispo ${p.available_sessions} — soins : ${p.soins_inclus}`).join('\n');
+  const packageId = ui.prompt(`Forfaits actifs de ${client.prenom} ${client.nom} :\n${pkgList}\n\nSaisis le package_id à utiliser :`).getResponseText().trim();
+  const pkg = findPackageById_(packageId);
+  if (!pkg || pkg.client_id !== client.client_id) { ui.alert('Forfait invalide pour cette cliente.'); return; }
+
+  // --- Soin, date, heure, durée ---
+  const serviceId = ui.prompt('Soin (ex. lymphatic-1z — doit être inclus dans le forfait choisi) :').getResponseText().trim();
+  const dateRaw = ui.prompt('Date du rendez-vous (AAAA-MM-JJ) :').getResponseText().trim();
+  const heureRaw = ui.prompt('Heure (HH:MM) :').getResponseText().trim();
+  const start = new Date(`${dateRaw}T${heureRaw}`);
+  if (isNaN(start.getTime())) { ui.alert('Date/heure invalide.'); return; }
+  const dureeRaw = ui.prompt('Durée en minutes (ex. 60) :').getResponseText().trim();
+  const duree = parseInt(dureeRaw, 10);
+  if (isNaN(duree) || duree <= 0) { ui.alert('Durée invalide.'); return; }
+  const end = new Date(start.getTime() + duree * 60 * 1000);
+
+  const noteAdmin = ui.prompt('Note administrative (optionnel) :').getResponseText().trim();
+
+  const origineRaw = ui.prompt('Origine : whatsapp / phone / admin_manual / package_client_request / other :').getResponseText().trim().toLowerCase();
+  const validOrigins = [
+    BOOKING_SOURCE.WHATSAPP, BOOKING_SOURCE.PHONE, BOOKING_SOURCE.ADMIN_MANUAL,
+    BOOKING_SOURCE.PACKAGE_CLIENT_REQUEST, BOOKING_SOURCE.OTHER,
+  ];
+  if (validOrigins.indexOf(origineRaw) === -1) { ui.alert('Origine invalide.'); return; }
+
+  const confirm = ui.alert(
+    `Confirmer la création de ce rendez-vous ?\n\n` +
+    `Cliente : ${client.prenom} ${client.nom}\nForfait : ${pkg.package_id} (${pkg.nom_forfait})\n` +
+    `Soin : ${serviceId}\nDébut : ${start}\nDurée : ${duree} min\nOrigine : ${origineRaw}`,
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) { ui.alert('Opération annulée — rien n\'a été modifié.'); return; }
+
+  const bookingRequestId = 'admin-' + Utilities.getUuid();
+  const actor = Session.getActiveUser().getEmail() || 'admin';
+
+  let result;
+  try {
+    result = adminCreatePackageBooking_(
+      client.client_id, pkg.package_id, serviceId, start.toISOString(), end.toISOString(), bookingRequestId,
+      { origin: origineRaw, historyNotes: noteAdmin, actor: actor }
+    );
+  } catch (err) {
+    ui.alert(`Rendez-vous NON créé : ${err && err.message ? err.message : 'erreur inconnue'}\n\nAucune séance n'a été déduite, aucun événement Calendar créé.`);
+    return;
+  }
+
+  ui.alert(`Rendez-vous forfait créé et confirmé.\ncalendar_event_id : ${result.calendarEventId}`);
+}
+
+/**
+ * "Associer un événement Calendar existant à un forfait" — pour un
+ * rendez-vous déjà présent dans le calendrier (ajouté à la main
+ * directement dans Google Calendar), permet de le relier explicitement à
+ * un forfait ET de déduire une séance, uniquement sur confirmation
+ * explicite de l'administratrice. Ne devine jamais automatiquement qu'un
+ * événement Calendar appartient à un forfait — c'est justement la règle
+ * que la réconciliation respecte (elle signale, ne décide jamais seule).
+ *
+ * Recherche par date (et non par ID/lien d'événement, pour rester simple
+ * et fiable) : liste les événements du jour qui ne portent pas encore de
+ * marqueur booking_id, et propose un choix numéroté.
+ */
+function adminLinkCalendarEventToPackage() {
+  const ui = ui_();
+  const dateRaw = ui.prompt('Date du rendez-vous existant à associer (AAAA-MM-JJ) :').getResponseText().trim();
+  const dayStart = new Date(`${dateRaw}T00:00:00`);
+  if (isNaN(dayStart.getTime())) { ui.alert('Date invalide.'); return; }
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const settings = getSettings();
+  const calendar = CalendarApp.getCalendarById(settings.calendar_id);
+  if (!calendar) { ui.alert('Calendrier configuré introuvable ou inaccessible.'); return; }
+
+  const candidates = calendar.getEvents(dayStart, dayEnd).filter((e) => !extractBookingIdFromDescription_(e.getDescription()));
+  if (candidates.length === 0) {
+    ui.alert('Aucun événement non associé trouvé ce jour-là dans le calendrier configuré.');
+    return;
+  }
+  const list = candidates.map((e, i) => `${i + 1}. ${e.getTitle()} — ${e.getStartTime()}`).join('\n');
+  const choiceRaw = ui.prompt(`Événements non associés ce jour-là :\n${list}\n\nNuméro à associer :`).getResponseText().trim();
+  const choice = parseInt(choiceRaw, 10);
+  if (isNaN(choice) || choice < 1 || choice > candidates.length) { ui.alert('Choix invalide.'); return; }
+  const event = candidates[choice - 1];
+
+  const email = ui.prompt('Email de la cliente :').getResponseText().trim().toLowerCase();
+  const client = findClientByEmail_(email);
+  if (!client) { ui.alert('Cliente introuvable.'); return; }
+
+  const activePackages = findActivePackagesForClient_(client.client_id);
+  if (activePackages.length === 0) { ui.alert('Aucun forfait actif pour cette cliente.'); return; }
+  const pkgList = activePackages.map((p) => `${p.package_id} — ${p.nom_forfait} — dispo ${p.available_sessions} — soins : ${p.soins_inclus}`).join('\n');
+  const packageId = ui.prompt(`Forfaits actifs :\n${pkgList}\n\npackage_id à utiliser :`).getResponseText().trim();
+  const pkg = findPackageById_(packageId);
+  if (!pkg || pkg.client_id !== client.client_id) { ui.alert('Forfait invalide pour cette cliente.'); return; }
+
+  const serviceId = ui.prompt('Soin concerné (doit être inclus dans le forfait) :').getResponseText().trim();
+  const included = String(pkg.soins_inclus || '').split(',').map((s) => s.trim());
+  if (included.indexOf(serviceId) === -1) { ui.alert('Ce soin n\'est pas inclus dans ce forfait, opération annulée.'); return; }
+  if (Number(pkg.available_sessions) < 1) { ui.alert('Aucune séance disponible sur ce forfait, opération annulée.'); return; }
+
+  const confirm = ui.alert(
+    `Associer l'événement "${event.getTitle()}" (${event.getStartTime()}) au forfait ${pkg.package_id} de ` +
+    `${client.prenom} ${client.nom}, et déduire une séance (available -1 / reserved +1) ?\n\n` +
+    'Cette déduction ne peut pas être automatique — confirme explicitement.',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) { ui.alert('Opération annulée — rien n\'a été modifié.'); return; }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { ui.alert('Le système est occupé, réessaie dans un instant.'); return; }
+  try {
+    const bookingId = genId_('BKG');
+    const existingDescription = event.getDescription() || '';
+    event.setDescription(
+      (existingDescription ? existingDescription + '\n' : '') +
+      `booking_id: ${bookingId}\nclient_id: ${client.client_id}\nservice: ${serviceId}\n` +
+      'Événement Calendar existant associé manuellement à un forfait.'
+    );
+
+    appendRow_(TABS.BOOKINGS, {
+      booking_id: bookingId,
+      booking_request_id: 'manual-link-' + Utilities.getUuid(),
+      client_id: client.client_id,
+      package_id: packageId,
+      service_id: serviceId,
+      status: BOOKING_STATUS.CONFIRMED,
+      calendar_event_id: event.getId(),
+      start_datetime: event.getStartTime().toISOString(),
+      end_datetime: event.getEndTime().toISOString(),
+      session_movement: 'available -1 / reserved +1 (événement existant associé manuellement)',
+      created_at: new Date(),
+      updated_at: new Date(),
+      history_notes: 'Association manuelle d\'un événement Calendar déjà existant.',
+      source: BOOKING_SOURCE.ADMIN_MANUAL,
+      created_by: Session.getActiveUser().getEmail() || 'admin',
+    });
+
+    updateRow_(TABS.PACKAGES, pkg.rowNumber, {
+      available_sessions: Number(pkg.available_sessions) - 1,
+      reserved_sessions: Number(pkg.reserved_sessions) + 1,
+    });
+
+    writeAuditLog_(
+      Session.getActiveUser().getEmail() || 'admin',
+      'link_existing_calendar_event',
+      bookingId, '', packageId,
+      `Événement ${event.getId()} associé manuellement, soin ${serviceId}`
+    );
+  } finally {
+    lock.releaseLock();
+  }
+  ui.alert('Événement associé au forfait, séance déduite.');
 }
 
 function adminAdjustBalance() {
@@ -1598,10 +1993,8 @@ function runReconciliationCheck() {
   const events = calendar.getEvents(lookaheadStart, lookaheadEnd);
   const eventsByBookingId = {};
   events.forEach((e) => {
-    const desc = e.getDescription() || '';
-    const match = desc.match(/booking_id:\s*(\S+)/);
-    if (match) {
-      const bId = match[1];
+    const bId = extractBookingIdFromDescription_(e.getDescription());
+    if (bId) {
       if (!eventsByBookingId[bId]) eventsByBookingId[bId] = [];
       eventsByBookingId[bId].push(e);
     }
@@ -2259,12 +2652,12 @@ function buildClientProfileReport_(client) {
 
   section('Rendez-vous futurs');
   bookings.filter((b) => b.status === BOOKING_STATUS.CONFIRMED && new Date(b.start_datetime) > now).forEach((b) => {
-    line(b.booking_id, `${b.service_id} — ${formatDateForReport_(b.start_datetime)} (source : ${b.source || 'package_booking'})`);
+    line(b.booking_id, formatBookingLineForReport_(b));
   });
 
   section('Historique des rendez-vous passés');
   bookings.filter((b) => new Date(b.start_datetime) <= now || b.status === BOOKING_STATUS.EXTERNAL_MANUAL).forEach((b) => {
-    line(b.booking_id, `${b.service_id} — ${formatDateForReport_(b.start_datetime)} — ${b.status} (source : ${b.source || 'package_booking'})`);
+    line(b.booking_id, formatBookingLineForReport_(b));
   });
 
   section('Annulations, reports et no-shows');
@@ -2290,6 +2683,13 @@ function buildClientProfileReport_(client) {
   line('Total confirmé', `${totalBrut.toFixed(2)} brut — ${totalFrais.toFixed(2)} frais — ${totalNet.toFixed(2)} net`);
 
   return rows;
+}
+
+/** Ligne standard pour un Booking dans la Fiche_Client : date, soin, origine, forfait, statut, calendar_event_id, créé par. */
+function formatBookingLineForReport_(b) {
+  return `${b.service_id} — ${formatDateForReport_(b.start_datetime)} — ${b.status} — ` +
+    `forfait : ${b.package_id || '(aucun, réservation externe)'} — origine : ${b.source || 'package_booking'} — ` +
+    `calendar_event_id : ${b.calendar_event_id || '(aucun)'} — créé par : ${b.created_by || 'client'}`;
 }
 
 function formatDateForReport_(value) {

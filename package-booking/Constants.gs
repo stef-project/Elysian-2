@@ -47,7 +47,7 @@ const HEADERS = {
     'booking_id', 'booking_request_id', 'client_id', 'package_id', 'service_id',
     'status', 'calendar_event_id', 'start_datetime', 'end_datetime',
     'session_movement', 'created_at', 'updated_at', 'history_notes',
-    'source',
+    'source', 'created_by',
   ],
 
   [TABS.VERIFICATION_CODES]: [
@@ -108,6 +108,8 @@ const BOOKING_SOURCE = {
   GOOGLE_APPOINTMENT_PAID: 'google_appointment_paid',
   PACKAGE_BOOKING: 'package_booking',
   WHATSAPP: 'whatsapp',
+  PHONE: 'phone',
+  PACKAGE_CLIENT_REQUEST: 'package_client_request',
   ADMIN_MANUAL: 'admin_manual',
   OTHER: 'other',
 };

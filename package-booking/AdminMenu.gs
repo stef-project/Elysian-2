@@ -37,6 +37,9 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Fiche cliente (Phase 2)')
       .addItem('Voir la fiche consolidée d\'une cliente', 'adminViewClientProfile')
       .addItem('Ajouter une réservation manuelle (ClassPass / WhatsApp)', 'adminAddManualBooking'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Rendez-vous forfait (Phase 2)')
+      .addItem('Ajouter un rendez-vous forfait', 'adminAddPackageBooking')
+      .addItem('Associer un événement Calendar existant à un forfait', 'adminLinkCalendarEventToPackage'))
     .addToUi();
 }
 
@@ -207,9 +210,221 @@ function adminAddManualBooking() {
     updated_at: new Date(),
     history_notes: notes,
     source: sourceRaw,
+    created_by: Session.getActiveUser().getEmail() || 'admin',
   });
   writeAuditLog_('admin', 'add_manual_booking', bookingId, '', sourceRaw, 'Saisie manuelle pour fiche cliente');
   ui.alert(`Réservation manuelle enregistrée : ${bookingId} (source : ${sourceRaw}). Visible dans la fiche cliente.`);
+}
+
+/**
+ * "Ajouter un rendez-vous forfait" — crée manuellement un rendez-vous pour
+ * une cliente disposant déjà d'un forfait actif (ex. après un échange
+ * WhatsApp), en utilisant EXACTEMENT le même cœur transactionnel sécurisé
+ * que la réservation en self-service (createNewPackageBooking_, Booking.gs) :
+ * verrou, idempotence, re-vérification complète, restauration en cas
+ * d'échec Calendar. Rien n'est dupliqué.
+ *
+ * Un événement ajouté directement dans Google Calendar (hors de cette
+ * fonction) ne déduit JAMAIS de séance automatiquement — voir aussi
+ * "Associer un événement Calendar existant à un forfait" ci-dessous pour
+ * le cas où l'événement existe déjà.
+ */
+function adminAddPackageBooking() {
+  const ui = ui_();
+
+  // --- Identifier la cliente : recherche par téléphone d'abord ---
+  const phoneRaw = ui.prompt('Numéro de téléphone de la cliente (recherche) :').getResponseText().trim();
+  let client = null;
+  const matches = phoneRaw ? findClientsByPhone_(phoneRaw) : [];
+
+  if (matches.length === 1) {
+    client = matches[0];
+  } else if (matches.length > 1) {
+    // Ne jamais deviner : afficher la liste, demander une sélection manuelle explicite.
+    const list = matches.map((c) => `${c.client_id} — ${c.prenom} ${c.nom} — ${c.email || '(pas d\'email)'} — ${c.telephone}`).join('\n');
+    const clientIdChoice = ui.prompt(
+      `Plusieurs clientes correspondent à ce numéro :\n${list}\n\nSaisis le client_id exact à utiliser :`
+    ).getResponseText().trim();
+    client = findRowBy_(TABS.CLIENTS, 'client_id', clientIdChoice);
+    if (!client) { ui.alert('client_id introuvable, opération annulée.'); return; }
+  } else {
+    const emailFallback = ui.prompt('Aucune cliente trouvée avec ce numéro. Email de la cliente (secours, laisser vide pour annuler) :').getResponseText().trim().toLowerCase();
+    client = emailFallback ? findClientByEmail_(emailFallback) : null;
+    if (!client) {
+      ui.alert('Aucune cliente trouvée. Utilise d\'abord "Ajouter une cliente", ou vérifie le numéro/email — jamais de création automatique ici.');
+      return;
+    }
+  }
+
+  // Email facultatif : ne remplace jamais un email déjà connu, complète seulement s'il manquait.
+  if (!client.email) {
+    const emailFacultatif = ui.prompt('Email de la cliente (facultatif, laisser vide si inconnu) :').getResponseText().trim().toLowerCase();
+    if (emailFacultatif) {
+      updateRow_(TABS.CLIENTS, client.rowNumber, { email: emailFacultatif });
+      writeAuditLog_('admin', 'update_client_email', client.client_id, '', emailFacultatif, 'Complété via "Ajouter un rendez-vous forfait"');
+      client = findRowBy_(TABS.CLIENTS, 'client_id', client.client_id);
+    }
+  }
+
+  // --- Forfait actif ---
+  const activePackages = findActivePackagesForClient_(client.client_id);
+  if (activePackages.length === 0) {
+    ui.alert(`Aucun forfait actif pour ${client.prenom} ${client.nom}. Impossible de créer un rendez-vous forfait.`);
+    return;
+  }
+  const pkgList = activePackages.map((p) => `${p.package_id} — ${p.nom_forfait} — dispo ${p.available_sessions} — soins : ${p.soins_inclus}`).join('\n');
+  const packageId = ui.prompt(`Forfaits actifs de ${client.prenom} ${client.nom} :\n${pkgList}\n\nSaisis le package_id à utiliser :`).getResponseText().trim();
+  const pkg = findPackageById_(packageId);
+  if (!pkg || pkg.client_id !== client.client_id) { ui.alert('Forfait invalide pour cette cliente.'); return; }
+
+  // --- Soin, date, heure, durée ---
+  const serviceId = ui.prompt('Soin (ex. lymphatic-1z — doit être inclus dans le forfait choisi) :').getResponseText().trim();
+  const dateRaw = ui.prompt('Date du rendez-vous (AAAA-MM-JJ) :').getResponseText().trim();
+  const heureRaw = ui.prompt('Heure (HH:MM) :').getResponseText().trim();
+  const start = new Date(`${dateRaw}T${heureRaw}`);
+  if (isNaN(start.getTime())) { ui.alert('Date/heure invalide.'); return; }
+  const dureeRaw = ui.prompt('Durée en minutes (ex. 60) :').getResponseText().trim();
+  const duree = parseInt(dureeRaw, 10);
+  if (isNaN(duree) || duree <= 0) { ui.alert('Durée invalide.'); return; }
+  const end = new Date(start.getTime() + duree * 60 * 1000);
+
+  const noteAdmin = ui.prompt('Note administrative (optionnel) :').getResponseText().trim();
+
+  const origineRaw = ui.prompt('Origine : whatsapp / phone / admin_manual / package_client_request / other :').getResponseText().trim().toLowerCase();
+  const validOrigins = [
+    BOOKING_SOURCE.WHATSAPP, BOOKING_SOURCE.PHONE, BOOKING_SOURCE.ADMIN_MANUAL,
+    BOOKING_SOURCE.PACKAGE_CLIENT_REQUEST, BOOKING_SOURCE.OTHER,
+  ];
+  if (validOrigins.indexOf(origineRaw) === -1) { ui.alert('Origine invalide.'); return; }
+
+  const confirm = ui.alert(
+    `Confirmer la création de ce rendez-vous ?\n\n` +
+    `Cliente : ${client.prenom} ${client.nom}\nForfait : ${pkg.package_id} (${pkg.nom_forfait})\n` +
+    `Soin : ${serviceId}\nDébut : ${start}\nDurée : ${duree} min\nOrigine : ${origineRaw}`,
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) { ui.alert('Opération annulée — rien n\'a été modifié.'); return; }
+
+  const bookingRequestId = 'admin-' + Utilities.getUuid();
+  const actor = Session.getActiveUser().getEmail() || 'admin';
+
+  let result;
+  try {
+    result = adminCreatePackageBooking_(
+      client.client_id, pkg.package_id, serviceId, start.toISOString(), end.toISOString(), bookingRequestId,
+      { origin: origineRaw, historyNotes: noteAdmin, actor: actor }
+    );
+  } catch (err) {
+    ui.alert(`Rendez-vous NON créé : ${err && err.message ? err.message : 'erreur inconnue'}\n\nAucune séance n'a été déduite, aucun événement Calendar créé.`);
+    return;
+  }
+
+  ui.alert(`Rendez-vous forfait créé et confirmé.\ncalendar_event_id : ${result.calendarEventId}`);
+}
+
+/**
+ * "Associer un événement Calendar existant à un forfait" — pour un
+ * rendez-vous déjà présent dans le calendrier (ajouté à la main
+ * directement dans Google Calendar), permet de le relier explicitement à
+ * un forfait ET de déduire une séance, uniquement sur confirmation
+ * explicite de l'administratrice. Ne devine jamais automatiquement qu'un
+ * événement Calendar appartient à un forfait — c'est justement la règle
+ * que la réconciliation respecte (elle signale, ne décide jamais seule).
+ *
+ * Recherche par date (et non par ID/lien d'événement, pour rester simple
+ * et fiable) : liste les événements du jour qui ne portent pas encore de
+ * marqueur booking_id, et propose un choix numéroté.
+ */
+function adminLinkCalendarEventToPackage() {
+  const ui = ui_();
+  const dateRaw = ui.prompt('Date du rendez-vous existant à associer (AAAA-MM-JJ) :').getResponseText().trim();
+  const dayStart = new Date(`${dateRaw}T00:00:00`);
+  if (isNaN(dayStart.getTime())) { ui.alert('Date invalide.'); return; }
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const settings = getSettings();
+  const calendar = CalendarApp.getCalendarById(settings.calendar_id);
+  if (!calendar) { ui.alert('Calendrier configuré introuvable ou inaccessible.'); return; }
+
+  const candidates = calendar.getEvents(dayStart, dayEnd).filter((e) => !extractBookingIdFromDescription_(e.getDescription()));
+  if (candidates.length === 0) {
+    ui.alert('Aucun événement non associé trouvé ce jour-là dans le calendrier configuré.');
+    return;
+  }
+  const list = candidates.map((e, i) => `${i + 1}. ${e.getTitle()} — ${e.getStartTime()}`).join('\n');
+  const choiceRaw = ui.prompt(`Événements non associés ce jour-là :\n${list}\n\nNuméro à associer :`).getResponseText().trim();
+  const choice = parseInt(choiceRaw, 10);
+  if (isNaN(choice) || choice < 1 || choice > candidates.length) { ui.alert('Choix invalide.'); return; }
+  const event = candidates[choice - 1];
+
+  const email = ui.prompt('Email de la cliente :').getResponseText().trim().toLowerCase();
+  const client = findClientByEmail_(email);
+  if (!client) { ui.alert('Cliente introuvable.'); return; }
+
+  const activePackages = findActivePackagesForClient_(client.client_id);
+  if (activePackages.length === 0) { ui.alert('Aucun forfait actif pour cette cliente.'); return; }
+  const pkgList = activePackages.map((p) => `${p.package_id} — ${p.nom_forfait} — dispo ${p.available_sessions} — soins : ${p.soins_inclus}`).join('\n');
+  const packageId = ui.prompt(`Forfaits actifs :\n${pkgList}\n\npackage_id à utiliser :`).getResponseText().trim();
+  const pkg = findPackageById_(packageId);
+  if (!pkg || pkg.client_id !== client.client_id) { ui.alert('Forfait invalide pour cette cliente.'); return; }
+
+  const serviceId = ui.prompt('Soin concerné (doit être inclus dans le forfait) :').getResponseText().trim();
+  const included = String(pkg.soins_inclus || '').split(',').map((s) => s.trim());
+  if (included.indexOf(serviceId) === -1) { ui.alert('Ce soin n\'est pas inclus dans ce forfait, opération annulée.'); return; }
+  if (Number(pkg.available_sessions) < 1) { ui.alert('Aucune séance disponible sur ce forfait, opération annulée.'); return; }
+
+  const confirm = ui.alert(
+    `Associer l'événement "${event.getTitle()}" (${event.getStartTime()}) au forfait ${pkg.package_id} de ` +
+    `${client.prenom} ${client.nom}, et déduire une séance (available -1 / reserved +1) ?\n\n` +
+    'Cette déduction ne peut pas être automatique — confirme explicitement.',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) { ui.alert('Opération annulée — rien n\'a été modifié.'); return; }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) { ui.alert('Le système est occupé, réessaie dans un instant.'); return; }
+  try {
+    const bookingId = genId_('BKG');
+    const existingDescription = event.getDescription() || '';
+    event.setDescription(
+      (existingDescription ? existingDescription + '\n' : '') +
+      `booking_id: ${bookingId}\nclient_id: ${client.client_id}\nservice: ${serviceId}\n` +
+      'Événement Calendar existant associé manuellement à un forfait.'
+    );
+
+    appendRow_(TABS.BOOKINGS, {
+      booking_id: bookingId,
+      booking_request_id: 'manual-link-' + Utilities.getUuid(),
+      client_id: client.client_id,
+      package_id: packageId,
+      service_id: serviceId,
+      status: BOOKING_STATUS.CONFIRMED,
+      calendar_event_id: event.getId(),
+      start_datetime: event.getStartTime().toISOString(),
+      end_datetime: event.getEndTime().toISOString(),
+      session_movement: 'available -1 / reserved +1 (événement existant associé manuellement)',
+      created_at: new Date(),
+      updated_at: new Date(),
+      history_notes: 'Association manuelle d\'un événement Calendar déjà existant.',
+      source: BOOKING_SOURCE.ADMIN_MANUAL,
+      created_by: Session.getActiveUser().getEmail() || 'admin',
+    });
+
+    updateRow_(TABS.PACKAGES, pkg.rowNumber, {
+      available_sessions: Number(pkg.available_sessions) - 1,
+      reserved_sessions: Number(pkg.reserved_sessions) + 1,
+    });
+
+    writeAuditLog_(
+      Session.getActiveUser().getEmail() || 'admin',
+      'link_existing_calendar_event',
+      bookingId, '', packageId,
+      `Événement ${event.getId()} associé manuellement, soin ${serviceId}`
+    );
+  } finally {
+    lock.releaseLock();
+  }
+  ui.alert('Événement associé au forfait, séance déduite.');
 }
 
 function adminAdjustBalance() {

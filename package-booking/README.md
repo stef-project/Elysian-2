@@ -210,6 +210,31 @@ Calendar, ne touche aucun compteur de forfait. **Aucune synchronisation
 ClassPass automatique n'existe** : ClassPass n'expose pas d'API accessible
 identifiée à ce jour, donc uniquement de la saisie manuelle pour l'instant.
 
+### Rendez-vous forfait ajoutés manuellement (`Ajouter un rendez-vous forfait`)
+Sous-menu **Elysian Admin → Rendez-vous forfait** : crée un rendez-vous pour
+une cliente qui a déjà un forfait actif (ex. après un échange WhatsApp),
+avec **exactement le même cœur transactionnel sécurisé** que la réservation
+en self-service (verrou, idempotence, re-vérification complète du forfait
+et du créneau, restauration automatique en cas d'échec Calendar) — la
+logique n'est pas dupliquée, elle est partagée (`createNewPackageBooking_`,
+`Booking.gs`). Recherche la cliente par téléphone (ou email en secours) ;
+si plusieurs clientes correspondent, demande une sélection manuelle
+explicite plutôt que de deviner. Vérifie forfait actif, non expiré, soin
+inclus, séance disponible, créneau libre, absence de doublon (même
+cliente/soin/horaire/forfait déjà `pending`/`confirmed`), et que le
+calendrier configuré est bien accessible — **avant** toute écriture. Le
+rendez-vous créé est un `Booking` normal : report/annulation/no-show
+utilisent exactement les mêmes règles administrateur que pour toute autre
+réservation.
+
+**Un événement ajouté directement dans Google Calendar (en dehors de cette
+fonction) ne déduit jamais de séance automatiquement.** Pour un rendez-vous
+déjà présent dans Calendar qu'il faut relier après coup à un forfait :
+**Elysian Admin → Rendez-vous forfait → Associer un événement Calendar
+existant à un forfait** — liste les événements non associés d'une journée
+donnée, demande une confirmation explicite avant de déduire une séance.
+Ne devine jamais automatiquement qu'un événement appartient à un forfait.
+
 ### Pas encore fait (Étapes B et C du plan Phase 2)
 - Bouton "Proposer un forfait" (génération d'offre, lien WhatsApp/email,
   statuts draft/sent/viewed/accepted/paid/expired/declined/cancelled).

@@ -32,10 +32,8 @@ function runReconciliationCheck() {
   const events = calendar.getEvents(lookaheadStart, lookaheadEnd);
   const eventsByBookingId = {};
   events.forEach((e) => {
-    const desc = e.getDescription() || '';
-    const match = desc.match(/booking_id:\s*(\S+)/);
-    if (match) {
-      const bId = match[1];
+    const bId = extractBookingIdFromDescription_(e.getDescription());
+    if (bId) {
       if (!eventsByBookingId[bId]) eventsByBookingId[bId] = [];
       eventsByBookingId[bId].push(e);
     }
