@@ -5,27 +5,32 @@
  * ============================================================================
  *
  *  Rien n'est jamais stocké en clair : les codes et les jetons sont hachés
- *  (SHA-256 + "poivre" secret propre à ce déploiement) avant écriture dans
- *  le Sheet. Le "poivre" vit uniquement dans les Propriétés du script — il
+ *  en HMAC-SHA256 (clé secrète propre à ce déploiement) avant écriture dans
+ *  le Sheet. La clé vit uniquement dans les Propriétés du script — elle
  *  n'apparaît jamais dans Git/GitHub ni dans une cellule du Sheet.
+ *
+ *  ⚠️ HMAC, pas un simple SHA-256(valeur + secret) : un hachage simple avec
+ *  secret concaténé est vulnérable aux attaques par extension de longueur
+ *  (construction Merkle–Damgård de SHA-256). HMAC est le primitif conçu
+ *  spécifiquement pour "hacher avec une clé secrète" et n'a pas cette faille.
  */
 
-/** Renvoie le "poivre" secret, en le générant une seule fois si absent. */
-function getSecretPepper_() {
+/** Renvoie la clé secrète HMAC, en la générant une seule fois si absente. */
+function getHmacSecretKey_() {
   const props = PropertiesService.getScriptProperties();
-  let pepper = props.getProperty('SECURITY_PEPPER');
-  if (!pepper) {
-    pepper = Utilities.getUuid() + Utilities.getUuid();
-    props.setProperty('SECURITY_PEPPER', pepper);
+  let key = props.getProperty('SECURITY_HMAC_KEY');
+  if (!key) {
+    key = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty('SECURITY_HMAC_KEY', key);
   }
-  return pepper;
+  return key;
 }
 
-/** Hache une chaîne (code ou jeton) en SHA-256 hexadécimal, avec le poivre secret. */
+/** Hache une chaîne (code ou jeton) en HMAC-SHA256 hexadécimal, avec la clé secrète du déploiement. */
 function hashWithPepper_(value) {
-  const digest = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256,
-    value + '::' + getSecretPepper_(),
+  const digest = Utilities.computeHmacSha256Signature(
+    value,
+    getHmacSecretKey_(),
     Utilities.Charset.UTF_8
   );
   return digest.map((b) => {

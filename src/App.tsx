@@ -10,13 +10,17 @@ import UsePackage from "@/pages/UsePackage";
 
 const queryClient = new QueryClient();
 
+// Feature flag : la route /use-package est réellement désactivée (404) tant que
+// Google Workspace n'est pas configuré et le lancement pas explicitement validé.
+// Activer uniquement via la variable d'environnement Vercel VITE_PACKAGE_BOOKING_ENABLED=true.
+const PACKAGE_BOOKING_ENABLED = import.meta.env.VITE_PACKAGE_BOOKING_ENABLED === "true";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/lymphatic-drainage-after-surgery" component={AfterSurgery} />
-      {/* Non lié depuis la navigation tant que la Web App n'est pas déployée et validée */}
-      <Route path="/use-package" component={UsePackage} />
+      {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
       <Route path="/cookie-policy" component={Legal} />
