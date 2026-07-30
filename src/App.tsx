@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Legal from "@/pages/Legal";
 import AfterSurgery from "@/pages/AfterSurgery";
+import UsePackage from "@/pages/UsePackage";
 
 const queryClient = new QueryClient();
 
@@ -14,6 +15,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/lymphatic-drainage-after-surgery" component={AfterSurgery} />
+      {/* Non lié depuis la navigation tant que la Web App n'est pas déployée et validée */}
+      <Route path="/use-package" component={UsePackage} />
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
       <Route path="/cookie-policy" component={Legal} />
