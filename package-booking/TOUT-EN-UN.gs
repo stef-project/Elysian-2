@@ -1201,10 +1201,22 @@ function adminAddClient() {
  * COPIÉES telles quelles à cet instant (voir en-tête PackageTemplates.gs) —
  * ou être saisies manuellement comme en V1.
  *
- * Depuis Phase 2 Étape A : le forfait démarre au statut PENDING_PAYMENT et
- * n'est PAS réservable tant qu'un paiement n'a pas été enregistré/confirmé
- * (voir Payments.gs). Utilise "Enregistrer un paiement" juste après pour
- * l'activer.
+ * Le forfait est TOUJOURS créé au statut PENDING_PAYMENT (non réservable —
+ * findEligiblePackages_/confirmPackageBooking exigent statut === ACTIVE),
+ * puis deux parcours administratifs au choix :
+ *
+ *  1. "Paiement à recevoir" — le forfait reste pending_payment ; utiliser
+ *     ensuite "Enregistrer un paiement" une fois le paiement reçu.
+ *  2. "Paiement déjà reçu / forfait historique" — la saisie du paiement
+ *     (moyen, brut, frais, référence) se fait immédiatement ici même, via
+ *     promptAndRecordPayment_ (Payments.gs, pas dupliqué), et le forfait
+ *     passe à ACTIVE dans la foulée. Couvre : historique, Revolut déjà
+ *     reçu, virement déjà reçu, carte sur place, espèces, ClassPass, offert
+ *     (complimentary), autre paiement externe.
+ *
+ * Dans tous les cas, aucun forfait n'est jamais activé sans une ligne
+ * Payments (trace) — voir Payments.gs pour le motif obligatoire sur les
+ * moyens peu traçables (cash / complimentary / other).
  */
 function adminAddPackage() {
   const ui = ui_();
@@ -1244,7 +1256,12 @@ function adminAddPackage() {
     dateExpirationRaw = ui.prompt('Date d\'expiration (AAAA-MM-JJ), laisser vide si aucune :').getResponseText().trim();
   }
 
-  const moyenPaiement = ui.prompt('Moyen de paiement prévu (informatif — le paiement réel se saisit ensuite via "Enregistrer un paiement") :').getResponseText().trim();
+  const dejaRecu = ui.alert(
+    'Ce paiement est-il déjà reçu (historique, Revolut, virement, carte sur place, espèces, ' +
+    'ClassPass, offert, autre) ?\n\nOUI = saisie du paiement maintenant, forfait activé immédiatement.\n' +
+    'NON = forfait créé "en attente de paiement", à activer plus tard via "Enregistrer un paiement".',
+    ui.ButtonSet.YES_NO
+  );
 
   const packageId = genId_('PKG');
   appendRow_(TABS.PACKAGES, {
@@ -1258,13 +1275,24 @@ function adminAddPackage() {
     used_sessions: 0,
     date_achat: new Date(),
     date_expiration: dateExpirationRaw || '',
-    moyen_paiement: moyenPaiement,
+    moyen_paiement: '',
     statut: PACKAGE_STATUS.PENDING_PAYMENT,
     notes_admin: '',
     package_template_id: templateId || '',
   });
   writeAuditLog_('admin', 'add_package', packageId, '', `${totalSessions} séances (pending_payment)`, '');
-  ui.alert(`Forfait créé : ${packageId} — statut "pending_payment", pas encore réservable.\n\nUtilise "Enregistrer un paiement" pour l'activer une fois le paiement reçu.`);
+
+  if (dejaRecu !== ui.Button.YES) {
+    ui.alert(`Forfait créé : ${packageId} — statut "pending_payment", pas encore réservable.\n\nUtilise "Enregistrer un paiement" pour l'activer une fois le paiement reçu.`);
+    return;
+  }
+
+  const paymentId = promptAndRecordPayment_(packageId, { forceConfirmed: true });
+  if (!paymentId) {
+    ui.alert(`Forfait créé : ${packageId}, mais la saisie du paiement a été annulée — reste "pending_payment". Utilise "Enregistrer un paiement" pour finaliser.`);
+    return;
+  }
+  ui.alert(`Forfait créé et activé : ${packageId} (paiement ${paymentId}).`);
 }
 
 /**
@@ -1985,17 +2013,27 @@ function findPaymentsByClientId_(clientId) {
   return readAllRows_(TABS.PAYMENTS).filter((p) => p.client_id === clientId);
 }
 
-function adminRecordPayment() {
+/**
+ * Cœur interactif de la saisie d'un paiement — seule fonction qui écrit dans
+ * Payments. Utilisée à la fois par adminRecordPayment() (paiement enregistré
+ * a posteriori sur un forfait déjà existant) et par le parcours "paiement
+ * déjà reçu / forfait historique" dans adminAddPackage() (AdminMenu.gs), pour
+ * ne jamais dupliquer la logique de calcul ni de validation.
+ *
+ * "Aucun forfait ne doit être activé sans une trace de paiement ou un motif
+ * administratif explicite" : pour les moyens peu traçables (cash,
+ * complimentary, other), justificatif_notes devient obligatoire ici.
+ *
+ * @param {string} packageId
+ * @param {{forceConfirmed: boolean}} options - forceConfirmed=true saute la
+ *   question "confirmer maintenant ?" (utilisé quand l'admin affirme déjà que
+ *   le paiement est reçu, ex. parcours "forfait historique").
+ * @returns {string|null} payment_id créé, ou null si l'admin a annulé.
+ */
+function promptAndRecordPayment_(packageId, options) {
   const ui = ui_();
-  const packageId = ui.prompt('package_id concerné :').getResponseText().trim();
   const pkg = findPackageById_(packageId);
-  if (!pkg) { ui.alert('Forfait introuvable.'); return; }
-
-  const montantBrutRaw = ui.prompt('Montant facturé brut (ex. 900) :').getResponseText().trim();
-  const montantBrut = parseFloat(montantBrutRaw);
-  if (isNaN(montantBrut) || montantBrut < 0) { ui.alert('Montant invalide.'); return; }
-
-  const devise = ui.prompt('Devise (ex. GBP) :').getResponseText().trim().toUpperCase() || 'GBP';
+  if (!pkg) { ui.alert('Forfait introuvable.'); return null; }
 
   const moyenPaiementRaw = ui.prompt(
     'Moyen de paiement : revolut_card_payment / revolut_pay / bank_transfer / stripe / ' +
@@ -2003,27 +2041,56 @@ function adminRecordPayment() {
   ).getResponseText().trim().toLowerCase();
   if (Object.values(PAYMENT_METHOD).indexOf(moyenPaiementRaw) === -1) {
     ui.alert('Moyen de paiement invalide.');
-    return;
+    return null;
+  }
+  const isComplimentary = moyenPaiementRaw === PAYMENT_METHOD.COMPLIMENTARY;
+
+  let montantBrut = 0;
+  let fraisPaiement = 0;
+  let devise = 'GBP';
+
+  if (isComplimentary) {
+    ui.alert('Forfait offert (complimentary) : montant brut et frais fixés à 0 automatiquement.');
+  } else {
+    devise = ui.prompt('Devise (ex. GBP) :').getResponseText().trim().toUpperCase() || 'GBP';
+
+    const montantBrutRaw = ui.prompt('Montant facturé brut (ex. 900) :').getResponseText().trim();
+    montantBrut = parseFloat(montantBrutRaw);
+    if (isNaN(montantBrut) || montantBrut < 0) { ui.alert('Montant invalide.'); return null; }
+
+    const fraisPaiementRaw = ui.prompt('Frais de paiement prélevés (ex. 11), laisser vide ou 0 si aucun/inconnu :').getResponseText().trim();
+    fraisPaiement = fraisPaiementRaw ? parseFloat(fraisPaiementRaw) : 0;
+    if (isNaN(fraisPaiement) || fraisPaiement < 0) { ui.alert('Frais invalides.'); return null; }
   }
 
-  const fournisseurPaiement = ui.prompt('Fournisseur de paiement (optionnel, ex. "Revolut Business") :').getResponseText().trim();
-
-  const fraisPaiementRaw = ui.prompt('Frais de paiement prélevés (ex. 11), laisser vide ou 0 si aucun/inconnu :').getResponseText().trim();
-  const fraisPaiement = fraisPaiementRaw ? parseFloat(fraisPaiementRaw) : 0;
-  if (isNaN(fraisPaiement) || fraisPaiement < 0) { ui.alert('Frais invalides.'); return; }
-
+  const fournisseurPaiement = isComplimentary ? '' : ui.prompt('Fournisseur de paiement (optionnel, ex. "Revolut Business") :').getResponseText().trim();
   const { montant_net, taux_frais } = computePaymentFinancials_(montantBrut, fraisPaiement);
 
-  const referenceTransaction = ui.prompt('Référence de transaction (optionnel) :').getResponseText().trim();
-  const justificatifNotes = ui.prompt('Justificatif ou note administrative (optionnel) :').getResponseText().trim();
+  const referenceTransaction = isComplimentary ? '' : ui.prompt('Référence de transaction (optionnel) :').getResponseText().trim();
 
-  const confirmNow = ui.alert(
-    `Récapitulatif :\nBrut : ${montantBrut} ${devise}\nFrais : ${fraisPaiement} ${devise}\n` +
-    `Net : ${montant_net.toFixed(2)} ${devise}\nTaux de frais réel : ${(taux_frais * 100).toFixed(2)}%\n\n` +
-    'Confirmer ce paiement maintenant (paiement déjà reçu) ?',
-    ui.ButtonSet.YES_NO
-  );
-  const statutPaiement = confirmNow === ui.Button.YES ? PAYMENT_STATUS.CONFIRME : PAYMENT_STATUS.A_CONFIRMER;
+  // Moyens peu traçables : trace de paiement quasi inexistante -> motif obligatoire.
+  const motifRequired = [PAYMENT_METHOD.CASH, PAYMENT_METHOD.COMPLIMENTARY, PAYMENT_METHOD.OTHER].indexOf(moyenPaiementRaw) !== -1;
+  const justificatifPrompt = motifRequired
+    ? 'Motif / justificatif (OBLIGATOIRE pour ce moyen de paiement) :'
+    : 'Justificatif ou note administrative (optionnel) :';
+  const justificatifNotes = ui.prompt(justificatifPrompt).getResponseText().trim();
+  if (motifRequired && !justificatifNotes) {
+    ui.alert('Motif obligatoire pour ce moyen de paiement (cash / complimentary / other), opération annulée.');
+    return null;
+  }
+
+  let statutPaiement;
+  if (options && options.forceConfirmed) {
+    statutPaiement = PAYMENT_STATUS.CONFIRME;
+  } else {
+    const confirmNow = ui.alert(
+      `Récapitulatif :\nBrut : ${montantBrut} ${devise}\nFrais : ${fraisPaiement} ${devise}\n` +
+      `Net : ${montant_net.toFixed(2)} ${devise}\nTaux de frais réel : ${(taux_frais * 100).toFixed(2)}%\n\n` +
+      'Confirmer ce paiement maintenant (paiement déjà reçu) ?',
+      ui.ButtonSet.YES_NO
+    );
+    statutPaiement = confirmNow === ui.Button.YES ? PAYMENT_STATUS.CONFIRME : PAYMENT_STATUS.A_CONFIRMER;
+  }
 
   const paymentId = genId_('PAY');
   appendRow_(TABS.PAYMENTS, {
@@ -2043,17 +2110,27 @@ function adminRecordPayment() {
     justificatif_notes: justificatifNotes,
     mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
   });
-  writeAuditLog_('admin', 'record_payment', paymentId, '', statutPaiement, `Forfait ${packageId}`);
+  writeAuditLog_('admin', 'record_payment', paymentId, '', statutPaiement, `Forfait ${packageId} (${moyenPaiementRaw})${justificatifNotes ? ' — ' + justificatifNotes : ''}`);
 
   if (statutPaiement === PAYMENT_STATUS.CONFIRME) {
     activatePackageIfPending_(packageId, paymentId);
   }
 
+  return paymentId;
+}
+
+function adminRecordPayment() {
+  const ui = ui_();
+  const packageId = ui.prompt('package_id concerné :').getResponseText().trim();
+  const paymentId = promptAndRecordPayment_(packageId, { forceConfirmed: false });
+  if (!paymentId) return;
+
+  const payment = findPaymentById_(paymentId);
   ui.alert(
-    `Paiement enregistré : ${paymentId} (${statutPaiement}).` +
-    (statutPaiement === PAYMENT_STATUS.A_CONFIRMER
+    `Paiement enregistré : ${paymentId} (${payment.statut_paiement}).` +
+    (payment.statut_paiement === PAYMENT_STATUS.A_CONFIRMER
       ? '\n\n⚠️ Forfait toujours en attente de paiement — utilise "Confirmer un paiement" une fois reçu pour l\'activer.'
-      : '')
+      : '\n\nForfait activé (ou déjà actif).')
   );
 }
 

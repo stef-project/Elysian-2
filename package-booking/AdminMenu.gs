@@ -73,10 +73,22 @@ function adminAddClient() {
  * COPIÉES telles quelles à cet instant (voir en-tête PackageTemplates.gs) —
  * ou être saisies manuellement comme en V1.
  *
- * Depuis Phase 2 Étape A : le forfait démarre au statut PENDING_PAYMENT et
- * n'est PAS réservable tant qu'un paiement n'a pas été enregistré/confirmé
- * (voir Payments.gs). Utilise "Enregistrer un paiement" juste après pour
- * l'activer.
+ * Le forfait est TOUJOURS créé au statut PENDING_PAYMENT (non réservable —
+ * findEligiblePackages_/confirmPackageBooking exigent statut === ACTIVE),
+ * puis deux parcours administratifs au choix :
+ *
+ *  1. "Paiement à recevoir" — le forfait reste pending_payment ; utiliser
+ *     ensuite "Enregistrer un paiement" une fois le paiement reçu.
+ *  2. "Paiement déjà reçu / forfait historique" — la saisie du paiement
+ *     (moyen, brut, frais, référence) se fait immédiatement ici même, via
+ *     promptAndRecordPayment_ (Payments.gs, pas dupliqué), et le forfait
+ *     passe à ACTIVE dans la foulée. Couvre : historique, Revolut déjà
+ *     reçu, virement déjà reçu, carte sur place, espèces, ClassPass, offert
+ *     (complimentary), autre paiement externe.
+ *
+ * Dans tous les cas, aucun forfait n'est jamais activé sans une ligne
+ * Payments (trace) — voir Payments.gs pour le motif obligatoire sur les
+ * moyens peu traçables (cash / complimentary / other).
  */
 function adminAddPackage() {
   const ui = ui_();
@@ -116,7 +128,12 @@ function adminAddPackage() {
     dateExpirationRaw = ui.prompt('Date d\'expiration (AAAA-MM-JJ), laisser vide si aucune :').getResponseText().trim();
   }
 
-  const moyenPaiement = ui.prompt('Moyen de paiement prévu (informatif — le paiement réel se saisit ensuite via "Enregistrer un paiement") :').getResponseText().trim();
+  const dejaRecu = ui.alert(
+    'Ce paiement est-il déjà reçu (historique, Revolut, virement, carte sur place, espèces, ' +
+    'ClassPass, offert, autre) ?\n\nOUI = saisie du paiement maintenant, forfait activé immédiatement.\n' +
+    'NON = forfait créé "en attente de paiement", à activer plus tard via "Enregistrer un paiement".',
+    ui.ButtonSet.YES_NO
+  );
 
   const packageId = genId_('PKG');
   appendRow_(TABS.PACKAGES, {
@@ -130,13 +147,24 @@ function adminAddPackage() {
     used_sessions: 0,
     date_achat: new Date(),
     date_expiration: dateExpirationRaw || '',
-    moyen_paiement: moyenPaiement,
+    moyen_paiement: '',
     statut: PACKAGE_STATUS.PENDING_PAYMENT,
     notes_admin: '',
     package_template_id: templateId || '',
   });
   writeAuditLog_('admin', 'add_package', packageId, '', `${totalSessions} séances (pending_payment)`, '');
-  ui.alert(`Forfait créé : ${packageId} — statut "pending_payment", pas encore réservable.\n\nUtilise "Enregistrer un paiement" pour l'activer une fois le paiement reçu.`);
+
+  if (dejaRecu !== ui.Button.YES) {
+    ui.alert(`Forfait créé : ${packageId} — statut "pending_payment", pas encore réservable.\n\nUtilise "Enregistrer un paiement" pour l'activer une fois le paiement reçu.`);
+    return;
+  }
+
+  const paymentId = promptAndRecordPayment_(packageId, { forceConfirmed: true });
+  if (!paymentId) {
+    ui.alert(`Forfait créé : ${packageId}, mais la saisie du paiement a été annulée — reste "pending_payment". Utilise "Enregistrer un paiement" pour finaliser.`);
+    return;
+  }
+  ui.alert(`Forfait créé et activé : ${packageId} (paiement ${paymentId}).`);
 }
 
 /**

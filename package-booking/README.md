@@ -161,12 +161,28 @@ direct.
 ### ⚠️ Changement de comportement V1 : les forfaits ne s'activent plus seuls
 `adminAddPackage` (menu **Ajouter un forfait**) peut maintenant sourcer un
 modèle du catalogue (`package_template_id`, optionnel — la saisie manuelle
-reste possible comme avant). **Différence importante** : le forfait créé
-démarre désormais au statut `pending_payment` et **n'est pas réservable**
-tant qu'un paiement n'a pas été enregistré/confirmé (`findEligiblePackages_`
-et `confirmPackageBooking` exigent toujours `statut === active`, inchangés).
-Utilise **Elysian Admin → Paiements → Enregistrer un paiement** juste après
-pour l'activer.
+reste possible comme avant). Le forfait créé démarre **toujours** au statut
+`pending_payment` et **n'est pas réservable** tant qu'un paiement n'a pas
+été enregistré/confirmé (`findEligiblePackages_` et `confirmPackageBooking`
+exigent toujours `statut === active`, inchangés). Juste après la création,
+deux parcours au choix (question oui/non posée directement dans le flux) :
+
+1. **Paiement à recevoir** — le forfait reste `pending_payment`. Utiliser
+   plus tard **Elysian Admin → Paiements → Enregistrer un paiement** pour
+   l'activer une fois le paiement reçu.
+2. **Paiement déjà reçu / forfait historique** — la saisie du paiement
+   (moyen, montant brut, frais, référence) se fait immédiatement dans la
+   foulée, et le forfait passe à `active` tout de suite. Couvre : forfait
+   déjà payé historiquement, Revolut déjà reçu, virement déjà reçu, carte
+   sur place, espèces, ClassPass, offert, autre paiement externe.
+
+Pour un **forfait offert** (`complimentary`), le montant brut et les frais
+sont automatiquement fixés à `0`, et un motif devient **obligatoire**
+(comme pour `cash`/`other` — moyens peu traçables). Dans tous les cas,
+**aucun forfait n'est jamais activé sans une ligne `Payments`** (trace de
+paiement) — la logique de saisie/calcul est centralisée dans
+`promptAndRecordPayment_` (`Payments.gs`), réutilisée par les deux
+parcours ci-dessus et par "Enregistrer un paiement" : rien n'est dupliqué.
 
 ### Paiements (`Payments`)
 Sous-menu **Elysian Admin → Paiements** : enregistrer un paiement (brut,
