@@ -23,9 +23,16 @@ dans un Google Sheet dédié.
 
 ## 2. Copier les fichiers de ce dossier
 
-Pour chaque fichier `.gs` de `package-booking/`, crée un fichier du même nom
-dans l'éditeur Apps Script (icône **+** à côté de "Fichiers" → Script) et
-colle son contenu :
+**Option rapide (recommandée) :** crée un seul fichier `TOUT-EN-UN.gs` dans
+l'éditeur Apps Script et colle-y tout le contenu de
+[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 11 fichiers
+ci-dessous (mêmes fonctions, même comportement) en un seul copier-coller,
+comme pour `gmail-automation/TOUT-EN-UN.gs`. Tu peux supprimer le fichier
+`Code.gs` par défaut.
+
+**Option détaillée (équivalente, fichier par fichier) :** pour chaque fichier
+`.gs` de `package-booking/`, crée un fichier du même nom dans l'éditeur Apps
+Script (icône **+** à côté de "Fichiers" → Script) et colle son contenu :
 
 - `Constants.gs`
 - `Settings.gs`
