@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────
 //  Client pour la Web App Apps Script "réservation par forfait".
-//  ⚠️ Aucun secret ici : uniquement l'URL publique du endpoint, à renseigner
-//     une fois le script déployé (voir package-booking/README.md).
+//  ⚠️ Aucun secret ici : uniquement l'URL publique du endpoint (le Web App
+//     lui-même est protégé par vérification email + code, pas par le secret
+//     de cette URL — voir package-booking/WebApp.gs et README.md).
 // ─────────────────────────────────────────────────────────────────────────
 
-// Laisse vide tant que la Web App n'a pas été déployée et son URL communiquée.
-export const PACKAGE_BOOKING_WEB_APP_URL = "";
+export const PACKAGE_BOOKING_WEB_APP_URL =
+  "https://script.google.com/macros/s/AKfycbyF9qnNiaTGdkHGNeRVhGg8R7N1OgcyiRzNsPMPfSdx5WvirrvGcoQl-8enpY-lbvJ8gA/exec";
 
 export const isPackageBookingConfigured = () => PACKAGE_BOOKING_WEB_APP_URL.length > 0;
 
