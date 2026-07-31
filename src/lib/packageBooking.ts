@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 //  Client pour la Web App Apps Script "réservation par forfait".
-//  ⚠️ Aucun secret ici : uniquement l'URL publique du endpoint, à renseigner
-//     une fois le script déployé (voir package-booking/README.md).
+//  ⚠️ Aucun secret ici : uniquement l'URL publique du endpoint (le Web App
+//     lui-même est protégé par vérification email + code, pas par le secret
+//     de cette URL — voir package-booking/WebApp.gs et README.md).
 // ─────────────────────────────────────────────────────────────────────────
 
 // URL de la Web App Apps Script — priorité à la variable d'env Vercel
@@ -71,6 +72,28 @@ export const confirmBooking = (
 // Renvoyé tel quel en cas de nouvelle tentative après une coupure réseau.
 export const generateBookingRequestId = () =>
   (crypto as Crypto).randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Offres de forfait (Phase 2, Étape B) — page /offer/:offerId.
+//  getOfferDetails est l'appel qui valide le jeton ET fait passer
+//  sent/draft -> viewed côté backend : ne jamais afficher le contenu de
+//  l'offre avant que cet appel ait répondu avec succès.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const getOfferDetails = (offerId: string, token: string) =>
+  callWebApp<{
+    prenom: string;
+    nomForfait: string;
+    soinsInclus: string[];
+    nombreSeances: number;
+    prixFinal: number;
+    dureeValiditeJours: number | null;
+    moyenPaiementPropose: string;
+    statut: string;
+  }>("get-offer", { offerId, token });
+
+export const respondToOffer = (offerId: string, token: string, response: "accept" | "decline") =>
+  callWebApp<{ statut: string }>("respond-offer", { offerId, token, response });
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.

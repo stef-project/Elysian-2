@@ -83,17 +83,21 @@ function findPackageById_(packageId) {
   return findRowBy_(TABS.PACKAGES, 'package_id', packageId);
 }
 
+/** Un forfait est expiré si date_expiration est renseignée et dans le passé (référence = maintenant par défaut). */
+function isPackageExpired_(pkg, referenceDate) {
+  if (!pkg.date_expiration) return false;
+  const exp = new Date(pkg.date_expiration);
+  if (isNaN(exp.getTime())) return false;
+  return exp < (referenceDate || new Date());
+}
+
 /** Renvoie les forfaits actifs d'un client couvrant un soin donné, avec au moins 1 séance disponible et non expirés. */
 function findEligiblePackages_(clientId, serviceId) {
-  const now = new Date();
   return readAllRows_(TABS.PACKAGES).filter((pkg) => {
     if (pkg.client_id !== clientId) return false;
     if (pkg.statut !== PACKAGE_STATUS.ACTIVE) return false;
     if (Number(pkg.available_sessions) < 1) return false;
-    if (pkg.date_expiration) {
-      const exp = new Date(pkg.date_expiration);
-      if (!isNaN(exp.getTime()) && exp < now) return false;
-    }
+    if (isPackageExpired_(pkg)) return false;
     const included = String(pkg.soins_inclus || '')
       .split(',')
       .map((s) => s.trim());
@@ -102,6 +106,43 @@ function findEligiblePackages_(clientId, serviceId) {
   });
 }
 
+/** Forfaits actifs et non expirés d'un client, quel que soit le soin — utilisé par le formulaire admin (choix du forfait avant le soin). */
+function findActivePackagesForClient_(clientId) {
+  return readAllRows_(TABS.PACKAGES).filter((pkg) =>
+    pkg.client_id === clientId && pkg.statut === PACKAGE_STATUS.ACTIVE && !isPackageExpired_(pkg)
+  );
+}
+
 function findBookingByRequestId_(bookingRequestId) {
   return findRowBy_(TABS.BOOKINGS, 'booking_request_id', bookingRequestId);
+}
+
+/**
+ * Protection contre les doublons pour les rendez-vous créés manuellement
+ * (voir AdminMenu.gs → adminAddPackageBooking) : un Booking pending/confirmed
+ * existe-t-il déjà pour la même cliente, le même forfait, le même soin et le
+ * même horaire ? Empêche qu'une re-soumission du formulaire (avec un nouveau
+ * booking_request_id, donc non couverte par l'idempotence classique) ne crée
+ * un deuxième rendez-vous et ne déduise une deuxième séance.
+ */
+function findDuplicateActiveBooking_(clientId, packageId, serviceId, startIso) {
+  return readAllRows_(TABS.BOOKINGS).find((b) =>
+    b.client_id === clientId &&
+    b.package_id === packageId &&
+    b.service_id === serviceId &&
+    b.start_datetime === startIso &&
+    [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED].indexOf(b.status) !== -1
+  ) || null;
+}
+
+/** Normalise un numéro de téléphone pour comparaison (ne garde que chiffres et +). */
+function normalizePhone_(raw) {
+  return String(raw || '').replace(/[^0-9+]/g, '');
+}
+
+/** Recherche rapide de clientes par numéro de téléphone (peut renvoyer 0, 1 ou plusieurs résultats). */
+function findClientsByPhone_(phone) {
+  const normalized = normalizePhone_(phone);
+  if (!normalized) return [];
+  return readAllRows_(TABS.CLIENTS).filter((c) => normalizePhone_(c.telephone) === normalized);
 }

@@ -23,9 +23,16 @@ dans un Google Sheet dédié.
 
 ## 2. Copier les fichiers de ce dossier
 
-Pour chaque fichier `.gs` de `package-booking/`, crée un fichier du même nom
-dans l'éditeur Apps Script (icône **+** à côté de "Fichiers" → Script) et
-colle son contenu :
+**Option rapide (recommandée) :** crée un seul fichier `TOUT-EN-UN.gs` dans
+l'éditeur Apps Script et colle-y tout le contenu de
+[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 14 fichiers
+ci-dessous (mêmes fonctions, même comportement) en un seul copier-coller,
+comme pour `gmail-automation/TOUT-EN-UN.gs`. Tu peux supprimer le fichier
+`Code.gs` par défaut.
+
+**Option détaillée (équivalente, fichier par fichier) :** pour chaque fichier
+`.gs` de `package-booking/`, crée un fichier du même nom dans l'éditeur Apps
+Script (icône **+** à côté de "Fichiers" → Script) et colle son contenu :
 
 - `Constants.gs`
 - `Settings.gs`
@@ -38,6 +45,9 @@ colle son contenu :
 - `AdminMenu.gs`
 - `Reconciliation.gs`
 - `WebApp.gs`
+- `PackageTemplates.gs` (Phase 2, Étape A)
+- `Payments.gs` (Phase 2, Étape A)
+- `ClientProfile.gs` (Phase 2, Étape A)
 
 Puis le **manifeste** : icône ⚙️ **Paramètres du projet** → coche **"Afficher
 le fichier manifeste appsscript.json dans l'éditeur"** → remplace son
@@ -131,6 +141,143 @@ Chaque action est tracée dans l'onglet `Audit_Log`.
 
 ---
 
+## Phase 2, Étape A — catalogue de forfaits, paiements, fiche cliente
+
+Ajouté après la V1, **entièrement côté administration** (menu Sheet
+uniquement) : **aucune nouvelle route publique, aucun nouveau scope Google,
+rien d'exposé sur le site.** Rien ne compromet la réservation par forfait
+V1 — voir le détail des vérifications plus bas.
+
+### Catalogue de forfaits (`Package_Templates`)
+Sous-menu **Elysian Admin → Catalogue de forfaits** : créer/modifier un
+modèle (nom, soins, séances, prix, validité, catégorie
+`decouverte`/`principal`/`premium`, visibilité `public`/`private`),
+activer/désactiver. Un modèle `premium` reste `private` par défaut — jamais
+publié, proposable uniquement par toi. **Modifier un modèle ne change
+jamais rétroactivement** les forfaits déjà attribués : leurs valeurs sont
+copiées au moment de l'attribution (`adminAddPackage`), pas référencées en
+direct.
+
+### ⚠️ Changement de comportement V1 : les forfaits ne s'activent plus seuls
+`adminAddPackage` (menu **Ajouter un forfait**) peut maintenant sourcer un
+modèle du catalogue (`package_template_id`, optionnel — la saisie manuelle
+reste possible comme avant). Le forfait créé démarre **toujours** au statut
+`pending_payment` et **n'est pas réservable** tant qu'un paiement n'a pas
+été enregistré/confirmé (`findEligiblePackages_` et `confirmPackageBooking`
+exigent toujours `statut === active`, inchangés). Juste après la création,
+deux parcours au choix (question oui/non posée directement dans le flux) :
+
+1. **Paiement à recevoir** — le forfait reste `pending_payment`. Utiliser
+   plus tard **Elysian Admin → Paiements → Enregistrer un paiement** pour
+   l'activer une fois le paiement reçu.
+2. **Paiement déjà reçu / forfait historique** — la saisie du paiement
+   (moyen, montant brut, frais, référence) se fait immédiatement dans la
+   foulée, et le forfait passe à `active` tout de suite. Couvre : forfait
+   déjà payé historiquement, Revolut déjà reçu, virement déjà reçu, carte
+   sur place, espèces, ClassPass, offert, autre paiement externe.
+
+Pour un **forfait offert** (`complimentary`), le montant brut et les frais
+sont automatiquement fixés à `0`, et un motif devient **obligatoire**
+(comme pour `cash`/`other` — moyens peu traçables). Dans tous les cas,
+**aucun forfait n'est jamais activé sans une ligne `Payments`** (trace de
+paiement) — la logique de saisie/calcul est centralisée dans
+`promptAndRecordPayment_` (`Payments.gs`), réutilisée par les deux
+parcours ci-dessus et par "Enregistrer un paiement" : rien n'est dupliqué.
+
+### Paiements (`Payments`)
+Sous-menu **Elysian Admin → Paiements** : enregistrer un paiement (brut,
+devise, moyen — Revolut card/Revolut Pay/virement/Stripe/ClassPass/carte en
+personne/espèces/complimentaire/autre —, frais, référence), avec calcul
+automatique du net et du taux de frais réel
+(`taux_frais = frais_paiement / montant_brut`). Confirmer un paiement en
+attente (ex. virement arrivé plus tard) active automatiquement le forfait
+lié. **Aucune confirmation automatique de paiement n'existe** dans ce
+dépôt — pas d'intégration API Revolut/Stripe/ClassPass ici (Stripe reste
+dans Google Workspace, hors de ce projet) : toute confirmation est
+manuelle, faite par toi.
+
+### Fiche cliente consolidée (`Fiche_Client`)
+**Elysian Admin → Fiche cliente → Voir la fiche consolidée d'une cliente** :
+génère un rapport dans l'onglet `Fiche_Client` (identité, forfaits actifs/en
+attente/passés, rendez-vous passés et futurs, annulations/reports/no-shows,
+paiements avec totaux brut/frais/net). Aucune donnée médicale ou de santé
+n'y est stockée.
+
+**Elysian Admin → Fiche cliente → Ajouter une réservation manuelle
+(ClassPass / WhatsApp)** : saisie purement déclarative pour que ces
+réservations apparaissent dans la fiche cliente — ne crée aucun événement
+Calendar, ne touche aucun compteur de forfait. **Aucune synchronisation
+ClassPass automatique n'existe** : ClassPass n'expose pas d'API accessible
+identifiée à ce jour, donc uniquement de la saisie manuelle pour l'instant.
+
+### Rendez-vous forfait ajoutés manuellement (`Ajouter un rendez-vous forfait`)
+Sous-menu **Elysian Admin → Rendez-vous forfait** : crée un rendez-vous pour
+une cliente qui a déjà un forfait actif (ex. après un échange WhatsApp),
+avec **exactement le même cœur transactionnel sécurisé** que la réservation
+en self-service (verrou, idempotence, re-vérification complète du forfait
+et du créneau, restauration automatique en cas d'échec Calendar) — la
+logique n'est pas dupliquée, elle est partagée (`createNewPackageBooking_`,
+`Booking.gs`). Recherche la cliente par téléphone (ou email en secours) ;
+si plusieurs clientes correspondent, demande une sélection manuelle
+explicite plutôt que de deviner. Vérifie forfait actif, non expiré, soin
+inclus, séance disponible, créneau libre, absence de doublon (même
+cliente/soin/horaire/forfait déjà `pending`/`confirmed`), et que le
+calendrier configuré est bien accessible — **avant** toute écriture. Le
+rendez-vous créé est un `Booking` normal : report/annulation/no-show
+utilisent exactement les mêmes règles administrateur que pour toute autre
+réservation.
+
+**Un événement ajouté directement dans Google Calendar (en dehors de cette
+fonction) ne déduit jamais de séance automatiquement.** Pour un rendez-vous
+déjà présent dans Calendar qu'il faut relier après coup à un forfait :
+**Elysian Admin → Rendez-vous forfait → Associer un événement Calendar
+existant à un forfait** — liste les événements non associés d'une journée
+donnée, demande une confirmation explicite avant de déduire une séance.
+Ne devine jamais automatiquement qu'un événement appartient à un forfait.
+
+### Proposer un forfait (`Package_Offers`) — Phase 2, Étape B
+Sous-menu **Elysian Admin → Offres de forfait** :
+
+- **Proposer un forfait** : recherche/crée la cliente, sélectionne un modèle
+  du catalogue (ou saisie manuelle), permet d'ajuster séances/prix/validité,
+  choisit le moyen de paiement proposé (informatif) et la durée de validité
+  **du lien**. Génère un jeton aléatoire, n'en stocke que le hash HMAC
+  (`hashWithPepper_`, réutilisé de Security.gs) — le lien complet
+  (`/offer/{offer_id}?token=...`) n'est affiché **qu'une seule fois**, dans
+  une petite fenêtre avec un champ à copier, jamais récupérable ensuite.
+- **Marquer une offre comme envoyée** : pour une offre restée `draft`.
+- **Convertir une offre acceptée en forfait** : n'autorise la conversion que
+  si l'offre est `accepted` (ou dérogation motivée), vérifie qu'elle n'a
+  **jamais déjà été convertie** (`package_id_resultant` vide), le tout à
+  l'intérieur d'un verrou pour fermer toute fenêtre de double-conversion en
+  cas de double-clic. Réutilise ensuite exactement le même flux de paiement
+  qu'`adminAddPackage` (`promptAndRecordPayment_`) — le forfait créé reste
+  `pending_payment` tant que le paiement n'est pas confirmé.
+- **Annuler une offre** : motif obligatoire.
+
+**Consulter ou accepter le lien ne crée jamais de forfait et ne débite
+jamais rien** — statuts `draft → sent → viewed → accepted/declined`
+uniquement. Le statut ne passe à `paid` qu'automatiquement, en conséquence
+de l'activation réelle du forfait lié (paiement confirmé) — jamais parce
+que la cliente a ouvert ou accepté le lien.
+
+Le passage `sent/draft → viewed` se fait **côté serveur uniquement**
+(`getOfferDetails`, appelé par la page `/offer/:offerId` avant tout
+affichage) — jamais côté navigateur seul, pour qu'un lien expiré ou déjà
+répondu ne puisse jamais rester visible depuis un cache. L'expiration du
+lien est vérifiée à chaque accès, et une passe de sécurité supplémentaire
+tourne dans la réconciliation quotidienne (`runReconciliationCheck`).
+
+Route `/offer/:offerId` gardée derrière son propre feature flag
+`VITE_PACKAGE_OFFER_ENABLED=false` par défaut (indépendant de
+`VITE_PACKAGE_BOOKING_ENABLED`) — à activer uniquement après tests, comme
+pour `/use-package`.
+
+### Pas encore fait (Étape C du plan Phase 2)
+Rappels de solde/expiration, alertes de renouvellement, tableau de bord.
+
+---
+
 ## Récapitulatif des fonctions utiles
 
 | Fonction | Rôle |
@@ -138,10 +285,17 @@ Chaque action est tracée dans l'onglet `Audit_Log`.
 | `initializeSheets` | Crée les onglets et leurs en-têtes (une fois) |
 | `runReconciliationCheck` | Contrôle quotidien (à brancher sur un déclencheur) |
 | `onOpen` | Ajoute le menu Elysian Admin (automatique à l'ouverture du Sheet) |
+| `adminAddPackageTemplate` | Crée un modèle de forfait au catalogue |
+| `adminRecordPayment` | Enregistre un paiement, calcule net/taux de frais, active le forfait si confirmé |
+| `adminViewClientProfile` | Génère la fiche cliente consolidée |
 
-## Ce que ce système NE fait PAS (hors scope V1, par choix)
+## Ce que ce système NE fait PAS (hors scope, par choix)
 
-- Pas de self-service cliente pour annuler/reporter (admin uniquement) —
-  évoqué comme phase 2 possible.
+- Pas de self-service cliente pour annuler/reporter (admin uniquement).
 - Pas de données médicales stockées.
 - Ne touche à aucun des 6 Appointment Schedules payants existants.
+- Pas de confirmation automatique de paiement (aucune API de paiement
+  intégrée dans ce dépôt).
+- Pas de synchronisation ClassPass automatique (saisie manuelle uniquement).
+- Pas encore de "Proposer un forfait", de rappels automatiques, ni de
+  tableau de bord (Étapes B et C, à venir).
