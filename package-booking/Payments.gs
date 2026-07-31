@@ -181,7 +181,13 @@ function adminConfirmPayment() {
   ui.alert('Paiement confirmé.');
 }
 
-/** Active un forfait PENDING_PAYMENT après confirmation manuelle d'un paiement — jamais automatique par ouverture de lien. */
+/**
+ * Active un forfait PENDING_PAYMENT après confirmation manuelle d'un paiement
+ * — jamais automatique par ouverture ou acceptation d'un lien d'offre. Si ce
+ * forfait provient d'une offre convertie (adminConvertOfferToPackage,
+ * PackageOffers.gs), fait aussi passer l'offre à "paid" — un seul endroit
+ * qui décide de l'activation, réutilisé par tous les parcours de paiement.
+ */
 function activatePackageIfPending_(packageId, paymentId) {
   const pkg = findPackageById_(packageId);
   if (!pkg) return;
@@ -189,6 +195,12 @@ function activatePackageIfPending_(packageId, paymentId) {
 
   updateRow_(TABS.PACKAGES, pkg.rowNumber, { statut: PACKAGE_STATUS.ACTIVE });
   writeAuditLog_('admin', 'activate_package', packageId, PACKAGE_STATUS.PENDING_PAYMENT, PACKAGE_STATUS.ACTIVE, `Suite paiement ${paymentId}`);
+
+  const linkedOffer = readAllRows_(TABS.PACKAGE_OFFERS).find((o) => o.package_id_resultant === packageId);
+  if (linkedOffer && linkedOffer.statut !== OFFER_STATUS.PAID) {
+    updateRow_(TABS.PACKAGE_OFFERS, linkedOffer.rowNumber, { statut: OFFER_STATUS.PAID });
+    writeAuditLog_('system', 'offer_marked_paid', linkedOffer.offer_id, linkedOffer.statut, OFFER_STATUS.PAID, `Suite activation forfait ${packageId}`);
+  }
 }
 
 function adminMarkPaymentRefused() {

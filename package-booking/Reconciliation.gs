@@ -127,6 +127,19 @@ function runReconciliationCheck() {
       writeAuditLog_('system', 'reconciliation_auto_restore_stale_pending', b.booking_id, 'pending', 'failed', 'pending ancien sans événement Calendar — restauration sûre');
     });
 
+  // --- Correction automatique sûre (Phase 2, Étape B) : offres expirées ---
+  // Fait objectif et sans ambiguïté (comparaison de dates) — ne touche à
+  // aucun forfait ni paiement, donc sans risque, contrairement à toute autre
+  // anomalie qui reste seulement signalée.
+  const nowForOffers = new Date();
+  readAllRows_(TABS.PACKAGE_OFFERS)
+    .filter((o) => o.date_expiration_lien && new Date(o.date_expiration_lien) < nowForOffers &&
+      [OFFER_STATUS.EXPIRED, OFFER_STATUS.DECLINED, OFFER_STATUS.CANCELLED, OFFER_STATUS.PAID].indexOf(o.statut) === -1)
+    .forEach((o) => {
+      updateRow_(TABS.PACKAGE_OFFERS, o.rowNumber, { statut: OFFER_STATUS.EXPIRED });
+      writeAuditLog_('system', 'offer_expired_reconciliation', o.offer_id, o.statut, OFFER_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
+    });
+
   // --- Écriture des anomalies détectées ---
   issues.forEach(([type, entity, details]) => {
     appendRow_(TABS.RECONCILIATION_ISSUES, {

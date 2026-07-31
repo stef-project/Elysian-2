@@ -22,6 +22,8 @@ const TABS = {
   PACKAGE_TEMPLATES: 'Package_Templates',
   PAYMENTS: 'Payments',
   CLIENT_PROFILE_VIEW: 'Fiche_Client',
+  // --- Phase 2, Étape B ---
+  PACKAGE_OFFERS: 'Package_Offers',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -83,6 +85,16 @@ const HEADERS = {
     'frais_paiement', 'montant_net', 'taux_frais',
     'date_paiement', 'reference_transaction', 'statut_paiement',
     'justificatif_notes', 'mode_saisie',
+  ],
+
+  // --- Phase 2, Étape B ---
+
+  [TABS.PACKAGE_OFFERS]: [
+    'offer_id', 'client_id', 'package_template_id',
+    'nom_forfait', 'soins_inclus', 'nombre_seances', 'prix_final', 'duree_validite_jours',
+    'moyen_paiement_propose', 'statut', 'token_hash',
+    'date_proposition', 'date_expiration_lien', 'date_envoi', 'date_consultation', 'date_reponse',
+    'notes_admin', 'package_id_resultant',
   ],
 };
 
@@ -170,6 +182,21 @@ const PAYMENT_ENTRY_MODE = {
   AUTOMATIQUE: 'automatique',
 };
 
+// Statuts possibles d'une offre de forfait (Package_Offers.statut).
+// Consulter ou accepter le lien ne fait JAMAIS passer un forfait à "active" —
+// voir PackageOffers.gs. "paid" n'est atteint que via confirmation manuelle
+// d'un paiement (Payments.gs), jamais automatiquement par l'ouverture du lien.
+const OFFER_STATUS = {
+  DRAFT: 'draft',
+  SENT: 'sent',
+  VIEWED: 'viewed',
+  ACCEPTED: 'accepted',
+  PAID: 'paid',
+  EXPIRED: 'expired',
+  DECLINED: 'declined',
+  CANCELLED: 'cancelled',
+};
+
 // Clés de l'onglet Settings, avec valeurs par défaut si absentes.
 const SETTINGS_DEFAULTS = {
   calendar_id: '',                              // OBLIGATOIRE — jamais de calendrier par défaut implicite
@@ -186,6 +213,8 @@ const SETTINGS_DEFAULTS = {
   max_code_attempts: 5,
   lockout_duration_minutes: 30,
   reconciliation_stale_pending_minutes: 15,
+  offer_default_validity_days: 14,               // durée de vie par défaut d'un lien d'offre
+  site_base_url: 'https://www.elysian-institute.com', // pour construire les liens d'offre /offer/:id
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site

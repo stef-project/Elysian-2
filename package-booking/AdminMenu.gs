@@ -40,6 +40,11 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Rendez-vous forfait (Phase 2)')
       .addItem('Ajouter un rendez-vous forfait', 'adminAddPackageBooking')
       .addItem('Associer un événement Calendar existant à un forfait', 'adminLinkCalendarEventToPackage'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Offres de forfait (Phase 2, Étape B)')
+      .addItem('Proposer un forfait', 'adminCreatePackageOffer')
+      .addItem('Marquer une offre comme envoyée', 'adminMarkOfferSent')
+      .addItem('Convertir une offre acceptée en forfait', 'adminConvertOfferToPackage')
+      .addItem('Annuler une offre', 'adminCancelOffer'))
     .addToUi();
 }
 

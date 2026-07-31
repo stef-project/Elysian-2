@@ -47,6 +47,14 @@ function doPost(e) {
         );
         break;
 
+      case 'get-offer':
+        data = getOfferDetails(body.offerId, body.token);
+        break;
+
+      case 'respond-offer':
+        data = respondToOffer(body.offerId, body.token, body.response);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }
