@@ -5,7 +5,11 @@
 //     de cette URL — voir package-booking/WebApp.gs et README.md).
 // ─────────────────────────────────────────────────────────────────────────
 
+// URL de la Web App Apps Script — priorité à la variable d'env Vercel
+// (VITE_PACKAGE_BOOKING_WEBAPP_URL) pour permettre de la surcharger par
+// environnement sans modifier le code.
 export const PACKAGE_BOOKING_WEB_APP_URL =
+  (import.meta.env.VITE_PACKAGE_BOOKING_WEBAPP_URL as string | undefined) ||
   "https://script.google.com/macros/s/AKfycbyF9qnNiaTGdkHGNeRVhGg8R7N1OgcyiRzNsPMPfSdx5WvirrvGcoQl-8enpY-lbvJ8gA/exec";
 
 export const isPackageBookingConfigured = () => PACKAGE_BOOKING_WEB_APP_URL.length > 0;
