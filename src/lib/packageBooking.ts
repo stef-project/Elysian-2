@@ -73,6 +73,28 @@ export const confirmBooking = (
 export const generateBookingRequestId = () =>
   (crypto as Crypto).randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Offres de forfait (Phase 2, Étape B) — page /offer/:offerId.
+//  getOfferDetails est l'appel qui valide le jeton ET fait passer
+//  sent/draft -> viewed côté backend : ne jamais afficher le contenu de
+//  l'offre avant que cet appel ait répondu avec succès.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const getOfferDetails = (offerId: string, token: string) =>
+  callWebApp<{
+    prenom: string;
+    nomForfait: string;
+    soinsInclus: string[];
+    nombreSeances: number;
+    prixFinal: number;
+    dureeValiditeJours: number | null;
+    moyenPaiementPropose: string;
+    statut: string;
+  }>("get-offer", { offerId, token });
+
+export const respondToOffer = (offerId: string, token: string, response: "accept" | "decline") =>
+  callWebApp<{ statut: string }>("respond-offer", { offerId, token, response });
+
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.
 export const PACKAGE_SERVICES: { id: string; label: string; durationMinutes: number }[] = [

@@ -7,6 +7,7 @@ import Home from "@/pages/Home";
 import Legal from "@/pages/Legal";
 import AfterSurgery from "@/pages/AfterSurgery";
 import UsePackage from "@/pages/UsePackage";
+import PackageOffer from "@/pages/PackageOffer";
 
 const queryClient = new QueryClient();
 
@@ -15,12 +16,18 @@ const queryClient = new QueryClient();
 // Activer uniquement via la variable d'environnement Vercel VITE_PACKAGE_BOOKING_ENABLED=true.
 const PACKAGE_BOOKING_ENABLED = import.meta.env.VITE_PACKAGE_BOOKING_ENABLED === "true";
 
+// Feature flag séparé pour /offer/:offerId (Phase 2, Étape B — "Proposer un
+// forfait") : reste désactivée (404) tant que non testée, indépendamment de
+// VITE_PACKAGE_BOOKING_ENABLED. Activer via VITE_PACKAGE_OFFER_ENABLED=true.
+const PACKAGE_OFFER_ENABLED = import.meta.env.VITE_PACKAGE_OFFER_ENABLED === "true";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/lymphatic-drainage-after-surgery" component={AfterSurgery} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
+      {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
       <Route path="/cookie-policy" component={Legal} />

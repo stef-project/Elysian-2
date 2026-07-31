@@ -235,15 +235,46 @@ existant à un forfait** — liste les événements non associés d'une journée
 donnée, demande une confirmation explicite avant de déduire une séance.
 Ne devine jamais automatiquement qu'un événement appartient à un forfait.
 
-### Pas encore fait (Étapes B et C du plan Phase 2)
-- Bouton "Proposer un forfait" (génération d'offre, lien WhatsApp/email,
-  statuts draft/sent/viewed/accepted/paid/expired/declined/cancelled).
-- Rappels de solde/expiration, alertes de renouvellement, tableau de bord.
+### Proposer un forfait (`Package_Offers`) — Phase 2, Étape B
+Sous-menu **Elysian Admin → Offres de forfait** :
 
-Ces étapes suivantes toucheront potentiellement une route publique
-supplémentaire (page de consultation d'offre) — elle sera, comme
-`/use-package`, protégée par le même mécanisme de feature flag
-(`VITE_...=false` par défaut) tant que non validée et testée.
+- **Proposer un forfait** : recherche/crée la cliente, sélectionne un modèle
+  du catalogue (ou saisie manuelle), permet d'ajuster séances/prix/validité,
+  choisit le moyen de paiement proposé (informatif) et la durée de validité
+  **du lien**. Génère un jeton aléatoire, n'en stocke que le hash HMAC
+  (`hashWithPepper_`, réutilisé de Security.gs) — le lien complet
+  (`/offer/{offer_id}?token=...`) n'est affiché **qu'une seule fois**, dans
+  une petite fenêtre avec un champ à copier, jamais récupérable ensuite.
+- **Marquer une offre comme envoyée** : pour une offre restée `draft`.
+- **Convertir une offre acceptée en forfait** : n'autorise la conversion que
+  si l'offre est `accepted` (ou dérogation motivée), vérifie qu'elle n'a
+  **jamais déjà été convertie** (`package_id_resultant` vide), le tout à
+  l'intérieur d'un verrou pour fermer toute fenêtre de double-conversion en
+  cas de double-clic. Réutilise ensuite exactement le même flux de paiement
+  qu'`adminAddPackage` (`promptAndRecordPayment_`) — le forfait créé reste
+  `pending_payment` tant que le paiement n'est pas confirmé.
+- **Annuler une offre** : motif obligatoire.
+
+**Consulter ou accepter le lien ne crée jamais de forfait et ne débite
+jamais rien** — statuts `draft → sent → viewed → accepted/declined`
+uniquement. Le statut ne passe à `paid` qu'automatiquement, en conséquence
+de l'activation réelle du forfait lié (paiement confirmé) — jamais parce
+que la cliente a ouvert ou accepté le lien.
+
+Le passage `sent/draft → viewed` se fait **côté serveur uniquement**
+(`getOfferDetails`, appelé par la page `/offer/:offerId` avant tout
+affichage) — jamais côté navigateur seul, pour qu'un lien expiré ou déjà
+répondu ne puisse jamais rester visible depuis un cache. L'expiration du
+lien est vérifiée à chaque accès, et une passe de sécurité supplémentaire
+tourne dans la réconciliation quotidienne (`runReconciliationCheck`).
+
+Route `/offer/:offerId` gardée derrière son propre feature flag
+`VITE_PACKAGE_OFFER_ENABLED=false` par défaut (indépendant de
+`VITE_PACKAGE_BOOKING_ENABLED`) — à activer uniquement après tests, comme
+pour `/use-package`.
+
+### Pas encore fait (Étape C du plan Phase 2)
+Rappels de solde/expiration, alertes de renouvellement, tableau de bord.
 
 ---
 
