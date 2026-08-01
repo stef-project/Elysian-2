@@ -25,10 +25,16 @@ dans un Google Sheet dédié.
 
 **Option rapide (recommandée) :** crée un seul fichier `TOUT-EN-UN.gs` dans
 l'éditeur Apps Script et colle-y tout le contenu de
-[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 14 fichiers
+[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 17 fichiers
 ci-dessous (mêmes fonctions, même comportement) en un seul copier-coller,
 comme pour `gmail-automation/TOUT-EN-UN.gs`. Tu peux supprimer le fichier
 `Code.gs` par défaut.
+
+⚠️ Si un fichier a été ajouté/modifié directement dans l'éditeur Apps Script
+sans passer par ce dépôt (ex. via une automatisation de navigateur), il est
+recommandé de **tout remplacer** par le contenu à jour de `TOUT-EN-UN.gs`
+plutôt que de fusionner à la main — sélectionne tout (Ctrl+A) dans chaque
+fichier concerné avant de coller, pour repartir d'un état propre et connu.
 
 **Option détaillée (équivalente, fichier par fichier) :** pour chaque fichier
 `.gs` de `package-booking/`, crée un fichier du même nom dans l'éditeur Apps
@@ -48,6 +54,9 @@ Script (icône **+** à côté de "Fichiers" → Script) et colle son contenu :
 - `PackageTemplates.gs` (Phase 2, Étape A)
 - `Payments.gs` (Phase 2, Étape A)
 - `ClientProfile.gs` (Phase 2, Étape A)
+- `PackageOffers.gs` (Phase 2, Étape B)
+- `Notifications.gs` (Phase 2, Étape C)
+- `Dashboard.gs` (Phase 2, Étape C)
 
 Puis le **manifeste** : icône ⚙️ **Paramètres du projet** → coche **"Afficher
 le fichier manifeste appsscript.json dans l'éditeur"** → remplace son
@@ -273,8 +282,58 @@ Route `/offer/:offerId` gardée derrière son propre feature flag
 `VITE_PACKAGE_BOOKING_ENABLED`) — à activer uniquement après tests, comme
 pour `/use-package`.
 
-### Pas encore fait (Étape C du plan Phase 2)
-Rappels de solde/expiration, alertes de renouvellement, tableau de bord.
+### Confirmation, rappels, tableau de bord — Phase 2, Étape C
+
+**Confirmation post-achat** : envoyée automatiquement dès qu'un forfait
+passe à `active` (hook dans `activatePackageIfPending_`, Payments.gs — un
+seul endroit décide de l'activation, donc la confirmation part toujours au
+bon moment, quel que soit le parcours d'origine : `adminAddPackage`,
+`adminConvertOfferToPackage`, ou confirmation différée d'un paiement).
+Contient nom du forfait, séances achetées, date d'expiration, lien pour
+réserver, règle d'annulation.
+
+**Rappels de solde et d'expiration** (`Elysian Admin → Notifications &
+Tableau de bord → Lancer les notifications quotidiennes maintenant`, ou
+automatiquement via le déclencheur horaire) : seuils configurables dans
+`Settings` (`reminder_low_balance_thresholds`, défaut `3,1,0` séances ;
+`reminder_days_before_expiration`, défaut `30,14,7` jours). Chaque rappel
+envoyé est enregistré dans `Reminders_Sent` — **jamais renvoyé deux fois**
+pour la même combinaison (client, forfait, type de rappel), y compris entre
+deux exécutions du déclencheur quotidien.
+
+**Alerte de renouvellement** : **jamais un email automatique à la
+cliente.** Quand un forfait est presque terminé (≤1 séance) ou proche de
+l'expiration, une ligne est ajoutée à `Reconciliation_Issues` (statut
+`a_verifier`, type `renewal_opportunity`) — à toi de décider si tu proposes
+un renouvellement (via "Proposer un forfait", qui respecte lui-même le
+consentement marketing de la cliente). Une seule alerte par forfait, pas de
+répétition quotidienne du même signal.
+
+**Distinction volontaire** : confirmation post-achat + rappels de
+solde/expiration sont des communications **transactionnelles** sur un
+service déjà acheté — toujours envoyées, indépendamment de
+`Clients.consentement_marketing`. Seule une proposition de renouvellement
+(commerciale) respecte ce consentement, et jamais automatiquement.
+
+**Tableau de bord** (`Elysian Admin → Notifications & Tableau de bord →
+Générer le tableau de bord`) : génère l'onglet `Dashboard` avec les 12
+indicateurs (offres proposées/vendues, taux de conversion, CA brut/frais/
+net, forfaits actifs, séances encore dues, forfaits proches de
+l'expiration, clientes ClassPass, conversion ClassPass → forfait) — chaque
+indicateur liste les `id` concernés en dessous pour rester actionnable, pas
+juste un chiffre. Onglet de rapport régénéré à la demande, comme
+`Fiche_Client`.
+
+⚠️ "Clientes provenant de ClassPass" est calculé à partir des réservations
+`Bookings.source = classpass` (saisies manuelles, "Ajouter une réservation
+manuelle") — pas à partir de `Clients.origine_premiere_reservation`, un
+champ libre qui reste à renseigner à la main s'il doit être utilisé.
+
+### Activer le déclencheur quotidien de notifications
+Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
+- Fonction : `runDailyNotifications`
+- Type d'événement : **Basé sur le temps** → **Minuteries jour** → une
+  plage horaire (ex. 8h–9h), comme pour `runReconciliationCheck`.
 
 ---
 
@@ -288,6 +347,9 @@ Rappels de solde/expiration, alertes de renouvellement, tableau de bord.
 | `adminAddPackageTemplate` | Crée un modèle de forfait au catalogue |
 | `adminRecordPayment` | Enregistre un paiement, calcule net/taux de frais, active le forfait si confirmé |
 | `adminViewClientProfile` | Génère la fiche cliente consolidée |
+| `adminCreatePackageOffer` | Génère une offre + lien à durée de vie limitée |
+| `runDailyNotifications` | Rappels solde/expiration + alertes renouvellement (à brancher sur un déclencheur) |
+| `adminGenerateDashboard` | Génère le tableau de bord (12 indicateurs) |
 
 ## Ce que ce système NE fait PAS (hors scope, par choix)
 

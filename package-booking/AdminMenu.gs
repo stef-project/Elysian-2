@@ -45,6 +45,9 @@ function onOpen() {
       .addItem('Marquer une offre comme envoyée', 'adminMarkOfferSent')
       .addItem('Convertir une offre acceptée en forfait', 'adminConvertOfferToPackage')
       .addItem('Annuler une offre', 'adminCancelOffer'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Notifications & Tableau de bord (Phase 2, Étape C)')
+      .addItem('Lancer les notifications quotidiennes maintenant', 'runDailyNotifications')
+      .addItem('Générer le tableau de bord', 'adminGenerateDashboard'))
     .addToUi();
 }
 
