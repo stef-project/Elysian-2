@@ -1,8 +1,8 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════╗
- * ║   ELYSIAN PARIS — Réservation par forfait (V1 + Phase 2 Étapes A/B)   ║
+ * ║   ELYSIAN PARIS — Réservation par forfait (V1 + Phase 2 Étapes A/B/C) ║
  * ║                                                                       ║
- * ║   👉 UN SEUL fichier à créer et à coller (au lieu de 15).             ║
+ * ║   👉 UN SEUL fichier à créer et à coller (au lieu de 17).             ║
  * ║      Suis package-booking/README.md pour la suite (Sheet, calendrier ║
  * ║      dédié, déploiement en Web App).                                 ║
  * ║                                                                       ║
@@ -20,6 +20,11 @@
  * ║   Phase 2 Étape B ("Proposer un forfait") ajoute une route publique  ║
  * ║   (/offer/:offerId), gardée derrière VITE_PACKAGE_OFFER_ENABLED=false║
  * ║   tant que non testée — aucun nouveau scope Google non plus.        ║
+ * ║                                                                       ║
+ * ║   Phase 2 Étape C (confirmation post-achat, rappels de solde/        ║
+ * ║   expiration, alertes de renouvellement admin, tableau de bord) —    ║
+ * ║   100% côté administration/emails transactionnels, aucune nouvelle  ║
+ * ║   route publique, aucun nouveau scope Google.                       ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
 
@@ -53,6 +58,9 @@ const TABS = {
   CLIENT_PROFILE_VIEW: 'Fiche_Client',
   // --- Phase 2, Étape B ---
   PACKAGE_OFFERS: 'Package_Offers',
+  // --- Phase 2, Étape C ---
+  REMINDERS_SENT: 'Reminders_Sent',
+  DASHBOARD: 'Dashboard',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -125,12 +133,20 @@ const HEADERS = {
     'date_proposition', 'date_expiration_lien', 'date_envoi', 'date_consultation', 'date_reponse',
     'notes_admin', 'package_id_resultant',
   ],
+
+  // --- Phase 2, Étape C ---
+
+  // Dédoublonnage des rappels envoyés : un (client_id, package_id, reminder_type)
+  // donné n'est jamais écrit deux fois, donc jamais envoyé deux fois.
+  [TABS.REMINDERS_SENT]: [
+    'reminder_id', 'client_id', 'package_id', 'reminder_type', 'sent_at',
+  ],
 };
 
-// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') n'a volontairement pas
-// d'entrée dans HEADERS — c'est un onglet de rapport en texte libre, recréé
-// à chaque consultation par ClientProfile.gs, pas une source de données
-// tabulaire comme les autres onglets.
+// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') et TABS.DASHBOARD ('Dashboard')
+// n'ont volontairement pas d'entrée dans HEADERS — ce sont des onglets de
+// rapport en texte libre, recréés à la demande (ClientProfile.gs / Dashboard.gs),
+// pas des sources de données tabulaires comme les autres onglets.
 
 // Statuts possibles d'une réservation (Bookings.status).
 const BOOKING_STATUS = {
@@ -244,11 +260,23 @@ const SETTINGS_DEFAULTS = {
   reconciliation_stale_pending_minutes: 15,
   offer_default_validity_days: 14,               // durée de vie par défaut d'un lien d'offre
   site_base_url: 'https://www.elysian-institute.com', // pour construire les liens d'offre /offer/:id
+  reminder_low_balance_thresholds: '3,1,0',      // séances restantes déclenchant un rappel
+  reminder_days_before_expiration: '30,14,7',    // jours avant expiration déclenchant un rappel
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
 // envoie toujours la durée exacte, ceci n'est qu'un filet de sécurité.
 const DEFAULT_APPOINTMENT_MINUTES = 60;
+
+// Types de rappels possibles (Reminders_Sent.reminder_type) — un seul endroit
+// qui construit ces identifiants, pour que l'écriture et la vérification de
+// dédoublonnage utilisent toujours exactement la même chaîne.
+const REMINDER_TYPE = {
+  POST_ACHAT: 'post_achat',
+  balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
+  expiration: (daysBefore) => `expiration_${daysBefore}j`,
+  RENEWAL_ALERT: 'alerte_renouvellement',
+};
 
 // ════════════════════════════════════════════════════════════════════════
 //  SECTION 2 — SheetSchema.gs (initialisation, à lancer une seule fois)
@@ -1386,6 +1414,9 @@ function onOpen() {
       .addItem('Marquer une offre comme envoyée', 'adminMarkOfferSent')
       .addItem('Convertir une offre acceptée en forfait', 'adminConvertOfferToPackage')
       .addItem('Annuler une offre', 'adminCancelOffer'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Notifications & Tableau de bord (Phase 2, Étape C)')
+      .addItem('Lancer les notifications quotidiennes maintenant', 'runDailyNotifications')
+      .addItem('Générer le tableau de bord', 'adminGenerateDashboard'))
     .addToUi();
 }
 
@@ -2605,8 +2636,11 @@ function adminConfirmPayment() {
  * Active un forfait PENDING_PAYMENT après confirmation manuelle d'un paiement
  * — jamais automatique par ouverture ou acceptation d'un lien d'offre. Si ce
  * forfait provient d'une offre convertie (adminConvertOfferToPackage,
- * PackageOffers.gs), fait aussi passer l'offre à "paid" — un seul endroit
- * qui décide de l'activation, réutilisé par tous les parcours de paiement.
+ * PackageOffers.gs), fait aussi passer l'offre à "paid". Envoie aussi la
+ * confirmation post-achat (Notifications.gs, Phase 2 Étape C) — un seul
+ * endroit qui décide de l'activation, réutilisé par tous les parcours de
+ * paiement, donc la confirmation part toujours au bon moment, sans doublon
+ * de logique d'activation.
  */
 function activatePackageIfPending_(packageId, paymentId) {
   const pkg = findPackageById_(packageId);
@@ -2615,6 +2649,7 @@ function activatePackageIfPending_(packageId, paymentId) {
 
   updateRow_(TABS.PACKAGES, pkg.rowNumber, { statut: PACKAGE_STATUS.ACTIVE });
   writeAuditLog_('admin', 'activate_package', packageId, PACKAGE_STATUS.PENDING_PAYMENT, PACKAGE_STATUS.ACTIVE, `Suite paiement ${paymentId}`);
+  sendPostPurchaseConfirmation_(packageId);
 
   const linkedOffer = readAllRows_(TABS.PACKAGE_OFFERS).find((o) => o.package_id_resultant === packageId);
   if (linkedOffer && linkedOffer.statut !== OFFER_STATUS.PAID) {
@@ -3176,4 +3211,320 @@ function respondToOffer(offerId, tokenPlain, response) {
   writeAuditLog_(offer.client_id, 'offer_' + response + 'ed_by_client', offer.offer_id, offer.statut, newStatus, '');
 
   return { statut: newStatus };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 16 — Notifications.gs (Phase 2, Étape C — confirmation, rappels, alertes)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  NOTIFICATIONS.gs — Confirmation post-achat, rappels de solde/expiration,
+ *  alertes de renouvellement (Phase 2, Étape C).
+ * ============================================================================
+ *
+ *  Distinction stricte, voulue dès le cadrage :
+ *  - Confirmation post-achat + rappels de solde/expiration = communications
+ *    TRANSACTIONNELLES sur un service déjà acheté — toujours envoyées,
+ *    indépendamment de Clients.consentement_marketing.
+ *  - Alerte de renouvellement : JAMAIS un email à la cliente. Seulement une
+ *    ligne visible par l'administratrice (Reconciliation_Issues), à elle de
+ *    décider d'agir. Si elle choisit de proposer un renouvellement, ça passe
+ *    par "Proposer un forfait" (PackageOffers.gs) — jamais un envoi
+ *    automatique, et ce parcours reste soumis au consentement de la cliente.
+ *
+ *  Dédoublonnage : chaque rappel envoyé est enregistré dans Reminders_Sent
+ *  (client_id, package_id, reminder_type) — jamais renvoyé deux fois pour la
+ *  même combinaison, y compris entre deux exécutions du déclencheur quotidien.
+ */
+
+function hasReminderBeenSent_(clientId, packageId, reminderType) {
+  return readAllRows_(TABS.REMINDERS_SENT).some((r) =>
+    r.client_id === clientId && r.package_id === packageId && r.reminder_type === reminderType
+  );
+}
+
+function recordReminderSent_(clientId, packageId, reminderType) {
+  appendRow_(TABS.REMINDERS_SENT, {
+    reminder_id: genId_('RMD'),
+    client_id: clientId,
+    package_id: packageId,
+    reminder_type: reminderType,
+    sent_at: new Date(),
+  });
+}
+
+/**
+ * Confirmation post-achat — appelée depuis activatePackageIfPending_
+ * (Payments.gs) au moment exact où un forfait devient actif. Dédoublonnée
+ * comme les autres rappels : n'est jamais renvoyée deux fois pour le même
+ * forfait, même si la fonction est appelée plusieurs fois par erreur.
+ */
+function sendPostPurchaseConfirmation_(packageId) {
+  const pkg = findPackageById_(packageId);
+  if (!pkg) return;
+  if (hasReminderBeenSent_(pkg.client_id, packageId, REMINDER_TYPE.POST_ACHAT)) return;
+
+  const client = findRowBy_(TABS.CLIENTS, 'client_id', pkg.client_id);
+  if (!client || !client.email) return; // rien à envoyer si pas d'email connu
+
+  const settings = getSettings();
+  const subject = `Confirmation de votre forfait — ${pkg.nom_forfait}`;
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Votre forfait "${pkg.nom_forfait}" est maintenant actif.`,
+    '',
+    `Séances achetées : ${pkg.total_sessions}`,
+    pkg.date_expiration
+      ? `Durée de validité : jusqu'au ${formatDateForReport_(pkg.date_expiration)}`
+      : `Durée de validité : aucune limite`,
+    '',
+    `Pour réserver vos séances : ${settings.site_base_url}/use-package`,
+    '',
+    `Règle d'annulation : une annulation effectuée moins de ${settings.cancellation_deadline_hours}h ` +
+      `avant le rendez-vous est considérée comme une séance utilisée, sauf accord exceptionnel de notre part.`,
+    '',
+    'Elysian Paris',
+  ].join('\n');
+
+  MailApp.sendEmail(client.email, subject, body);
+  recordReminderSent_(pkg.client_id, packageId, REMINDER_TYPE.POST_ACHAT);
+  writeAuditLog_('system', 'send_post_purchase_confirmation', packageId, '', 'sent', '');
+}
+
+function sendBalanceReminderEmail_(client, pkg, sessionsRemaining, settings) {
+  const subject = sessionsRemaining > 0
+    ? `Il vous reste ${sessionsRemaining} séance(s) — ${pkg.nom_forfait}`
+    : `Votre forfait ${pkg.nom_forfait} est entièrement utilisé`;
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    sessionsRemaining > 0
+      ? `Il vous reste ${sessionsRemaining} séance(s) sur votre forfait "${pkg.nom_forfait}".`
+      : `Vous avez utilisé toutes les séances de votre forfait "${pkg.nom_forfait}".`,
+    '',
+    `Pour réserver : ${settings.site_base_url}/use-package`,
+    '',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
+function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
+  const subject = `Votre forfait ${pkg.nom_forfait} expire dans ${daysBefore} jours`;
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Votre forfait "${pkg.nom_forfait}" expire le ${formatDateForReport_(pkg.date_expiration)}.`,
+    `Il vous reste ${pkg.available_sessions} séance(s) disponible(s).`,
+    '',
+    `Pour réserver : ${settings.site_base_url}/use-package`,
+    '',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
+/**
+ * Fonction quotidienne (déclencheur horaire à ajouter manuellement, voir
+ * README — même principe que runReconciliationCheck) : rappels de solde,
+ * rappels d'expiration, et alertes de renouvellement pour l'administratrice.
+ */
+function runDailyNotifications() {
+  const settings = getSettings();
+  const balanceThresholds = String(settings.reminder_low_balance_thresholds)
+    .split(',').map((n) => parseInt(n.trim(), 10)).filter((n) => !isNaN(n));
+  const expirationDaysList = String(settings.reminder_days_before_expiration)
+    .split(',').map((n) => parseInt(n.trim(), 10)).filter((n) => !isNaN(n));
+  const renewalWindowDays = expirationDaysList.length ? Math.min.apply(null, expirationDaysList) : 7;
+
+  const packages = readAllRows_(TABS.PACKAGES).filter((p) => p.statut === PACKAGE_STATUS.ACTIVE);
+  const now = new Date();
+  let actionsCount = 0;
+
+  packages.forEach((pkg) => {
+    const client = findRowBy_(TABS.CLIENTS, 'client_id', pkg.client_id);
+    const available = Number(pkg.available_sessions);
+
+    let daysUntilExpiration = null;
+    if (pkg.date_expiration) {
+      const exp = new Date(pkg.date_expiration);
+      if (!isNaN(exp.getTime())) {
+        daysUntilExpiration = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      }
+    }
+
+    if (client && client.email) {
+      // --- Rappels de solde ---
+      balanceThresholds.forEach((threshold) => {
+        if (available !== threshold) return;
+        const type = REMINDER_TYPE.balance(threshold);
+        if (hasReminderBeenSent_(pkg.client_id, pkg.package_id, type)) return;
+        sendBalanceReminderEmail_(client, pkg, threshold, settings);
+        recordReminderSent_(pkg.client_id, pkg.package_id, type);
+        actionsCount++;
+      });
+
+      // --- Rappels d'expiration ---
+      if (daysUntilExpiration !== null) {
+        expirationDaysList.forEach((days) => {
+          if (daysUntilExpiration !== days) return;
+          const type = REMINDER_TYPE.expiration(days);
+          if (hasReminderBeenSent_(pkg.client_id, pkg.package_id, type)) return;
+          sendExpirationReminderEmail_(client, pkg, days, settings);
+          recordReminderSent_(pkg.client_id, pkg.package_id, type);
+          actionsCount++;
+        });
+      }
+    }
+
+    // --- Alerte de renouvellement : jamais un email, uniquement une ligne
+    // pour l'administratrice. Une seule fois par forfait (pas de répétition
+    // quotidienne du même signal une fois qu'il a été levé). ---
+    const nearCompletion = available <= 1;
+    const nearExpiration = daysUntilExpiration !== null && daysUntilExpiration <= renewalWindowDays;
+    if ((nearCompletion || nearExpiration) && !hasReminderBeenSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.RENEWAL_ALERT)) {
+      appendRow_(TABS.RECONCILIATION_ISSUES, {
+        timestamp_detection: new Date(),
+        type_anomalie: 'renewal_opportunity',
+        entite_concernee: pkg.package_id,
+        details: `Forfait bientôt terminé (disponibles=${available}) ou proche expiration ` +
+          `(${daysUntilExpiration !== null ? daysUntilExpiration + ' jours' : 'sans date'}) — ` +
+          `décision de renouvellement à prendre manuellement. Consentement marketing : ` +
+          `${client ? (client.consentement_marketing || 'non renseigné') : 'cliente introuvable'}.`,
+        statut: 'a_verifier',
+        resolution_notes: '',
+      });
+      recordReminderSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.RENEWAL_ALERT);
+      actionsCount++;
+    }
+  });
+
+  Logger.log(`Notifications quotidiennes : ${actionsCount} action(s) effectuée(s).`);
+  return actionsCount;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 17 — Dashboard.gs (Phase 2, Étape C — tableau de bord)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  DASHBOARD.gs — Tableau de bord (Phase 2, Étape C).
+ * ============================================================================
+ *
+ *  Comme Fiche_Client (ClientProfile.gs) : un onglet de RAPPORT, régénéré à
+ *  la demande via le menu admin — pas une source de données, jamais lu par
+ *  aucune autre fonction. Chaque indicateur liste les entités concernées en
+ *  dessous quand c'est pertinent, pour rester actionnable et pas seulement
+ *  décoratif (ex. les forfaits proches de l'expiration sont listés par
+ *  package_id, pas juste comptés).
+ *
+ *  ⚠️ "Clientes provenant de ClassPass" est calculé à partir de
+ *  Bookings.source = 'classpass' (saisies manuelles, adminAddManualBooking —
+ *  voir AdminMenu.gs), PAS à partir de Clients.origine_premiere_reservation,
+ *  qui reste un champ libre jamais rempli automatiquement nulle part dans ce
+ *  système. Si ce champ n'est pas renseigné à la main, cet indicateur
+ *  refléterait uniquement les réservations ClassPass déjà saisies.
+ */
+
+function adminGenerateDashboard() {
+  const ui = ui_();
+  const rows = buildDashboardReport_();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(TABS.DASHBOARD);
+  if (!sheet) {
+    sheet = ss.insertSheet(TABS.DASHBOARD);
+  }
+  sheet.clear();
+  sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+  sheet.autoResizeColumn(1);
+  sheet.autoResizeColumn(2);
+  ss.setActiveSheet(sheet);
+
+  ui.alert(`Tableau de bord généré dans l'onglet "${TABS.DASHBOARD}".`);
+}
+
+function buildDashboardReport_() {
+  const rows = [];
+  const section = (title) => rows.push([`— ${title} —`, '']);
+  const line = (label, value) => rows.push([label, value === undefined || value === null ? '' : String(value)]);
+
+  const offers = readAllRows_(TABS.PACKAGE_OFFERS);
+  const packages = readAllRows_(TABS.PACKAGES);
+  const payments = readAllRows_(TABS.PAYMENTS);
+  const bookings = readAllRows_(TABS.BOOKINGS);
+  const settings = getSettings();
+  const now = new Date();
+
+  rows.push([`Généré le ${Utilities.formatDate(now, settings.timezone, 'yyyy-MM-dd HH:mm')}`, '']);
+
+  // --- Offres ---
+  section('Offres de forfait');
+  const offersTotal = offers.length;
+  const offersPaid = offers.filter((o) => o.statut === OFFER_STATUS.PAID);
+  const conversionRate = offersTotal > 0 ? (offersPaid.length / offersTotal) * 100 : 0;
+  line('Forfaits proposés (offres créées)', offersTotal);
+  line('  → offer_id concernés', offers.map((o) => o.offer_id).join(', ') || '(aucun)');
+  line('Forfaits vendus via une offre (statut paid)', offersPaid.length);
+  line('  → offer_id concernés', offersPaid.map((o) => o.offer_id).join(', ') || '(aucun)');
+  line('Taux de conversion des propositions', `${conversionRate.toFixed(1)}%`);
+
+  // --- Finances ---
+  section('Chiffre d\'affaires (paiements confirmés)');
+  const confirmedPayments = payments.filter((p) => p.statut_paiement === PAYMENT_STATUS.CONFIRME);
+  const grossTotal = confirmedPayments.reduce((sum, p) => sum + (Number(p.montant_brut) || 0), 0);
+  const feesTotal = confirmedPayments.reduce((sum, p) => sum + (Number(p.frais_paiement) || 0), 0);
+  const netTotal = confirmedPayments.reduce((sum, p) => sum + (Number(p.montant_net) || 0), 0);
+  line('Chiffre d\'affaires brut', grossTotal.toFixed(2));
+  line('Frais de paiement', feesTotal.toFixed(2));
+  line('Chiffre d\'affaires net', netTotal.toFixed(2));
+  line('  → payment_id concernés', confirmedPayments.map((p) => p.payment_id).join(', ') || '(aucun)');
+
+  // --- Forfaits ---
+  section('Forfaits');
+  const activePackages = packages.filter((p) => p.statut === PACKAGE_STATUS.ACTIVE);
+  line('Forfaits actifs', activePackages.length);
+  line('  → package_id concernés', activePackages.map((p) => p.package_id).join(', ') || '(aucun)');
+
+  const sessionsStillDue = activePackages.reduce(
+    (sum, p) => sum + Number(p.available_sessions || 0) + Number(p.reserved_sessions || 0), 0
+  );
+  line('Séances encore dues (disponibles + réservées, forfaits actifs)', sessionsStillDue);
+
+  const expirationDaysList = String(settings.reminder_days_before_expiration)
+    .split(',').map((n) => parseInt(n.trim(), 10)).filter((n) => !isNaN(n));
+  const warningWindow = expirationDaysList.length ? Math.max.apply(null, expirationDaysList) : 30;
+  const nearExpiry = activePackages.filter((p) => {
+    if (!p.date_expiration) return false;
+    const exp = new Date(p.date_expiration);
+    if (isNaN(exp.getTime())) return false;
+    const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    return daysUntil >= 0 && daysUntil <= warningWindow;
+  });
+  line(`Forfaits proches de l'expiration (≤ ${warningWindow}j)`, nearExpiry.length);
+  line('  → package_id concernés', nearExpiry.map((p) => p.package_id).join(', ') || '(aucun)');
+
+  // --- ClassPass ---
+  section('ClassPass');
+  const classpassClientIds = Array.from(new Set(
+    bookings.filter((b) => b.source === BOOKING_SOURCE.CLASSPASS).map((b) => b.client_id)
+  ));
+  line('Clientes provenant de ClassPass (saisies manuelles)', classpassClientIds.length);
+  line('  → client_id concernés', classpassClientIds.join(', ') || '(aucun)');
+
+  const classpassToDirect = classpassClientIds.filter((clientId) =>
+    payments.some((p) => p.client_id === clientId && p.statut_paiement === PAYMENT_STATUS.CONFIRME && p.moyen_paiement !== PAYMENT_METHOD.CLASSPASS)
+  );
+  line('Clientes ClassPass ayant ensuite acheté un forfait direct', classpassToDirect.length);
+  line('  → client_id concernés', classpassToDirect.join(', ') || '(aucun)');
+
+  const classpassConversionRate = classpassClientIds.length > 0
+    ? (classpassToDirect.length / classpassClientIds.length) * 100
+    : 0;
+  line('Taux de conversion ClassPass → forfait', `${classpassConversionRate.toFixed(1)}%`);
+
+  return rows;
 }

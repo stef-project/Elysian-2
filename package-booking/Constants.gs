@@ -24,6 +24,9 @@ const TABS = {
   CLIENT_PROFILE_VIEW: 'Fiche_Client',
   // --- Phase 2, Étape B ---
   PACKAGE_OFFERS: 'Package_Offers',
+  // --- Phase 2, Étape C ---
+  REMINDERS_SENT: 'Reminders_Sent',
+  DASHBOARD: 'Dashboard',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -96,12 +99,20 @@ const HEADERS = {
     'date_proposition', 'date_expiration_lien', 'date_envoi', 'date_consultation', 'date_reponse',
     'notes_admin', 'package_id_resultant',
   ],
+
+  // --- Phase 2, Étape C ---
+
+  // Dédoublonnage des rappels envoyés : un (client_id, package_id, reminder_type)
+  // donné n'est jamais écrit deux fois, donc jamais envoyé deux fois.
+  [TABS.REMINDERS_SENT]: [
+    'reminder_id', 'client_id', 'package_id', 'reminder_type', 'sent_at',
+  ],
 };
 
-// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') n'a volontairement pas
-// d'entrée dans HEADERS — c'est un onglet de rapport en texte libre, recréé
-// à chaque consultation par ClientProfile.gs, pas une source de données
-// tabulaire comme les autres onglets.
+// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') et TABS.DASHBOARD ('Dashboard')
+// n'ont volontairement pas d'entrée dans HEADERS — ce sont des onglets de
+// rapport en texte libre, recréés à la demande (ClientProfile.gs / Dashboard.gs),
+// pas des sources de données tabulaires comme les autres onglets.
 
 // Statuts possibles d'une réservation (Bookings.status).
 const BOOKING_STATUS = {
@@ -215,8 +226,20 @@ const SETTINGS_DEFAULTS = {
   reconciliation_stale_pending_minutes: 15,
   offer_default_validity_days: 14,               // durée de vie par défaut d'un lien d'offre
   site_base_url: 'https://www.elysian-institute.com', // pour construire les liens d'offre /offer/:id
+  reminder_low_balance_thresholds: '3,1,0',      // séances restantes déclenchant un rappel
+  reminder_days_before_expiration: '30,14,7',    // jours avant expiration déclenchant un rappel
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
 // envoie toujours la durée exacte, ceci n'est qu'un filet de sécurité.
 const DEFAULT_APPOINTMENT_MINUTES = 60;
+
+// Types de rappels possibles (Reminders_Sent.reminder_type) — un seul endroit
+// qui construit ces identifiants, pour que l'écriture et la vérification de
+// dédoublonnage utilisent toujours exactement la même chaîne.
+const REMINDER_TYPE = {
+  POST_ACHAT: 'post_achat',
+  balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
+  expiration: (daysBefore) => `expiration_${daysBefore}j`,
+  RENEWAL_ALERT: 'alerte_renouvellement',
+};
