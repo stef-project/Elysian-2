@@ -2,7 +2,7 @@ import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
-import { BOOKING_URL } from "../lib/booking";
+import { CHELSEA_BOOKING_URL } from "../lib/booking";
 
 export default function Chelsea() {
   useDocumentMeta(
@@ -29,13 +29,18 @@ export default function Chelsea() {
           Experience Elysian Paris in Chelsea one day per week, with a limited
           number of appointments available.
         </p>
-        <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-12">
+        <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-2">
           Every Friday — Limited Availability
+        </p>
+        <p className="font-sans text-xs text-muted-foreground/70 font-light mb-12">
+          60-minute sessions — Lymphatic Drainage 1 Zone, Post-Op or Pre &amp; Postnatal Care
         </p>
 
         <div>
           <a
-            href={BOOKING_URL}
+            href={CHELSEA_BOOKING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             data-testid="button-book-chelsea-page"
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
           >
