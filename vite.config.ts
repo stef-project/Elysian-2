@@ -19,6 +19,10 @@ export default defineConfig({
           __dirname,
           "lymphatic-drainage-after-surgery/index.html"
         ),
+        cavitation: path.resolve(
+          __dirname,
+          "cavitation-body-contouring-london/index.html"
+        ),
       },
     },
   },

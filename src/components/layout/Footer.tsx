@@ -46,7 +46,7 @@ export function Footer() {
                 { label: "Maderotherapy", href: "/#treatments" },
                 { label: "Lymphatic Drainage Post-Op", href: "/lymphatic-drainage-after-surgery" },
                 { label: "Prenatal & Postnatal", href: "/#treatments" },
-                { label: "Cavitation Fusion", href: "/#treatments" },
+                { label: "Cavitation Fusion", href: "/cavitation-body-contouring-london" },
               ].map((t) => (
                 <li key={t.label}>
                   <a
