@@ -287,6 +287,8 @@ const SETTINGS_DEFAULTS = {
   referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
   referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
   referral_reward_label: 'Massage offert — récompense parrainage',
+  review_request_days_after_first_session: 7,    // délai avant la demande d'avis
+  google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -301,4 +303,5 @@ const REMINDER_TYPE = {
   balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
+  REVIEW_REQUEST: 'demande_avis',
 };

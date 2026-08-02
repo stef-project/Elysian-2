@@ -321,6 +321,8 @@ const SETTINGS_DEFAULTS = {
   referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
   referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
   referral_reward_label: 'Massage offert — récompense parrainage',
+  review_request_days_after_first_session: 7,    // délai avant la demande d'avis
+  google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -335,6 +337,7 @@ const REMINDER_TYPE = {
   balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
+  REVIEW_REQUEST: 'demande_avis',
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3426,6 +3429,14 @@ function respondToOffer(offerId, tokenPlain, response) {
  *    décider d'agir. Si elle choisit de proposer un renouvellement, ça passe
  *    par "Proposer un forfait" (PackageOffers.gs) — jamais un envoi
  *    automatique, et ce parcours reste soumis au consentement de la cliente.
+ *  - Demande d'avis (systématisation) : règle fixe et automatique (X jours
+ *    après le premier rendez-vous honoré d'un forfait — délai réglable via
+ *    Settings.review_request_days_after_first_session), MAIS contrairement
+ *    aux communications ci-dessus, ce n'est PAS une communication
+ *    transactionnelle nécessaire au service déjà acheté : c'est une demande
+ *    d'action publique/commerciale, donc elle respecte
+ *    Clients.consentement_marketing (hasMarketingConsent_) et ne part jamais
+ *    si Settings.google_review_link est vide.
  *
  *  Dédoublonnage : chaque rappel envoyé est enregistré dans Reminders_Sent
  *  (client_id, package_id, reminder_type) — jamais renvoyé deux fois pour la
@@ -3500,6 +3511,42 @@ function sendBalanceReminderEmail_(client, pkg, sessionsRemaining, settings) {
     '',
     `Pour réserver : ${settings.site_base_url}/use-package`,
     '',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
+/**
+ * Seul endroit qui décide ce que "consentement marketing" veut dire — pour
+ * que toute future communication discrétionnaire (demande d'avis, et plus
+ * tard d'éventuelles offres commerciales) applique exactement la même règle.
+ */
+function hasMarketingConsent_(client) {
+  const raw = String((client && client.consentement_marketing) || '').trim().toLowerCase();
+  return ['oui', 'yes', 'true', '1'].indexOf(raw) !== -1;
+}
+
+/** Date du premier rendez-vous honoré (confirmé ou marqué utilisé) d'un forfait, ou null si aucun. */
+function findFirstSessionDate_(packageId) {
+  const dates = readAllRows_(TABS.BOOKINGS)
+    .filter((b) => b.package_id === packageId &&
+      (b.status === BOOKING_STATUS.CONFIRMED || b.status === BOOKING_STATUS.NO_SHOW_OR_LATE_CANCEL))
+    .map((b) => new Date(b.start_datetime))
+    .filter((d) => !isNaN(d.getTime()));
+  return dates.length ? new Date(Math.min.apply(null, dates)) : null;
+}
+
+function sendReviewRequestEmail_(client, pkg, settings) {
+  const subject = 'Un instant pour partager votre expérience chez Elysian Paris ?';
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Nous espérons que votre séance chez Elysian Paris vous a plu.`,
+    `Votre avis compte énormément pour nous — auriez-vous deux minutes pour le partager ?`,
+    '',
+    settings.google_review_link,
+    '',
+    'Merci beaucoup,',
     'Elysian Paris',
   ].join('\n');
   MailApp.sendEmail(client.email, subject, body);
@@ -3594,6 +3641,30 @@ function runDailyNotifications() {
       actionsCount++;
     }
   });
+
+  // --- Demandes d'avis : règle fixe, une seule fois par forfait, X jours
+  // après le premier rendez-vous honoré (tous statuts de forfait confondus,
+  // pas seulement "active" — une cliente dont le forfait est terminé mérite
+  // aussi qu'on lui demande son avis). Discrétionnaire, donc respecte le
+  // consentement marketing et ne part jamais sans lien configuré. ---
+  if (settings.google_review_link) {
+    const reviewDelayDays = Number(settings.review_request_days_after_first_session) || 7;
+    readAllRows_(TABS.PACKAGES).forEach((pkg) => {
+      if (hasReminderBeenSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.REVIEW_REQUEST)) return;
+
+      const client = findRowBy_(TABS.CLIENTS, 'client_id', pkg.client_id);
+      if (!client || !client.email || !hasMarketingConsent_(client)) return;
+
+      const firstSession = findFirstSessionDate_(pkg.package_id);
+      if (!firstSession) return;
+      const daysSinceFirstSession = (now.getTime() - firstSession.getTime()) / (24 * 60 * 60 * 1000);
+      if (daysSinceFirstSession < reviewDelayDays) return;
+
+      sendReviewRequestEmail_(client, pkg, settings);
+      recordReminderSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.REVIEW_REQUEST);
+      actionsCount++;
+    });
+  }
 
   Logger.log(`Notifications quotidiennes : ${actionsCount} action(s) effectuée(s).`);
   return actionsCount;

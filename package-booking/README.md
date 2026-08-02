@@ -316,6 +316,17 @@ service déjà acheté — toujours envoyées, indépendamment de
 `Clients.consentement_marketing`. Seule une proposition de renouvellement
 (commerciale) respecte ce consentement, et jamais automatiquement.
 
+**Demande d'avis (systématisation)** : envoyée automatiquement, une seule
+fois par forfait, `Settings.review_request_days_after_first_session`
+(défaut `7`) jours après le premier rendez-vous honoré du forfait (tous
+statuts de forfait confondus). Contrairement aux communications
+transactionnelles ci-dessus, demander un avis public reste discrétionnaire
+: elle **respecte `Clients.consentement_marketing`** (voir
+`hasMarketingConsent_`, valeurs reconnues : `oui`/`yes`/`true`/`1`) et ne
+part **jamais** si `Settings.google_review_link` est vide — à renseigner
+directement dans l'onglet `Settings` une fois le lien d'avis Google
+obtenu.
+
 **Tableau de bord** (`Elysian Admin → Notifications & Tableau de bord →
 Générer le tableau de bord`) : génère l'onglet `Dashboard` avec les 12
 indicateurs (offres proposées/vendues, taux de conversion, CA brut/frais/
