@@ -61,6 +61,7 @@ const TABS = {
   // --- Phase 2, Étape C ---
   REMINDERS_SENT: 'Reminders_Sent',
   DASHBOARD: 'Dashboard',
+  DASHBOARD_HISTORY: 'Dashboard_History',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -140,6 +141,15 @@ const HEADERS = {
   // donné n'est jamais écrit deux fois, donc jamais envoyé deux fois.
   [TABS.REMINDERS_SENT]: [
     'reminder_id', 'client_id', 'package_id', 'reminder_type', 'sent_at',
+  ],
+
+  // Historique des générations du tableau de bord (une ligne par génération)
+  // — permet de suivre une tendance dans le temps (graphique natif Sheets).
+  [TABS.DASHBOARD_HISTORY]: [
+    'generated_at', 'offres_proposees', 'offres_payees', 'taux_conversion_offres',
+    'ca_brut', 'ca_frais', 'ca_net', 'forfaits_actifs', 'seances_dues',
+    'forfaits_proches_expiration', 'clientes_classpass', 'classpass_vers_direct',
+    'taux_conversion_classpass',
   ],
 };
 
@@ -3411,15 +3421,23 @@ function runDailyNotifications() {
 
 /**
  * ============================================================================
- *  DASHBOARD.gs — Tableau de bord (Phase 2, Étape C).
+ *  DASHBOARD.gs — Tableau de bord + historique + comparaison période/période
+ *  (Phase 2, Étape C, puis extension "Reporting opérationnel").
  * ============================================================================
  *
- *  Comme Fiche_Client (ClientProfile.gs) : un onglet de RAPPORT, régénéré à
- *  la demande via le menu admin — pas une source de données, jamais lu par
- *  aucune autre fonction. Chaque indicateur liste les entités concernées en
- *  dessous quand c'est pertinent, pour rester actionnable et pas seulement
- *  décoratif (ex. les forfaits proches de l'expiration sont listés par
- *  package_id, pas juste comptés).
+ *  Comme Fiche_Client (ClientProfile.gs) : `Dashboard` est un onglet de
+ *  RAPPORT, régénéré à la demande via le menu admin — pas une source de
+ *  données, jamais lu par aucune autre fonction. Chaque indicateur liste les
+ *  entités concernées en dessous quand c'est pertinent, pour rester
+ *  actionnable et pas seulement décoratif.
+ *
+ *  `Dashboard_History` est différent : une VRAIE table (une ligne par
+ *  génération), pour suivre une tendance dans le temps — tu peux créer un
+ *  graphique natif Google Sheets dessus (Insertion → Graphique).
+ *
+ *  Export : Google Sheets permet déjà nativement de télécharger n'importe
+ *  quel onglet en CSV/Excel (Fichier → Télécharger) — aucun code nécessaire
+ *  pour ça.
  *
  *  ⚠️ "Clientes provenant de ClassPass" est calculé à partir de
  *  Bookings.source = 'classpass' (saisies manuelles, adminAddManualBooking —
@@ -3431,7 +3449,7 @@ function runDailyNotifications() {
 
 function adminGenerateDashboard() {
   const ui = ui_();
-  const rows = buildDashboardReport_();
+  const { rows, snapshot } = buildDashboardReport_();
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(TABS.DASHBOARD);
@@ -3444,7 +3462,9 @@ function adminGenerateDashboard() {
   sheet.autoResizeColumn(2);
   ss.setActiveSheet(sheet);
 
-  ui.alert(`Tableau de bord généré dans l'onglet "${TABS.DASHBOARD}".`);
+  appendRow_(TABS.DASHBOARD_HISTORY, snapshot);
+
+  ui.alert(`Tableau de bord généré dans l'onglet "${TABS.DASHBOARD}" (historique enregistré dans "${TABS.DASHBOARD_HISTORY}").`);
 }
 
 function buildDashboardReport_() {
@@ -3483,6 +3503,29 @@ function buildDashboardReport_() {
   line('Chiffre d\'affaires net', netTotal.toFixed(2));
   line('  → payment_id concernés', confirmedPayments.map((p) => p.payment_id).join(', ') || '(aucun)');
 
+  // --- Comparaison période/période (30 derniers jours vs 30 jours précédents) ---
+  section('Comparaison période/période (30 jours)');
+  const dayMs = 24 * 60 * 60 * 1000;
+  const currentStart = new Date(now.getTime() - 30 * dayMs);
+  const previousStart = new Date(now.getTime() - 60 * dayMs);
+  const inWindow = (dateValue, start, end) => {
+    const d = new Date(dateValue);
+    return !isNaN(d.getTime()) && d >= start && d < end;
+  };
+  const currentPayments = confirmedPayments.filter((p) => inWindow(p.date_paiement, currentStart, now));
+  const previousPayments = confirmedPayments.filter((p) => inWindow(p.date_paiement, previousStart, currentStart));
+  const currentNet = currentPayments.reduce((sum, p) => sum + (Number(p.montant_net) || 0), 0);
+  const previousNet = previousPayments.reduce((sum, p) => sum + (Number(p.montant_net) || 0), 0);
+  const currentSold = new Set(currentPayments.map((p) => p.package_id)).size;
+  const previousSold = new Set(previousPayments.map((p) => p.package_id)).size;
+  const pctChange = (curr, prev) => (prev > 0 ? `${(((curr - prev) / prev) * 100).toFixed(1)}%` : 'n/a (aucune donnée période précédente)');
+  line('CA net (30 derniers jours)', currentNet.toFixed(2));
+  line('CA net (30 jours précédents)', previousNet.toFixed(2));
+  line('Variation CA net', pctChange(currentNet, previousNet));
+  line('Forfaits vendus (30 derniers jours)', currentSold);
+  line('Forfaits vendus (30 jours précédents)', previousSold);
+  line('Variation forfaits vendus', pctChange(currentSold, previousSold));
+
   // --- Forfaits ---
   section('Forfaits');
   const activePackages = packages.filter((p) => p.statut === PACKAGE_STATUS.ACTIVE);
@@ -3501,7 +3544,7 @@ function buildDashboardReport_() {
     if (!p.date_expiration) return false;
     const exp = new Date(p.date_expiration);
     if (isNaN(exp.getTime())) return false;
-    const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / dayMs);
     return daysUntil >= 0 && daysUntil <= warningWindow;
   });
   line(`Forfaits proches de l'expiration (≤ ${warningWindow}j)`, nearExpiry.length);
@@ -3526,5 +3569,21 @@ function buildDashboardReport_() {
     : 0;
   line('Taux de conversion ClassPass → forfait', `${classpassConversionRate.toFixed(1)}%`);
 
-  return rows;
+  const snapshot = {
+    generated_at: now,
+    offres_proposees: offersTotal,
+    offres_payees: offersPaid.length,
+    taux_conversion_offres: Number(conversionRate.toFixed(1)),
+    ca_brut: Number(grossTotal.toFixed(2)),
+    ca_frais: Number(feesTotal.toFixed(2)),
+    ca_net: Number(netTotal.toFixed(2)),
+    forfaits_actifs: activePackages.length,
+    seances_dues: sessionsStillDue,
+    forfaits_proches_expiration: nearExpiry.length,
+    clientes_classpass: classpassClientIds.length,
+    classpass_vers_direct: classpassToDirect.length,
+    taux_conversion_classpass: Number(classpassConversionRate.toFixed(1)),
+  };
+
+  return { rows, snapshot };
 }

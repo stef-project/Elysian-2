@@ -329,6 +329,22 @@ juste un chiffre. Onglet de rapport régénéré à la demande, comme
 manuelle") — pas à partir de `Clients.origine_premiere_reservation`, un
 champ libre qui reste à renseigner à la main s'il doit être utilisé.
 
+### Reporting opérationnel (historique + comparaison période/période)
+
+Chaque génération du tableau de bord ajoute aussi une ligne à l'onglet
+`Dashboard_History` (une vraie table, contrairement à `Dashboard` qui est
+un rapport texte régénéré à chaque fois) — de quoi suivre une tendance dans
+le temps. Tu peux créer un graphique natif dessus : sélectionne les
+colonnes qui t'intéressent → **Insertion → Graphique**.
+
+Le rapport `Dashboard` inclut aussi une section "Comparaison
+période/période" : CA net et nombre de forfaits vendus sur les 30 derniers
+jours vs les 30 jours précédents, avec la variation en %.
+
+**Export** : Google Sheets permet déjà nativement de télécharger n'importe
+quel onglet en CSV/Excel (**Fichier → Télécharger**) — aucun outil
+supplémentaire nécessaire.
+
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
 - Fonction : `runDailyNotifications`
