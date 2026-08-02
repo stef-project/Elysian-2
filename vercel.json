@@ -6,6 +6,10 @@
       "destination": "/lymphatic-drainage-after-surgery/index.html"
     },
     {
+      "source": "/cavitation-body-contouring-london",
+      "destination": "/cavitation-body-contouring-london/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
