@@ -56,6 +56,10 @@ function findPaymentsByClientId_(clientId) {
  * administratif explicite" : pour les moyens peu traçables (cash,
  * complimentary, other), justificatif_notes devient obligatoire ici.
  *
+ * Propose aussi un code promo optionnel (PromoCodes.gs) avant le calcul des
+ * frais — un seul point d'entrée de saisie de paiement, donc un seul endroit
+ * où appliquer/marquer un code utilisé, sans dupliquer cette logique.
+ *
  * @param {string} packageId
  * @param {{forceConfirmed: boolean}} options - forceConfirmed=true saute la
  *   question "confirmer maintenant ?" (utilisé quand l'admin affirme déjà que
@@ -80,6 +84,7 @@ function promptAndRecordPayment_(packageId, options) {
   let montantBrut = 0;
   let fraisPaiement = 0;
   let devise = 'GBP';
+  let appliedPromo = null;
 
   if (isComplimentary) {
     ui.alert('Forfait offert (complimentary) : montant brut et frais fixés à 0 automatiquement.');
@@ -89,6 +94,17 @@ function promptAndRecordPayment_(packageId, options) {
     const montantBrutRaw = ui.prompt('Montant facturé brut (ex. 900) :').getResponseText().trim();
     montantBrut = parseFloat(montantBrutRaw);
     if (isNaN(montantBrut) || montantBrut < 0) { ui.alert('Montant invalide.'); return null; }
+
+    const promoCodeRaw = ui.prompt('Code promo à appliquer (optionnel, laisser vide si aucun) :').getResponseText().trim();
+    if (promoCodeRaw) {
+      const promo = validatePromoCodeForClient_(promoCodeRaw, pkg.client_id);
+      if (promo) {
+        const montantApresRemise = applyPromoDiscount_(montantBrut, promo);
+        ui.alert(`Code promo appliqué : ${montantBrut.toFixed(2)} ${devise} → ${montantApresRemise.toFixed(2)} ${devise}.`);
+        montantBrut = montantApresRemise;
+        appliedPromo = promo;
+      }
+    }
 
     const fraisPaiementRaw = ui.prompt('Frais de paiement prélevés (ex. 11), laisser vide ou 0 si aucun/inconnu :').getResponseText().trim();
     fraisPaiement = fraisPaiementRaw ? parseFloat(fraisPaiementRaw) : 0;
@@ -143,6 +159,10 @@ function promptAndRecordPayment_(packageId, options) {
     mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
   });
   writeAuditLog_('admin', 'record_payment', paymentId, '', statutPaiement, `Forfait ${packageId} (${moyenPaiementRaw})${justificatifNotes ? ' — ' + justificatifNotes : ''}`);
+
+  if (appliedPromo) {
+    markPromoCodeUsed_(appliedPromo, pkg.client_id, packageId);
+  }
 
   if (statutPaiement === PAYMENT_STATUS.CONFIRME) {
     activatePackageIfPending_(packageId, paymentId);
@@ -205,6 +225,60 @@ function activatePackageIfPending_(packageId, paymentId) {
     updateRow_(TABS.PACKAGE_OFFERS, linkedOffer.rowNumber, { statut: OFFER_STATUS.PAID });
     writeAuditLog_('system', 'offer_marked_paid', linkedOffer.offer_id, linkedOffer.statut, OFFER_STATUS.PAID, `Suite activation forfait ${packageId}`);
   }
+
+  // Chaque activation peut faire franchir un palier de parrainage à une
+  // marraine (CRM.gs) — revérifié à chaque fois, dédoublonné par palier.
+  checkReferralMilestones_();
+}
+
+/**
+ * Crée un forfait actif + une ligne Payments confirmée à 0, sans passer par
+ * le flux interactif (promptAndRecordPayment_) — utilisé pour les
+ * récompenses accordées automatiquement par le système (parrainage,
+ * CRM.gs), jamais pour un paiement réel. Trace complète dans Payments et
+ * Audit_Log, comme n'importe quel autre forfait offert.
+ */
+function grantComplimentaryPackage_(clientId, nomForfait, totalSessions, motif) {
+  const packageId = genId_('PKG');
+  appendRow_(TABS.PACKAGES, {
+    package_id: packageId,
+    client_id: clientId,
+    nom_forfait: nomForfait,
+    soins_inclus: '',
+    total_sessions: totalSessions,
+    available_sessions: totalSessions,
+    reserved_sessions: 0,
+    used_sessions: 0,
+    date_achat: new Date(),
+    date_expiration: '',
+    moyen_paiement: '',
+    statut: PACKAGE_STATUS.ACTIVE,
+    notes_admin: motif,
+    package_template_id: '',
+  });
+
+  const paymentId = genId_('PAY');
+  const { montant_net, taux_frais } = computePaymentFinancials_(0, 0);
+  appendRow_(TABS.PAYMENTS, {
+    payment_id: paymentId,
+    client_id: clientId,
+    package_id: packageId,
+    montant_brut: 0,
+    devise: 'GBP',
+    moyen_paiement: PAYMENT_METHOD.COMPLIMENTARY,
+    fournisseur_paiement: '',
+    frais_paiement: 0,
+    montant_net: montant_net,
+    taux_frais: taux_frais,
+    date_paiement: new Date(),
+    reference_transaction: '',
+    statut_paiement: PAYMENT_STATUS.CONFIRME,
+    justificatif_notes: motif,
+    mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
+  });
+
+  writeAuditLog_('system', 'grant_complimentary_package', packageId, '', clientId, motif);
+  return packageId;
 }
 
 function adminMarkPaymentRefused() {

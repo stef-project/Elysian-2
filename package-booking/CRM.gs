@@ -13,6 +13,15 @@
  *    de rapport régénéré à la demande (même principe que Fiche_Client/Dashboard).
  *
  *  Rien de nouveau côté scopes ni côté données sensibles.
+ *
+ *  Programme de parrainage : réutilise entièrement les tags ci-dessus (tag
+ *  "referred-by:CLIENT_ID") — aucune nouvelle table. Règle fixe et explicite
+ *  (contrairement aux alertes de renouvellement, qui restent une décision
+ *  commerciale signalée dans Reconciliation_Issues, jamais automatique) :
+ *  tous les N filleul(e)s ayant confirmé un premier achat, la marraine reçoit
+ *  automatiquement une séance offerte. checkReferralMilestones_ (appelée
+ *  depuis activatePackageIfPending_ dans Payments.gs) détecte le palier et
+ *  déclenche grantComplimentaryPackage_ sans intervention admin.
  */
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -21,6 +30,101 @@
 
 function parseTags_(tagsRaw) {
   return String(tagsRaw || '').split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Parrainage
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Demande (optionnellement) l'email d'une marraine et renvoie le tag
+ * "referred-by:CLIENT_ID" correspondant, ou '' si non applicable/introuvable.
+ * Utilisé à la création d'une cliente (adminAddClient, findOrPromptCreateClient_)
+ * pour ne jamais dupliquer cette logique entre les deux points d'entrée.
+ */
+function promptReferralTag_() {
+  const ui = ui_();
+  const referrerEmail = ui.prompt('Cliente parrainée par (email de la marraine, laisser vide si non applicable) :').getResponseText().trim().toLowerCase();
+  if (!referrerEmail) return '';
+  const referrer = findClientByEmail_(referrerEmail);
+  if (!referrer) {
+    ui.alert('Aucune cliente trouvée avec cet email de parrainage — ignoré.');
+    return '';
+  }
+  return REFERRAL_TAG_PREFIX + referrer.client_id;
+}
+
+/**
+ * Appelée depuis activatePackageIfPending_ (Payments.gs) à chaque activation
+ * de forfait. Compte les filleul(e)s de clientId ayant confirmé au moins un
+ * paiement, et accorde automatiquement une récompense (séance(s) offerte(s))
+ * tous les N parrainages réussis (règle fixe explicite, configurable dans
+ * Settings — pas une simple alerte comme les autres automatismes commerciaux
+ * de ce système, ici la règle elle-même est déjà décidée). Dédoublonné par
+ * palier via Reminders_Sent (client_id, package_id vide, type
+ * "parrainage_palier_N") pour ne jamais accorder deux fois la même récompense.
+ */
+function checkReferralMilestones_() {
+  const settings = getSettings();
+  const milestoneSize = Number(settings.referral_milestone_count) || 3;
+  const payments = readAllRows_(TABS.PAYMENTS);
+  const clients = readAllRows_(TABS.CLIENTS);
+
+  // Regroupe les filleul(e)s par marraine, à partir des tags "referred-by:X".
+  const referredByReferrer = {};
+  clients.forEach((c) => {
+    const tag = parseTags_(c.tags).find((t) => t.indexOf(REFERRAL_TAG_PREFIX) === 0);
+    if (!tag) return;
+    const referrerId = tag.slice(REFERRAL_TAG_PREFIX.length);
+    if (!referredByReferrer[referrerId]) referredByReferrer[referrerId] = [];
+    referredByReferrer[referrerId].push(c.client_id);
+  });
+
+  Object.keys(referredByReferrer).forEach((referrerId) => {
+    // "Converti" = au moins un paiement RÉEL confirmé — un forfait offert
+    // (complimentary, y compris une récompense de parrainage elle-même) ne
+    // compte jamais comme une conversion.
+    const convertedCount = referredByReferrer[referrerId].filter((cid) =>
+      payments.some((p) =>
+        p.client_id === cid &&
+        p.statut_paiement === PAYMENT_STATUS.CONFIRME &&
+        p.moyen_paiement !== PAYMENT_METHOD.COMPLIMENTARY
+      )
+    ).length;
+
+    if (convertedCount === 0 || convertedCount % milestoneSize !== 0) return;
+
+    const milestoneType = `parrainage_palier_${convertedCount}`;
+    if (hasReminderBeenSent_(referrerId, '', milestoneType)) return;
+
+    const referrer = findRowBy_(TABS.CLIENTS, 'client_id', referrerId);
+    if (!referrer) return;
+
+    grantComplimentaryPackage_(
+      referrerId,
+      settings.referral_reward_label,
+      Number(settings.referral_reward_sessions) || 1,
+      `Récompense automatique de parrainage : ${convertedCount}e filleul(e) ayant confirmé un premier achat.`
+    );
+    recordReminderSent_(referrerId, '', milestoneType);
+
+    if (referrer.email) {
+      MailApp.sendEmail(
+        referrer.email,
+        'A free session, on us — thank you for your referrals!',
+        [
+          `Hi ${referrer.prenom || ''},`,
+          '',
+          `Thank you for referring ${convertedCount} friend(s) to Elysian Paris!`,
+          `As a thank you, we've added ${Number(settings.referral_reward_sessions) || 1} complimentary session(s) to your account.`,
+          '',
+          'Book it whenever suits you — see you soon.',
+          '',
+          'Elysian Paris',
+        ].join('\n')
+      );
+    }
+  });
 }
 
 function adminAddClientTag() {
