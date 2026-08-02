@@ -40,7 +40,7 @@ export function Hero() {
           className="font-sans text-base md:text-xl text-[#F7F5F2]/85 font-light max-w-2xl mx-auto leading-relaxed mb-5"
         >
           A private body wellness experience combining French lymphatic
-          expertise, precise sculpting techniques and personalised care — so
+          expertise, precise sculpting techniques and personalised care, so
           you feel lighter, restored and beautifully refined.
         </motion.p>
 
@@ -50,7 +50,7 @@ export function Hero() {
           transition={{ duration: 1.2, delay: 1.1 }}
           className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2]/60 mb-10"
         >
-          London — Kensington &amp; Chelsea
+          London, Kensington &amp; Chelsea
         </motion.p>
 
         <motion.div
@@ -71,7 +71,7 @@ export function Hero() {
             data-testid="button-book-chelsea"
             className="font-sans text-xs tracking-[0.2em] uppercase text-[#F7F5F2] border border-[#F7F5F2]/40 px-10 py-4 hover:border-[#F7F5F2] hover:bg-[#F7F5F2]/10 transition-colors duration-300"
           >
-            Book Chelsea — Every Friday
+            Book Chelsea, Every Friday
           </a>
         </motion.div>
       </div>

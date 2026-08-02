@@ -202,7 +202,7 @@ export default function PackageOffer() {
               {offer.statut === "accepted" && (
                 <div className="text-center py-6">
                   <div className="w-8 h-[1px] bg-primary mx-auto mb-6" />
-                  <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you — offer accepted.</p>
+                  <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you, offer accepted.</p>
                   <p className="font-sans text-muted-foreground font-light text-sm mb-8">
                     We will be in touch within 24 hours to arrange payment and activate your package.
                   </p>
