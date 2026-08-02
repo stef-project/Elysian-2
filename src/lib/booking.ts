@@ -38,6 +38,7 @@ export const mailtoWith = (subject: string, body: string) =>
 export const BOOKING_URL = "/#treatments";
 
 // Studio Chelsea : un seul créneau disponible, le vendredi, 60 min
-// (Post-Op / Pre & Postnatal). Lien Google Calendar dédié, distinct des
-// créneaux Kensington — ne jamais réutiliser BOOKING_URL ici.
+// (Lymphatic Drainage / Post-Op / Pre & Postnatal — sans distinction de
+// zone). Lien Google Calendar dédié, distinct des créneaux Kensington —
+// ne jamais réutiliser BOOKING_URL ici.
 export const CHELSEA_BOOKING_URL = "https://calendar.app.google/DQcn1788toE6LCUq7";
