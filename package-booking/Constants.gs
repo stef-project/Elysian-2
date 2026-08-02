@@ -27,6 +27,7 @@ const TABS = {
   // --- Phase 2, Étape C ---
   REMINDERS_SENT: 'Reminders_Sent',
   DASHBOARD: 'Dashboard',
+  DASHBOARD_HISTORY: 'Dashboard_History',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -106,6 +107,15 @@ const HEADERS = {
   // donné n'est jamais écrit deux fois, donc jamais envoyé deux fois.
   [TABS.REMINDERS_SENT]: [
     'reminder_id', 'client_id', 'package_id', 'reminder_type', 'sent_at',
+  ],
+
+  // Historique des générations du tableau de bord (une ligne par génération)
+  // — permet de suivre une tendance dans le temps (graphique natif Sheets).
+  [TABS.DASHBOARD_HISTORY]: [
+    'generated_at', 'offres_proposees', 'offres_payees', 'taux_conversion_offres',
+    'ca_brut', 'ca_frais', 'ca_net', 'forfaits_actifs', 'seances_dues',
+    'forfaits_proches_expiration', 'clientes_classpass', 'classpass_vers_direct',
+    'taux_conversion_classpass',
   ],
 };
 
