@@ -50,19 +50,24 @@ export default function UsePackage() {
   const serviceLabel = (id: string) => PACKAGE_SERVICES.find((s) => s.id === id)?.label ?? id;
   const serviceDuration = (id: string) => PACKAGE_SERVICES.find((s) => s.id === id)?.durationMinutes ?? 60;
 
-  const handleRequestCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const requestNewCode = async () => {
     setLoading(true);
     setError("");
     try {
       const res = await requestVerificationCode(email);
       setInfo(res.message);
+      setCode("");
       setStep("code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await requestNewCode();
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
@@ -221,6 +226,14 @@ export default function UsePackage() {
                 className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
               >
                 {loading ? "Verifying…" : "Verify code"}
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={requestNewCode}
+                className="w-full font-sans text-xs text-muted-foreground hover:text-primary transition-colors underline disabled:opacity-50"
+              >
+                Didn't get it, or code not working? Request a new code
               </button>
             </form>
           )}

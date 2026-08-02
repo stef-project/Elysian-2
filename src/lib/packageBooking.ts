@@ -27,7 +27,15 @@ async function callWebApp<T>(action: string, payload: Record<string, unknown>): 
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ action, ...payload }),
   });
-  const json = (await res.json()) as ApiResponse<T>;
+  let json: ApiResponse<T>;
+  try {
+    json = (await res.json()) as ApiResponse<T>;
+  } catch {
+    // Réponse non-JSON (ex. page d'erreur HTML lors d'un cold start Apps
+    // Script juste après un redéploiement) — jamais montrer l'erreur de
+    // parsing brute à la cliente, seulement un message générique.
+    throw new Error("Une erreur est survenue, merci de réessayer.");
+  }
   if (json.success === false) {
     throw new Error(json.error);
   }
