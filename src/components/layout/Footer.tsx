@@ -44,7 +44,7 @@ export function Footer() {
               {[
                 { label: "Lymphatic Drainage", href: "/#treatments" },
                 { label: "Maderotherapy", href: "/#treatments" },
-                { label: "Lymphatic Drainage After Surgery", href: "/lymphatic-drainage-after-surgery" },
+                { label: "Lymphatic Drainage Post-Op", href: "/lymphatic-drainage-after-surgery" },
                 { label: "Prenatal & Postnatal", href: "/#treatments" },
                 { label: "Cavitation Fusion", href: "/#treatments" },
               ].map((t) => (

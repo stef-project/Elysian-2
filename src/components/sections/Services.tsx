@@ -1,6 +1,29 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
+const careCategories = [
+  {
+    name: "Signature Lymphatic Sculpting",
+    description: "Our foundational treatment: hands-led lymphatic drainage combined with precise sculpting technique.",
+  },
+  {
+    name: "Post-Op Recovery",
+    description: "Gentle, specialist care that supports circulation and healing after surgery, at your own pace.",
+  },
+  {
+    name: "Pre & Postnatal Lymphatic Care",
+    description: "Tailored treatments for mothers, before and after birth, easing tension and restoring vitality.",
+  },
+  {
+    name: "Cellulite & Body Contouring",
+    description: "Targeted techniques to refine skin texture, improve tone and enhance your natural silhouette.",
+  },
+  {
+    name: "Fluid Retention & De-Bloating",
+    description: "Rhythmic lymphatic work that reduces puffiness and restores a feeling of lightness.",
+  },
+];
+
 const treatments = [
   {
     number: "01",
@@ -37,7 +60,7 @@ const treatments = [
   },
   {
     number: "04",
-    name: "Post-Operative Care",
+    name: "Post-Op Care",
     subtitle: null,
     duration: "60 min",
     price: "£80",
@@ -96,6 +119,24 @@ export function Services() {
             Thoughtfully crafted to honour your wellness journey. Every session is tailored, never routine.
           </p>
         </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-px bg-border mb-20">
+          {careCategories.map((c) => (
+            <motion.div
+              key={c.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6 }}
+              className="bg-card p-6 flex flex-col gap-3"
+            >
+              <h3 className="font-serif text-lg text-[#1A1A1A] leading-snug">{c.name}</h3>
+              <p className="font-sans text-xs text-muted-foreground font-light leading-relaxed">
+                {c.description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6">
