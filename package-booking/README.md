@@ -25,7 +25,7 @@ dans un Google Sheet dédié.
 
 **Option rapide (recommandée) :** crée un seul fichier `TOUT-EN-UN.gs` dans
 l'éditeur Apps Script et colle-y tout le contenu de
-[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 17 fichiers
+[`TOUT-EN-UN.gs`](./TOUT-EN-UN.gs) de ce dossier — il regroupe les 18 fichiers
 ci-dessous (mêmes fonctions, même comportement) en un seul copier-coller,
 comme pour `gmail-automation/TOUT-EN-UN.gs`. Tu peux supprimer le fichier
 `Code.gs` par défaut.
@@ -57,6 +57,7 @@ Script (icône **+** à côté de "Fichiers" → Script) et colle son contenu :
 - `PackageOffers.gs` (Phase 2, Étape B)
 - `Notifications.gs` (Phase 2, Étape C)
 - `Dashboard.gs` (Phase 2, Étape C)
+- `CRM.gs` (tags, historique des notes, recherche de clientes)
 
 Puis le **manifeste** : icône ⚙️ **Paramètres du projet** → coche **"Afficher
 le fichier manifeste appsscript.json dans l'éditeur"** → remplace son
@@ -344,6 +345,27 @@ jours vs les 30 jours précédents, avec la variation en %.
 **Export** : Google Sheets permet déjà nativement de télécharger n'importe
 quel onglet en CSV/Excel (**Fichier → Télécharger**) — aucun outil
 supplémentaire nécessaire.
+
+### CRM client
+
+Sous-menu **Elysian Admin → CRM**, étend `Fiche_Client` (ClientProfile.gs)
+sans dupliquer sa logique :
+
+- **Tags** (`Clients.tags`, ex. `vip, a-risque, nouvelle`) : ajouter/retirer
+  via le menu. Affichés dans la Fiche_Client.
+- **Historique des notes** (`Client_Notes`) : contrairement à
+  `Clients.notes_admin` (une note "épinglée", écrasée à chaque
+  modification), chaque note ajoutée ici s'accumule sans jamais écraser les
+  précédentes — visible dans la Fiche_Client.
+- **Rechercher des clientes** : filtre par tag (`tag:vip`), absence d'achat
+  récent (`sans_achat:90`), forfait proche de l'expiration
+  (`expiration:14`), ou source de réservation (`source:classpass`) —
+  résultat dans l'onglet `Recherche_Clientes`.
+
+La Fiche_Client affiche aussi désormais les **propositions d'offre**
+envoyées à la cliente (`Package_Offers`) — ce champ affichait encore
+"Étape B — pas encore implémenté" alors que Étape B était déjà construite ;
+corrigé au passage.
 
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :

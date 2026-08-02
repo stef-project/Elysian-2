@@ -54,12 +54,21 @@ function buildClientProfileReport_(client) {
   line('Cliente depuis', formatDateForReport_(client.date_creation));
   line('Origine première réservation', client.origine_premiere_reservation || '(non renseignée)');
   line('Consentement communications commerciales', client.consentement_marketing || '(non renseigné)');
-  line('Notes admin', client.notes_admin);
+  line('Notes admin (épinglée)', client.notes_admin);
+  line('Tags', parseTags_(client.tags).join(', ') || '(aucun)');
 
   const packages = readAllRows_(TABS.PACKAGES).filter((p) => p.client_id === client.client_id);
   const bookings = readAllRows_(TABS.BOOKINGS).filter((b) => b.client_id === client.client_id);
   const payments = findPaymentsByClientId_(client.client_id);
+  const offers = readAllRows_(TABS.PACKAGE_OFFERS).filter((o) => o.client_id === client.client_id);
+  const notes = findClientNotes_(client.client_id);
   const now = new Date();
+
+  section('Historique des notes');
+  notes.forEach((n) => {
+    line(formatDateForReport_(n.timestamp), `${n.note} (par ${n.auteur})`);
+  });
+  if (notes.length === 0) line('(aucune note dans l\'historique)', '');
 
   section('Forfaits actifs');
   packages.filter((p) => p.statut === PACKAGE_STATUS.ACTIVE).forEach((p) => {
@@ -96,7 +105,11 @@ function buildClientProfileReport_(client) {
   });
 
   section('Propositions de forfait envoyées');
-  line('(Étape B — pas encore implémenté)', '');
+  offers.forEach((o) => {
+    line(o.offer_id, `${o.nom_forfait} — ${o.prix_final} — statut ${o.statut} — proposée le ${formatDateForReport_(o.date_proposition)}` +
+      (o.package_id_resultant ? ` — convertie en ${o.package_id_resultant}` : ''));
+  });
+  if (offers.length === 0) line('(aucune)', '');
 
   section('Paiements (brut / frais / net)');
   let totalBrut = 0, totalFrais = 0, totalNet = 0;
