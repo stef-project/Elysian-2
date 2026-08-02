@@ -48,6 +48,11 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Notifications & Tableau de bord (Phase 2, Étape C)')
       .addItem('Lancer les notifications quotidiennes maintenant', 'runDailyNotifications')
       .addItem('Générer le tableau de bord', 'adminGenerateDashboard'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('CRM')
+      .addItem('Ajouter un tag à une cliente', 'adminAddClientTag')
+      .addItem('Retirer un tag d\'une cliente', 'adminRemoveClientTag')
+      .addItem('Ajouter une note à l\'historique', 'adminAddClientNote')
+      .addItem('Rechercher des clientes', 'adminSearchClients'))
     .addToUi();
 }
 

@@ -28,6 +28,9 @@ const TABS = {
   REMINDERS_SENT: 'Reminders_Sent',
   DASHBOARD: 'Dashboard',
   DASHBOARD_HISTORY: 'Dashboard_History',
+  // --- CRM ---
+  CLIENT_NOTES: 'Client_Notes',
+  CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -40,6 +43,7 @@ const HEADERS = {
     'client_id', 'prenom', 'nom', 'email', 'telephone',
     'notes_admin', 'date_creation',
     'origine_premiere_reservation', 'consentement_marketing',
+    'tags',
   ],
 
   [TABS.PACKAGES]: [
@@ -117,12 +121,22 @@ const HEADERS = {
     'forfaits_proches_expiration', 'clientes_classpass', 'classpass_vers_direct',
     'taux_conversion_classpass',
   ],
+
+  // --- CRM ---
+
+  // Historique des notes admin par cliente — contrairement à Clients.notes_admin
+  // (une note "épinglée", écrasée à chaque modification), chaque note ici
+  // s'ajoute sans jamais écraser les précédentes.
+  [TABS.CLIENT_NOTES]: [
+    'note_id', 'client_id', 'timestamp', 'auteur', 'note',
+  ],
 };
 
-// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client') et TABS.DASHBOARD ('Dashboard')
-// n'ont volontairement pas d'entrée dans HEADERS — ce sont des onglets de
-// rapport en texte libre, recréés à la demande (ClientProfile.gs / Dashboard.gs),
-// pas des sources de données tabulaires comme les autres onglets.
+// NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client'), TABS.DASHBOARD ('Dashboard')
+// et TABS.CLIENT_SEARCH_RESULTS ('Recherche_Clientes') n'ont volontairement
+// pas d'entrée dans HEADERS — ce sont des onglets de rapport en texte libre,
+// recréés à la demande (ClientProfile.gs / Dashboard.gs / CRM.gs), pas des
+// sources de données tabulaires comme les autres onglets.
 
 // Statuts possibles d'une réservation (Bookings.status).
 const BOOKING_STATUS = {
