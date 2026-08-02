@@ -37,18 +37,40 @@ function parseTags_(tagsRaw) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Demande (optionnellement) l'email d'une marraine et renvoie le tag
+ * Demande (optionnellement) le prénom + nom d'une marraine et renvoie le tag
  * "referred-by:CLIENT_ID" correspondant, ou '' si non applicable/introuvable.
  * Utilisé à la création d'une cliente (adminAddClient, findOrPromptCreateClient_)
  * pour ne jamais dupliquer cette logique entre les deux points d'entrée.
+ *
+ * Recherche par nom (pas par email) : c'est l'information que la nouvelle
+ * cliente donne spontanément ("recommandée par Untel·le"). En cas de
+ * plusieurs clientes du même nom, demande le client_id exact plutôt que de
+ * deviner ; si aucun nom ne correspond, propose l'email en secours.
  */
 function promptReferralTag_() {
   const ui = ui_();
-  const referrerEmail = ui.prompt('Cliente parrainée par (email de la marraine, laisser vide si non applicable) :').getResponseText().trim().toLowerCase();
-  if (!referrerEmail) return '';
-  const referrer = findClientByEmail_(referrerEmail);
+  const prenom = ui.prompt('Cliente recommandée par : prénom de la marraine (laisser vide si non applicable) :').getResponseText().trim();
+  if (!prenom) return '';
+  const nom = ui.prompt('Nom de la marraine :').getResponseText().trim();
+
+  const matches = findClientsByName_(prenom, nom);
+  let referrer = null;
+
+  if (matches.length === 1) {
+    referrer = matches[0];
+  } else if (matches.length > 1) {
+    const list = matches.map((c) => `${c.client_id} — ${c.prenom} ${c.nom} — ${c.email || "(pas d'email)"}`).join('\n');
+    const clientIdChoice = ui.prompt(
+      `Plusieurs clientes correspondent à ce nom :\n${list}\n\nSaisis le client_id exact de la marraine :`
+    ).getResponseText().trim();
+    referrer = findRowBy_(TABS.CLIENTS, 'client_id', clientIdChoice);
+  } else {
+    const emailFallback = ui.prompt('Aucune cliente trouvée avec ce nom. Email de la marraine (secours, laisser vide pour annuler) :').getResponseText().trim().toLowerCase();
+    referrer = emailFallback ? findClientByEmail_(emailFallback) : null;
+  }
+
   if (!referrer) {
-    ui.alert('Aucune cliente trouvée avec cet email de parrainage — ignoré.');
+    ui.alert('Aucune cliente trouvée pour ce parrainage — ignoré.');
     return '';
   }
   return REFERRAL_TAG_PREFIX + referrer.client_id;

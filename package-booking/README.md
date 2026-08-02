@@ -385,9 +385,15 @@ cas par cas (contrairement aux alertes de renouvellement ci-dessus, qui
 restent du ressort de l'administratrice) :
 
 - À la création d'une cliente (**Ajouter une cliente** ou une offre
-  personnalisée acceptée), l'admin peut renseigner l'email de la marraine.
-  Le tag `referred-by:CLIENT_ID` est alors ajouté automatiquement sur
-  `Clients.tags` — aucune nouvelle table, réutilise le système de tags CRM.
+  personnalisée acceptée), l'admin renseigne le **prénom + nom** de la
+  marraine (c'est l'information que la nouvelle cliente donne spontanément,
+  "recommandée par Untel·le" — pas son email). `findClientsByName_`
+  recherche la correspondance : une seule cliente trouvée → utilisée
+  directement ; plusieurs → l'admin choisit le `client_id` exact dans la
+  liste affichée (jamais de choix automatique en cas d'ambiguïté) ; aucune
+  → email de la marraine proposé en secours. Le tag `referred-by:CLIENT_ID`
+  est alors ajouté automatiquement sur `Clients.tags` — aucune nouvelle
+  table, réutilise le système de tags CRM.
 - Dès qu'une cliente parrainée confirme un premier paiement (activation de
   forfait), le système compte les filleul(e)s de la marraine ayant déjà
   payé. Tous les **N** filleul(e)s (`Settings.referral_milestone_count`,

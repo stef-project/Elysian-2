@@ -146,3 +146,14 @@ function findClientsByPhone_(phone) {
   if (!normalized) return [];
   return readAllRows_(TABS.CLIENTS).filter((c) => normalizePhone_(c.telephone) === normalized);
 }
+
+/** Recherche rapide de clientes par prénom + nom, insensible à la casse/espaces (peut renvoyer 0, 1 ou plusieurs résultats). */
+function findClientsByName_(prenom, nom) {
+  const p = String(prenom || '').trim().toLowerCase();
+  const n = String(nom || '').trim().toLowerCase();
+  if (!p && !n) return [];
+  return readAllRows_(TABS.CLIENTS).filter((c) =>
+    String(c.prenom || '').trim().toLowerCase() === p &&
+    String(c.nom || '').trim().toLowerCase() === n
+  );
+}
