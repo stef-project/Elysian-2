@@ -82,7 +82,7 @@ export default function Legal() {
             <p>
               <strong className="text-foreground">What we collect.</strong> When you submit an
               enquiry, book a treatment or contact us by email or WhatsApp, we collect the
-              information you provide, typically your name, email address, the treatment you
+              information you provide — typically your name, email address, the treatment you
               are interested in, and any message or health context you choose to share.
             </p>
             <p>

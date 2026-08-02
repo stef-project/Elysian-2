@@ -101,7 +101,7 @@ export default function CavitationBodyContouring() {
               treatment's results and easing any heaviness.
             </p>
             <p className="font-sans text-muted-foreground font-light leading-[1.9]">
-              A 90-minute session, combining both techniques in one visit,
+              A 90-minute session, combining both techniques in one visit —
               part of The Elysian Paris Method™.
             </p>
           </div>

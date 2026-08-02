@@ -115,8 +115,8 @@ export const respondToOffer = (offerId: string, token: string, response: "accept
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.
 export const PACKAGE_SERVICES: { id: string; label: string; durationMinutes: number }[] = [
-  { id: "lymphatic-1z", label: "Lymphatic Drainage · 1 Zone", durationMinutes: 60 },
-  { id: "lymphatic-2z", label: "Lymphatic Drainage · 2 Zones", durationMinutes: 90 },
+  { id: "lymphatic-1z", label: "Lymphatic Drainage — 1 Zone", durationMinutes: 60 },
+  { id: "lymphatic-2z", label: "Lymphatic Drainage — 2 Zones", durationMinutes: 90 },
   { id: "maderotherapy", label: "Maderotherapy", durationMinutes: 60 },
   { id: "post-op", label: "Post-Op Care", durationMinutes: 60 },
   { id: "prenatal", label: "Prenatal & Postnatal Massage", durationMinutes: 60 },

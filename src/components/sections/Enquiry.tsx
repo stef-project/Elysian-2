@@ -37,7 +37,7 @@ export function Enquiry() {
     e.preventDefault();
     const body = buildBody();
     const whatsapp = whatsappWith(body);
-    const mailto = mailtoWith("Treatment enquiry: Elysian Paris", body);
+    const mailto = mailtoWith("Treatment enquiry — Elysian Paris", body);
     setLinks({ whatsapp, mailto });
     // On ouvre WhatsApp par défaut, mais l'écran de confirmation propose aussi l'e-mail.
     window.open(whatsapp, "_blank", "noopener,noreferrer");
@@ -88,7 +88,7 @@ export function Enquiry() {
               <div className="w-8 h-[1px] bg-primary mx-auto mb-8" />
               <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you, {name || "there"}.</p>
               <p className="font-sans text-muted-foreground font-light text-sm mb-8 max-w-md mx-auto">
-                Your enquiry is ready in WhatsApp, just press send. If WhatsApp did
+                Your enquiry is ready in WhatsApp — just press send. If WhatsApp did
                 not open, or you would rather email us, use one of the options below.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
