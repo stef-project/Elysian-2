@@ -31,6 +31,8 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
+  // --- Croissance clientèle ---
+  PROMO_CODES: 'Promo_Codes',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -129,6 +131,14 @@ const HEADERS = {
   // s'ajoute sans jamais écraser les précédentes.
   [TABS.CLIENT_NOTES]: [
     'note_id', 'client_id', 'timestamp', 'auteur', 'note',
+  ],
+
+  // --- Croissance clientèle ---
+
+  [TABS.PROMO_CODES]: [
+    'promo_code_id', 'code', 'client_id', 'type', 'value', 'statut',
+    'date_creation', 'date_expiration', 'used_at', 'used_by_client_id',
+    'used_for_package_id', 'notes_admin',
   ],
 };
 
@@ -232,6 +242,28 @@ const OFFER_STATUS = {
   CANCELLED: 'cancelled',
 };
 
+// Préfixe du tag de parrainage (Clients.tags, ex. "referred-by:CLI-123") —
+// un seul endroit qui connaît ce format, pour l'écrire et le relire pareil
+// partout (CRM.gs, PackageOffers.gs, Payments.gs).
+const REFERRAL_TAG_PREFIX = 'referred-by:';
+
+// Statuts possibles d'un code promo (Promo_Codes.statut).
+const PROMO_CODE_STATUS = {
+  ACTIVE: 'active',
+  USED: 'used',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled',
+};
+
+// Types de code promo (Promo_Codes.type) — volontairement limité à des
+// remises simples sur le montant facturé ; pas de type "séances offertes"
+// pour l'instant (non demandé, éviterait de mélanger remise de paiement et
+// ajustement de forfait dans la même fonction).
+const PROMO_CODE_TYPE = {
+  PERCENTAGE: 'percentage',
+  FIXED_AMOUNT: 'fixed_amount',
+};
+
 // Clés de l'onglet Settings, avec valeurs par défaut si absentes.
 const SETTINGS_DEFAULTS = {
   calendar_id: '',                              // OBLIGATOIRE — jamais de calendrier par défaut implicite
@@ -252,6 +284,11 @@ const SETTINGS_DEFAULTS = {
   site_base_url: 'https://www.elysian-institute.com', // pour construire les liens d'offre /offer/:id
   reminder_low_balance_thresholds: '3,1,0',      // séances restantes déclenchant un rappel
   reminder_days_before_expiration: '30,14,7',    // jours avant expiration déclenchant un rappel
+  referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
+  referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
+  referral_reward_label: 'Massage offert — récompense parrainage',
+  review_request_days_after_first_session: 7,    // délai avant la demande d'avis
+  google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -266,4 +303,5 @@ const REMINDER_TYPE = {
   balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
+  REVIEW_REQUEST: 'demande_avis',
 };

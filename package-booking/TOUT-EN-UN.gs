@@ -65,6 +65,8 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
+  // --- Croissance clientèle ---
+  PROMO_CODES: 'Promo_Codes',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -163,6 +165,14 @@ const HEADERS = {
   // s'ajoute sans jamais écraser les précédentes.
   [TABS.CLIENT_NOTES]: [
     'note_id', 'client_id', 'timestamp', 'auteur', 'note',
+  ],
+
+  // --- Croissance clientèle ---
+
+  [TABS.PROMO_CODES]: [
+    'promo_code_id', 'code', 'client_id', 'type', 'value', 'statut',
+    'date_creation', 'date_expiration', 'used_at', 'used_by_client_id',
+    'used_for_package_id', 'notes_admin',
   ],
 };
 
@@ -266,6 +276,28 @@ const OFFER_STATUS = {
   CANCELLED: 'cancelled',
 };
 
+// Préfixe du tag de parrainage (Clients.tags, ex. "referred-by:CLI-123") —
+// un seul endroit qui connaît ce format, pour l'écrire et le relire pareil
+// partout (CRM.gs, PackageOffers.gs, Payments.gs).
+const REFERRAL_TAG_PREFIX = 'referred-by:';
+
+// Statuts possibles d'un code promo (Promo_Codes.statut).
+const PROMO_CODE_STATUS = {
+  ACTIVE: 'active',
+  USED: 'used',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled',
+};
+
+// Types de code promo (Promo_Codes.type) — volontairement limité à des
+// remises simples sur le montant facturé ; pas de type "séances offertes"
+// pour l'instant (non demandé, éviterait de mélanger remise de paiement et
+// ajustement de forfait dans la même fonction).
+const PROMO_CODE_TYPE = {
+  PERCENTAGE: 'percentage',
+  FIXED_AMOUNT: 'fixed_amount',
+};
+
 // Clés de l'onglet Settings, avec valeurs par défaut si absentes.
 const SETTINGS_DEFAULTS = {
   calendar_id: '',                              // OBLIGATOIRE — jamais de calendrier par défaut implicite
@@ -286,6 +318,11 @@ const SETTINGS_DEFAULTS = {
   site_base_url: 'https://www.elysian-institute.com', // pour construire les liens d'offre /offer/:id
   reminder_low_balance_thresholds: '3,1,0',      // séances restantes déclenchant un rappel
   reminder_days_before_expiration: '30,14,7',    // jours avant expiration déclenchant un rappel
+  referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
+  referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
+  referral_reward_label: 'Massage offert — récompense parrainage',
+  review_request_days_after_first_session: 7,    // délai avant la demande d'avis
+  google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -300,6 +337,7 @@ const REMINDER_TYPE = {
   balance: (sessionsRemaining) => `solde_${sessionsRemaining}`,
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
+  REVIEW_REQUEST: 'demande_avis',
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1446,6 +1484,9 @@ function onOpen() {
       .addItem('Retirer un tag d\'une cliente', 'adminRemoveClientTag')
       .addItem('Ajouter une note à l\'historique', 'adminAddClientNote')
       .addItem('Rechercher des clientes', 'adminSearchClients'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Croissance clientèle')
+      .addItem('Créer un code promo', 'adminCreatePromoCode')
+      .addItem('Annuler un code promo', 'adminCancelPromoCode'))
     .addToUi();
 }
 
@@ -1467,13 +1508,16 @@ function adminAddClient() {
     return;
   }
 
+  const referralTag = promptReferralTag_();
+
   const clientId = genId_('CLI');
   appendRow_(TABS.CLIENTS, {
     client_id: clientId, prenom, nom, email, telephone,
     notes_admin: '', date_creation: new Date(),
+    tags: referralTag,
   });
-  writeAuditLog_('admin', 'add_client', clientId, '', email, '');
-  ui.alert(`Cliente ajoutée : ${clientId}`);
+  writeAuditLog_('admin', 'add_client', clientId, '', email, referralTag ? `Parrainage : ${referralTag}` : '');
+  ui.alert(`Cliente ajoutée : ${clientId}` + (referralTag ? ' (parrainage enregistré)' : ''));
 }
 
 /**
@@ -2570,6 +2614,10 @@ function findPaymentsByClientId_(clientId) {
  * administratif explicite" : pour les moyens peu traçables (cash,
  * complimentary, other), justificatif_notes devient obligatoire ici.
  *
+ * Propose aussi un code promo optionnel (PromoCodes.gs) avant le calcul des
+ * frais — un seul point d'entrée de saisie de paiement, donc un seul endroit
+ * où appliquer/marquer un code utilisé, sans dupliquer cette logique.
+ *
  * @param {string} packageId
  * @param {{forceConfirmed: boolean}} options - forceConfirmed=true saute la
  *   question "confirmer maintenant ?" (utilisé quand l'admin affirme déjà que
@@ -2594,6 +2642,7 @@ function promptAndRecordPayment_(packageId, options) {
   let montantBrut = 0;
   let fraisPaiement = 0;
   let devise = 'GBP';
+  let appliedPromo = null;
 
   if (isComplimentary) {
     ui.alert('Forfait offert (complimentary) : montant brut et frais fixés à 0 automatiquement.');
@@ -2603,6 +2652,17 @@ function promptAndRecordPayment_(packageId, options) {
     const montantBrutRaw = ui.prompt('Montant facturé brut (ex. 900) :').getResponseText().trim();
     montantBrut = parseFloat(montantBrutRaw);
     if (isNaN(montantBrut) || montantBrut < 0) { ui.alert('Montant invalide.'); return null; }
+
+    const promoCodeRaw = ui.prompt('Code promo à appliquer (optionnel, laisser vide si aucun) :').getResponseText().trim();
+    if (promoCodeRaw) {
+      const promo = validatePromoCodeForClient_(promoCodeRaw, pkg.client_id);
+      if (promo) {
+        const montantApresRemise = applyPromoDiscount_(montantBrut, promo);
+        ui.alert(`Code promo appliqué : ${montantBrut.toFixed(2)} ${devise} → ${montantApresRemise.toFixed(2)} ${devise}.`);
+        montantBrut = montantApresRemise;
+        appliedPromo = promo;
+      }
+    }
 
     const fraisPaiementRaw = ui.prompt('Frais de paiement prélevés (ex. 11), laisser vide ou 0 si aucun/inconnu :').getResponseText().trim();
     fraisPaiement = fraisPaiementRaw ? parseFloat(fraisPaiementRaw) : 0;
@@ -2657,6 +2717,10 @@ function promptAndRecordPayment_(packageId, options) {
     mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
   });
   writeAuditLog_('admin', 'record_payment', paymentId, '', statutPaiement, `Forfait ${packageId} (${moyenPaiementRaw})${justificatifNotes ? ' — ' + justificatifNotes : ''}`);
+
+  if (appliedPromo) {
+    markPromoCodeUsed_(appliedPromo, pkg.client_id, packageId);
+  }
 
   if (statutPaiement === PAYMENT_STATUS.CONFIRME) {
     activatePackageIfPending_(packageId, paymentId);
@@ -2719,6 +2783,60 @@ function activatePackageIfPending_(packageId, paymentId) {
     updateRow_(TABS.PACKAGE_OFFERS, linkedOffer.rowNumber, { statut: OFFER_STATUS.PAID });
     writeAuditLog_('system', 'offer_marked_paid', linkedOffer.offer_id, linkedOffer.statut, OFFER_STATUS.PAID, `Suite activation forfait ${packageId}`);
   }
+
+  // Chaque activation peut faire franchir un palier de parrainage à une
+  // marraine (CRM.gs) — revérifié à chaque fois, dédoublonné par palier.
+  checkReferralMilestones_();
+}
+
+/**
+ * Crée un forfait actif + une ligne Payments confirmée à 0, sans passer par
+ * le flux interactif (promptAndRecordPayment_) — utilisé pour les
+ * récompenses accordées automatiquement par le système (parrainage,
+ * CRM.gs), jamais pour un paiement réel. Trace complète dans Payments et
+ * Audit_Log, comme n'importe quel autre forfait offert.
+ */
+function grantComplimentaryPackage_(clientId, nomForfait, totalSessions, motif) {
+  const packageId = genId_('PKG');
+  appendRow_(TABS.PACKAGES, {
+    package_id: packageId,
+    client_id: clientId,
+    nom_forfait: nomForfait,
+    soins_inclus: '',
+    total_sessions: totalSessions,
+    available_sessions: totalSessions,
+    reserved_sessions: 0,
+    used_sessions: 0,
+    date_achat: new Date(),
+    date_expiration: '',
+    moyen_paiement: '',
+    statut: PACKAGE_STATUS.ACTIVE,
+    notes_admin: motif,
+    package_template_id: '',
+  });
+
+  const paymentId = genId_('PAY');
+  const { montant_net, taux_frais } = computePaymentFinancials_(0, 0);
+  appendRow_(TABS.PAYMENTS, {
+    payment_id: paymentId,
+    client_id: clientId,
+    package_id: packageId,
+    montant_brut: 0,
+    devise: 'GBP',
+    moyen_paiement: PAYMENT_METHOD.COMPLIMENTARY,
+    fournisseur_paiement: '',
+    frais_paiement: 0,
+    montant_net: montant_net,
+    taux_frais: taux_frais,
+    date_paiement: new Date(),
+    reference_transaction: '',
+    statut_paiement: PAYMENT_STATUS.CONFIRME,
+    justificatif_notes: motif,
+    mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
+  });
+
+  writeAuditLog_('system', 'grant_complimentary_package', packageId, '', clientId, motif);
+  return packageId;
 }
 
 function adminMarkPaymentRefused() {
@@ -2940,13 +3058,16 @@ function findOrPromptCreateClient_(email) {
   const prenom = ui.prompt('Prénom de la cliente :').getResponseText().trim();
   const nom = ui.prompt('Nom de la cliente :').getResponseText().trim();
   const telephone = ui.prompt('Téléphone (optionnel) :').getResponseText().trim();
+  const referralTag = promptReferralTag_();
 
   const clientId = genId_('CLI');
   appendRow_(TABS.CLIENTS, {
     client_id: clientId, prenom, nom, email, telephone,
     notes_admin: '', date_creation: new Date(),
+    tags: referralTag,
   });
-  writeAuditLog_('admin', 'add_client', clientId, '', email, 'Créée via "Proposer un forfait"');
+  writeAuditLog_('admin', 'add_client', clientId, '', email,
+    referralTag ? `Créée via "Proposer un forfait" — parrainage : ${referralTag}` : 'Créée via "Proposer un forfait"');
   return findRowBy_(TABS.CLIENTS, 'client_id', clientId);
 }
 
@@ -3308,6 +3429,14 @@ function respondToOffer(offerId, tokenPlain, response) {
  *    décider d'agir. Si elle choisit de proposer un renouvellement, ça passe
  *    par "Proposer un forfait" (PackageOffers.gs) — jamais un envoi
  *    automatique, et ce parcours reste soumis au consentement de la cliente.
+ *  - Demande d'avis (systématisation) : règle fixe et automatique (X jours
+ *    après le premier rendez-vous honoré d'un forfait — délai réglable via
+ *    Settings.review_request_days_after_first_session), MAIS contrairement
+ *    aux communications ci-dessus, ce n'est PAS une communication
+ *    transactionnelle nécessaire au service déjà acheté : c'est une demande
+ *    d'action publique/commerciale, donc elle respecte
+ *    Clients.consentement_marketing (hasMarketingConsent_) et ne part jamais
+ *    si Settings.google_review_link est vide.
  *
  *  Dédoublonnage : chaque rappel envoyé est enregistré dans Reminders_Sent
  *  (client_id, package_id, reminder_type) — jamais renvoyé deux fois pour la
@@ -3382,6 +3511,42 @@ function sendBalanceReminderEmail_(client, pkg, sessionsRemaining, settings) {
     '',
     `Pour réserver : ${settings.site_base_url}/use-package`,
     '',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
+/**
+ * Seul endroit qui décide ce que "consentement marketing" veut dire — pour
+ * que toute future communication discrétionnaire (demande d'avis, et plus
+ * tard d'éventuelles offres commerciales) applique exactement la même règle.
+ */
+function hasMarketingConsent_(client) {
+  const raw = String((client && client.consentement_marketing) || '').trim().toLowerCase();
+  return ['oui', 'yes', 'true', '1'].indexOf(raw) !== -1;
+}
+
+/** Date du premier rendez-vous honoré (confirmé ou marqué utilisé) d'un forfait, ou null si aucun. */
+function findFirstSessionDate_(packageId) {
+  const dates = readAllRows_(TABS.BOOKINGS)
+    .filter((b) => b.package_id === packageId &&
+      (b.status === BOOKING_STATUS.CONFIRMED || b.status === BOOKING_STATUS.NO_SHOW_OR_LATE_CANCEL))
+    .map((b) => new Date(b.start_datetime))
+    .filter((d) => !isNaN(d.getTime()));
+  return dates.length ? new Date(Math.min.apply(null, dates)) : null;
+}
+
+function sendReviewRequestEmail_(client, pkg, settings) {
+  const subject = 'Un instant pour partager votre expérience chez Elysian Paris ?';
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Nous espérons que votre séance chez Elysian Paris vous a plu.`,
+    `Votre avis compte énormément pour nous — auriez-vous deux minutes pour le partager ?`,
+    '',
+    settings.google_review_link,
+    '',
+    'Merci beaucoup,',
     'Elysian Paris',
   ].join('\n');
   MailApp.sendEmail(client.email, subject, body);
@@ -3476,6 +3641,30 @@ function runDailyNotifications() {
       actionsCount++;
     }
   });
+
+  // --- Demandes d'avis : règle fixe, une seule fois par forfait, X jours
+  // après le premier rendez-vous honoré (tous statuts de forfait confondus,
+  // pas seulement "active" — une cliente dont le forfait est terminé mérite
+  // aussi qu'on lui demande son avis). Discrétionnaire, donc respecte le
+  // consentement marketing et ne part jamais sans lien configuré. ---
+  if (settings.google_review_link) {
+    const reviewDelayDays = Number(settings.review_request_days_after_first_session) || 7;
+    readAllRows_(TABS.PACKAGES).forEach((pkg) => {
+      if (hasReminderBeenSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.REVIEW_REQUEST)) return;
+
+      const client = findRowBy_(TABS.CLIENTS, 'client_id', pkg.client_id);
+      if (!client || !client.email || !hasMarketingConsent_(client)) return;
+
+      const firstSession = findFirstSessionDate_(pkg.package_id);
+      if (!firstSession) return;
+      const daysSinceFirstSession = (now.getTime() - firstSession.getTime()) / (24 * 60 * 60 * 1000);
+      if (daysSinceFirstSession < reviewDelayDays) return;
+
+      sendReviewRequestEmail_(client, pkg, settings);
+      recordReminderSent_(pkg.client_id, pkg.package_id, REMINDER_TYPE.REVIEW_REQUEST);
+      actionsCount++;
+    });
+  }
 
   Logger.log(`Notifications quotidiennes : ${actionsCount} action(s) effectuée(s).`);
   return actionsCount;
@@ -3655,7 +3844,7 @@ function buildDashboardReport_() {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-//  SECTION 18 — CRM.gs (tags, historique des notes, recherche de clientes)
+//  SECTION 18 — CRM.gs (tags, historique des notes, recherche de clientes, parrainage)
 // ════════════════════════════════════════════════════════════════════════
 
 /**
@@ -3673,6 +3862,15 @@ function buildDashboardReport_() {
  *    de rapport régénéré à la demande (même principe que Fiche_Client/Dashboard).
  *
  *  Rien de nouveau côté scopes ni côté données sensibles.
+ *
+ *  Programme de parrainage : réutilise entièrement les tags ci-dessus (tag
+ *  "referred-by:CLIENT_ID") — aucune nouvelle table. Règle fixe et explicite
+ *  (contrairement aux alertes de renouvellement, qui restent une décision
+ *  commerciale signalée dans Reconciliation_Issues, jamais automatique) :
+ *  tous les N filleul(e)s ayant confirmé un premier achat, la marraine reçoit
+ *  automatiquement une séance offerte. checkReferralMilestones_ (appelée
+ *  depuis activatePackageIfPending_ dans Payments.gs) détecte le palier et
+ *  déclenche grantComplimentaryPackage_ sans intervention admin.
  */
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -3681,6 +3879,101 @@ function buildDashboardReport_() {
 
 function parseTags_(tagsRaw) {
   return String(tagsRaw || '').split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Parrainage
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Demande (optionnellement) l'email d'une marraine et renvoie le tag
+ * "referred-by:CLIENT_ID" correspondant, ou '' si non applicable/introuvable.
+ * Utilisé à la création d'une cliente (adminAddClient, findOrPromptCreateClient_)
+ * pour ne jamais dupliquer cette logique entre les deux points d'entrée.
+ */
+function promptReferralTag_() {
+  const ui = ui_();
+  const referrerEmail = ui.prompt('Cliente parrainée par (email de la marraine, laisser vide si non applicable) :').getResponseText().trim().toLowerCase();
+  if (!referrerEmail) return '';
+  const referrer = findClientByEmail_(referrerEmail);
+  if (!referrer) {
+    ui.alert('Aucune cliente trouvée avec cet email de parrainage — ignoré.');
+    return '';
+  }
+  return REFERRAL_TAG_PREFIX + referrer.client_id;
+}
+
+/**
+ * Appelée depuis activatePackageIfPending_ (Payments.gs) à chaque activation
+ * de forfait. Compte les filleul(e)s de clientId ayant confirmé au moins un
+ * paiement, et accorde automatiquement une récompense (séance(s) offerte(s))
+ * tous les N parrainages réussis (règle fixe explicite, configurable dans
+ * Settings — pas une simple alerte comme les autres automatismes commerciaux
+ * de ce système, ici la règle elle-même est déjà décidée). Dédoublonné par
+ * palier via Reminders_Sent (client_id, package_id vide, type
+ * "parrainage_palier_N") pour ne jamais accorder deux fois la même récompense.
+ */
+function checkReferralMilestones_() {
+  const settings = getSettings();
+  const milestoneSize = Number(settings.referral_milestone_count) || 3;
+  const payments = readAllRows_(TABS.PAYMENTS);
+  const clients = readAllRows_(TABS.CLIENTS);
+
+  // Regroupe les filleul(e)s par marraine, à partir des tags "referred-by:X".
+  const referredByReferrer = {};
+  clients.forEach((c) => {
+    const tag = parseTags_(c.tags).find((t) => t.indexOf(REFERRAL_TAG_PREFIX) === 0);
+    if (!tag) return;
+    const referrerId = tag.slice(REFERRAL_TAG_PREFIX.length);
+    if (!referredByReferrer[referrerId]) referredByReferrer[referrerId] = [];
+    referredByReferrer[referrerId].push(c.client_id);
+  });
+
+  Object.keys(referredByReferrer).forEach((referrerId) => {
+    // "Converti" = au moins un paiement RÉEL confirmé — un forfait offert
+    // (complimentary, y compris une récompense de parrainage elle-même) ne
+    // compte jamais comme une conversion.
+    const convertedCount = referredByReferrer[referrerId].filter((cid) =>
+      payments.some((p) =>
+        p.client_id === cid &&
+        p.statut_paiement === PAYMENT_STATUS.CONFIRME &&
+        p.moyen_paiement !== PAYMENT_METHOD.COMPLIMENTARY
+      )
+    ).length;
+
+    if (convertedCount === 0 || convertedCount % milestoneSize !== 0) return;
+
+    const milestoneType = `parrainage_palier_${convertedCount}`;
+    if (hasReminderBeenSent_(referrerId, '', milestoneType)) return;
+
+    const referrer = findRowBy_(TABS.CLIENTS, 'client_id', referrerId);
+    if (!referrer) return;
+
+    grantComplimentaryPackage_(
+      referrerId,
+      settings.referral_reward_label,
+      Number(settings.referral_reward_sessions) || 1,
+      `Récompense automatique de parrainage : ${convertedCount}e filleul(e) ayant confirmé un premier achat.`
+    );
+    recordReminderSent_(referrerId, '', milestoneType);
+
+    if (referrer.email) {
+      MailApp.sendEmail(
+        referrer.email,
+        'A free session, on us — thank you for your referrals!',
+        [
+          `Hi ${referrer.prenom || ''},`,
+          '',
+          `Thank you for referring ${convertedCount} friend(s) to Elysian Paris!`,
+          `As a thank you, we've added ${Number(settings.referral_reward_sessions) || 1} complimentary session(s) to your account.`,
+          '',
+          'Book it whenever suits you — see you soon.',
+          '',
+          'Elysian Paris',
+        ].join('\n')
+      );
+    }
+  });
 }
 
 function adminAddClientTag() {
@@ -3837,4 +4130,146 @@ function adminSearchClients() {
   ss.setActiveSheet(sheet);
 
   ui.alert(`${matched.length} cliente(s) trouvée(s), résultat dans l'onglet "${TABS.CLIENT_SEARCH_RESULTS}".`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 19 — PromoCodes.gs (croissance clientèle — codes promo attachables à une cliente)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  PROMOCODES.gs — Codes promo, éventuellement attachés à une cliente précise.
+ * ============================================================================
+ *
+ *  Un code peut être générique (client_id vide, utilisable par n'importe
+ *  quelle cliente) ou réservé à une seule cliente (client_id renseigné).
+ *  Chaque code n'est utilisable qu'UNE SEULE FOIS — marqué "used" dès son
+ *  application, jamais réutilisable ensuite.
+ *
+ *  Volontairement limité à deux types de remise simples sur le montant
+ *  facturé (percentage / fixed_amount) — pas de type "séances offertes" ici,
+ *  pour ne jamais mélanger remise de paiement et ajustement de forfait dans
+ *  la même fonction (ce cas existe déjà séparément : forfait "complimentary").
+ *
+ *  Intégré au SEUL point d'entrée de saisie de paiement (promptAndRecordPayment_,
+ *  Payments.gs) — donc disponible partout où un paiement se saisit
+ *  (adminRecordPayment, adminAddPackage "déjà reçu", adminConvertOfferToPackage),
+ *  sans dupliquer la logique de validation/application à chaque endroit.
+ */
+
+function findPromoCodeByCode_(codeRaw) {
+  return findRowBy_(TABS.PROMO_CODES, 'code', String(codeRaw || '').trim().toUpperCase());
+}
+
+/**
+ * Valide un code promo pour une cliente donnée. Renvoie la ligne du code si
+ * valide, ou null avec un message d'alerte si invalide — ne bloque jamais
+ * la saisie du paiement en cours, un code invalide est simplement ignoré.
+ */
+function validatePromoCodeForClient_(codeRaw, clientId) {
+  const ui = ui_();
+  const promo = findPromoCodeByCode_(codeRaw);
+  if (!promo) {
+    ui.alert('Code promo introuvable — ignoré.');
+    return null;
+  }
+  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) {
+    ui.alert(`Ce code promo n'est plus actif (statut : ${promo.statut}) — ignoré.`);
+    return null;
+  }
+  if (promo.date_expiration) {
+    const exp = new Date(promo.date_expiration);
+    if (!isNaN(exp.getTime()) && exp < new Date()) {
+      updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.EXPIRED });
+      ui.alert('Ce code promo a expiré — ignoré.');
+      return null;
+    }
+  }
+  if (promo.client_id && promo.client_id !== clientId) {
+    ui.alert('Ce code promo est réservé à une autre cliente — ignoré.');
+    return null;
+  }
+  return promo;
+}
+
+/** Applique la remise d'un code promo à un montant brut. Ne modifie jamais le Sheet — pur calcul. */
+function applyPromoDiscount_(montantBrut, promo) {
+  const value = Number(promo.value) || 0;
+  if (promo.type === PROMO_CODE_TYPE.PERCENTAGE) {
+    return Math.max(0, montantBrut * (1 - value / 100));
+  }
+  if (promo.type === PROMO_CODE_TYPE.FIXED_AMOUNT) {
+    return Math.max(0, montantBrut - value);
+  }
+  return montantBrut;
+}
+
+/** Marque un code promo comme utilisé — jamais réutilisable ensuite. */
+function markPromoCodeUsed_(promo, clientId, packageId) {
+  updateRow_(TABS.PROMO_CODES, promo.rowNumber, {
+    statut: PROMO_CODE_STATUS.USED,
+    used_at: new Date(),
+    used_by_client_id: clientId,
+    used_for_package_id: packageId,
+  });
+  writeAuditLog_('admin', 'use_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.USED, `Forfait ${packageId}`);
+}
+
+function adminCreatePromoCode() {
+  const ui = ui_();
+  const codeRaw = ui.prompt('Code promo (ex. WELCOME10) :').getResponseText().trim().toUpperCase();
+  if (!codeRaw) { ui.alert('Code vide, opération annulée.'); return; }
+  if (findPromoCodeByCode_(codeRaw)) { ui.alert('Ce code existe déjà.'); return; }
+
+  const restrictEmail = ui.prompt('Réserver à une cliente précise ? Email (laisser vide pour un code générique) :').getResponseText().trim().toLowerCase();
+  let clientId = '';
+  if (restrictEmail) {
+    const client = findClientByEmail_(restrictEmail);
+    if (!client) { ui.alert('Cliente introuvable, opération annulée.'); return; }
+    clientId = client.client_id;
+  }
+
+  const typeRaw = ui.prompt('Type de remise : "percentage" ou "fixed_amount" :').getResponseText().trim().toLowerCase();
+  if (Object.values(PROMO_CODE_TYPE).indexOf(typeRaw) === -1) { ui.alert('Type invalide.'); return; }
+
+  const valueRaw = ui.prompt(typeRaw === PROMO_CODE_TYPE.PERCENTAGE ? 'Pourcentage de remise (ex. 10) :' : 'Montant de remise (ex. 20) :').getResponseText().trim();
+  const value = parseFloat(valueRaw);
+  if (isNaN(value) || value <= 0) { ui.alert('Valeur invalide.'); return; }
+
+  const expirationDaysRaw = ui.prompt('Validité en jours (laisser vide si aucune) :').getResponseText().trim();
+  const dateExpiration = expirationDaysRaw
+    ? new Date(Date.now() + parseInt(expirationDaysRaw, 10) * 24 * 60 * 60 * 1000)
+    : '';
+
+  const notesAdmin = ui.prompt('Note interne (optionnel) :').getResponseText().trim();
+
+  const promoCodeId = genId_('PROMO');
+  appendRow_(TABS.PROMO_CODES, {
+    promo_code_id: promoCodeId,
+    code: codeRaw,
+    client_id: clientId,
+    type: typeRaw,
+    value: value,
+    statut: PROMO_CODE_STATUS.ACTIVE,
+    date_creation: new Date(),
+    date_expiration: dateExpiration,
+    used_at: '',
+    used_by_client_id: '',
+    used_for_package_id: '',
+    notes_admin: notesAdmin,
+  });
+  writeAuditLog_('admin', 'create_promo_code', promoCodeId, '', codeRaw, clientId ? `Réservé à ${clientId}` : 'Générique');
+  ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)'));
+}
+
+function adminCancelPromoCode() {
+  const ui = ui_();
+  const codeRaw = ui.prompt('Code promo à annuler :').getResponseText().trim();
+  const promo = findPromoCodeByCode_(codeRaw);
+  if (!promo) { ui.alert('Code introuvable.'); return; }
+  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) { ui.alert(`Ce code est déjà "${promo.statut}", rien à annuler.`); return; }
+
+  updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.CANCELLED });
+  writeAuditLog_('admin', 'cancel_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.CANCELLED, '');
+  ui.alert('Code promo annulé.');
 }

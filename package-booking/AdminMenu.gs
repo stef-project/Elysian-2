@@ -53,6 +53,9 @@ function onOpen() {
       .addItem('Retirer un tag d\'une cliente', 'adminRemoveClientTag')
       .addItem('Ajouter une note à l\'historique', 'adminAddClientNote')
       .addItem('Rechercher des clientes', 'adminSearchClients'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Croissance clientèle')
+      .addItem('Créer un code promo', 'adminCreatePromoCode')
+      .addItem('Annuler un code promo', 'adminCancelPromoCode'))
     .addToUi();
 }
 
@@ -74,13 +77,16 @@ function adminAddClient() {
     return;
   }
 
+  const referralTag = promptReferralTag_();
+
   const clientId = genId_('CLI');
   appendRow_(TABS.CLIENTS, {
     client_id: clientId, prenom, nom, email, telephone,
     notes_admin: '', date_creation: new Date(),
+    tags: referralTag,
   });
-  writeAuditLog_('admin', 'add_client', clientId, '', email, '');
-  ui.alert(`Cliente ajoutée : ${clientId}`);
+  writeAuditLog_('admin', 'add_client', clientId, '', email, referralTag ? `Parrainage : ${referralTag}` : '');
+  ui.alert(`Cliente ajoutée : ${clientId}` + (referralTag ? ' (parrainage enregistré)' : ''));
 }
 
 /**

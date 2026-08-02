@@ -53,13 +53,16 @@ function findOrPromptCreateClient_(email) {
   const prenom = ui.prompt('Prénom de la cliente :').getResponseText().trim();
   const nom = ui.prompt('Nom de la cliente :').getResponseText().trim();
   const telephone = ui.prompt('Téléphone (optionnel) :').getResponseText().trim();
+  const referralTag = promptReferralTag_();
 
   const clientId = genId_('CLI');
   appendRow_(TABS.CLIENTS, {
     client_id: clientId, prenom, nom, email, telephone,
     notes_admin: '', date_creation: new Date(),
+    tags: referralTag,
   });
-  writeAuditLog_('admin', 'add_client', clientId, '', email, 'Créée via "Proposer un forfait"');
+  writeAuditLog_('admin', 'add_client', clientId, '', email,
+    referralTag ? `Créée via "Proposer un forfait" — parrainage : ${referralTag}` : 'Créée via "Proposer un forfait"');
   return findRowBy_(TABS.CLIENTS, 'client_id', clientId);
 }
 
