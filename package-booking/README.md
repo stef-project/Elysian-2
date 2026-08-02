@@ -412,18 +412,27 @@ réservés à une cliente précise (`client_id` renseigné) ou génériques
 
 - **Créer un code promo** : code, remise (`percentage` ou `fixed_amount` —
   volontairement pas de type "séances offertes", pour ne jamais mélanger
-  remise de paiement et ajustement de forfait), validité optionnelle en
-  jours, réservation optionnelle à une cliente.
+  remise de paiement et ajustement de forfait), **nombre d'utilisations
+  autorisées** (`usage_max`, laisser vide = 1 = usage unique), validité
+  optionnelle en jours, réservation optionnelle à une cliente.
 - Le code se saisit directement pendant la **saisie du paiement**
   (`promptAndRecordPayment_`, seul point d'entrée de paiement du système —
   donc disponible partout où un paiement se saisit : Enregistrer un
   paiement, Ajouter un forfait "déjà reçu", Convertir une offre en
-  forfait). Un code invalide, expiré, déjà utilisé ou réservé à une autre
+  forfait). Un code invalide, expiré, épuisé ou réservé à une autre
   cliente est simplement ignoré (message d'alerte), sans jamais bloquer la
   saisie du paiement.
-- Chaque code n'est utilisable **qu'une seule fois** — marqué `used` dès son
-  application, avec trace de la cliente et du forfait concernés.
-- **Annuler un code promo** : passe un code `active` à `cancelled`.
+- **Usage unique par défaut**, mais un code peut être créé **multi-usages**
+  (ex. un code personnel qu'une cliente partage à ses contacts pour les
+  faire passer de ClassPass au système direct) : `usage_max` fixe la limite,
+  chaque utilisation incrémente `usage_count`, et le code ne passe à
+  `used` (définitivement épuisé) qu'une fois la limite atteinte — jusque-là
+  il reste `active` et utilisable par d'autres clientes. `used_at` /
+  `used_by_client_id` / `used_for_package_id` ne montrent que la
+  **dernière** utilisation (aperçu rapide) ; l'historique complet de
+  chaque utilisation reste dans `Audit_Log` (action `use_promo_code`).
+- **Annuler un code promo** : passe un code `active` à `cancelled`,
+  quel que soit son usage restant.
 
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :

@@ -135,10 +135,13 @@ const HEADERS = {
 
   // --- Croissance clientèle ---
 
+  // usage_max/usage_count : additifs en fin de liste (règle générale ci-dessus)
+  // — support des codes multi-usages (ex. un code partagé par une cliente à
+  // ses contacts), usage_max=1 par défaut pour rester un usage unique.
   [TABS.PROMO_CODES]: [
     'promo_code_id', 'code', 'client_id', 'type', 'value', 'statut',
     'date_creation', 'date_expiration', 'used_at', 'used_by_client_id',
-    'used_for_package_id', 'notes_admin',
+    'used_for_package_id', 'notes_admin', 'usage_max', 'usage_count',
   ],
 };
 
