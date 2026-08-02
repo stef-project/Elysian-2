@@ -229,7 +229,7 @@ export default function UsePackage() {
           {step === "slots" && (
             <div className="space-y-4">
               <p className="font-sans text-sm text-muted-foreground font-light mb-4">
-                {serviceLabel(serviceId)} — choose an available time:
+                {packageName} — {availableSessions} session{availableSessions !== 1 ? "s" : ""} remaining · {serviceLabel(serviceId)}
               </p>
               {slots.length === 0 && (
                 <p className="font-sans text-sm text-muted-foreground">

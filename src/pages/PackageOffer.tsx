@@ -203,9 +203,17 @@ export default function PackageOffer() {
                 <div className="text-center py-6">
                   <div className="w-8 h-[1px] bg-primary mx-auto mb-6" />
                   <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Thank you — offer accepted.</p>
-                  <p className="font-sans text-muted-foreground font-light text-sm">
-                    We will contact you directly to arrange payment and activate your package.
+                  <p className="font-sans text-muted-foreground font-light text-sm mb-8">
+                    We will be in touch within 24 hours to arrange payment and activate your package.
                   </p>
+                  <a
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block font-sans text-xs tracking-[0.2em] uppercase border border-[#1A1A1A] text-[#1A1A1A] px-10 py-4 hover:bg-[#1A1A1A] hover:text-[#F7F5F2] transition-colors duration-300"
+                  >
+                    Message us on WhatsApp
+                  </a>
                 </div>
               )}
 
@@ -213,9 +221,15 @@ export default function PackageOffer() {
                 <div className="text-center py-6">
                   <div className="w-8 h-[1px] bg-primary mx-auto mb-6" />
                   <p className="font-serif text-2xl text-[#1A1A1A] mb-3">Your package is active.</p>
-                  <p className="font-sans text-muted-foreground font-light text-sm">
-                    You can now book your sessions — please contact us for the booking link.
+                  <p className="font-sans text-muted-foreground font-light text-sm mb-8">
+                    You can now book your sessions online.
                   </p>
+                  <a
+                    href="/use-package"
+                    className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300"
+                  >
+                    Book a session →
+                  </a>
                 </div>
               )}
 
