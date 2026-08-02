@@ -112,6 +112,20 @@ export const getOfferDetails = (offerId: string, token: string) =>
 export const respondToOffer = (offerId: string, token: string, response: "accept" | "decline") =>
   callWebApp<{ statut: string }>("respond-offer", { offerId, token, response });
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Code promo (booking flow client, page /book-chelsea).
+//  Valide le code pour un email donné et enregistre la réclamation.
+//  Un code n'est valide qu'une seule fois par email.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const validatePromoCode = (email: string, promoCode: string, serviceId: string) =>
+  callWebApp<{
+    claimId: string;
+    discountType: "fixed_amount" | "percent";
+    discountValue: number;
+    message: string;
+  }>("validate-promo", { email, promoCode, serviceId });
+
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.
 export const PACKAGE_SERVICES: { id: string; label: string; durationMinutes: number }[] = [

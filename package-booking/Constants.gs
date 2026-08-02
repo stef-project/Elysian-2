@@ -28,6 +28,9 @@ const TABS = {
   REMINDERS_SENT: 'Reminders_Sent',
   DASHBOARD: 'Dashboard',
   DASHBOARD_HISTORY: 'Dashboard_History',
+  // --- Codes promo (booking flow client) ---
+  PROMO_CODES: 'Promo_Codes',
+  PROMO_CODE_CLAIMS: 'Promo_Code_Claims',
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
@@ -129,6 +132,22 @@ const HEADERS = {
   // s'ajoute sans jamais écraser les précédentes.
   [TABS.CLIENT_NOTES]: [
     'note_id', 'client_id', 'timestamp', 'auteur', 'note',
+  ],
+
+  // --- Codes promo (booking flow client) ---
+
+  // Table maître des codes promo — statut, limites d'usage.
+  [TABS.PROMO_CODES]: [
+    'code', 'type', 'value', 'statut', 'usage_max', 'usage_count',
+    'client_id', 'notes', 'created_at',
+  ],
+
+  // Trace de chaque utilisation d'un code promo par un email client.
+  // Une ligne par (email, code) — jamais deux lignes pour la même paire.
+  [TABS.PROMO_CODE_CLAIMS]: [
+    'claim_id', 'code', 'client_email', 'service_id',
+    'discount_type', 'discount_value',
+    'claimed_at', 'booking_status',
   ],
 };
 
