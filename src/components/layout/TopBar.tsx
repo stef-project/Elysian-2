@@ -1,11 +1,15 @@
 import { BOOKING_URL, WHATSAPP_URL } from "../../lib/booking";
 
-export function TopBar() {
+interface TopBarProps {
+  location?: string;
+}
+
+export function TopBar({ location = "Kensington, London" }: TopBarProps) {
   return (
     <div className="w-full bg-[#1A1A1A] py-2.5 px-4 z-50 relative">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         <p className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#BF944A] hidden sm:block">
-          Kensington, London &nbsp;&middot;&nbsp; By appointment only
+          {location} &nbsp;&middot;&nbsp; By appointment only
         </p>
         <div className="flex items-center gap-5 ml-auto">
           <a

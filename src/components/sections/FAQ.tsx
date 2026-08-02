@@ -13,11 +13,11 @@ const faqs = [
   },
   {
     q: "What are the benefits of lymphatic drainage?",
-    a: "It can reduce fluid retention and puffiness, ease a feeling of heaviness, support recovery after surgery, enhance body-contouring results and promote deep relaxation.",
+    a: "It can reduce fluid retention and puffiness, ease a feeling of heaviness, support post-op recovery, enhance body-contouring results and promote deep relaxation.",
   },
   {
     q: "Is lymphatic drainage good after cosmetic surgery?",
-    a: "Yes. It is widely used after aesthetic and cosmetic procedures to help settle post-operative swelling and support healing. We recommend starting once your surgeon has given clearance.",
+    a: "Yes. It is widely used after aesthetic and cosmetic procedures to help settle post-op swelling and support healing. We recommend starting once your surgeon has given clearance.",
   },
   {
     q: "Does lymphatic drainage hurt?",
@@ -25,7 +25,7 @@ const faqs = [
   },
   {
     q: "How many sessions will I need?",
-    a: "It depends on your goals. Some clients come for a single reset; for post-surgery recovery or visible contouring, a short course of sessions usually gives the best results. We advise you at your first visit.",
+    a: "It depends on your goals. Some clients come for a single reset; for post-op recovery or visible contouring, a short course of sessions usually gives the best results. We advise you at your first visit.",
   },
   {
     q: "How much does lymphatic drainage cost in London?",

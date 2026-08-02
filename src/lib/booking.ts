@@ -36,3 +36,9 @@ export const mailtoWith = (subject: string, body: string) =>
 // L'ancien lien unique ("...Vdgk5XD1apxPp36U6") avait été supprimé côté Google
 // et affichait "Appointment not found".
 export const BOOKING_URL = "/#treatments";
+
+// Studio Chelsea : un seul créneau disponible, le vendredi, 60 min
+// (Lymphatic Drainage / Post-Op / Pre & Postnatal — sans distinction de
+// zone). Lien Google Calendar dédié, distinct des créneaux Kensington —
+// ne jamais réutiliser BOOKING_URL ici.
+export const CHELSEA_BOOKING_URL = "https://calendar.app.google/DQcn1788toE6LCUq7";
