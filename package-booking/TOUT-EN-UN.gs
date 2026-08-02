@@ -169,10 +169,13 @@ const HEADERS = {
 
   // --- Croissance clientèle ---
 
+  // usage_max/usage_count : additifs en fin de liste (règle générale ci-dessus)
+  // — support des codes multi-usages (ex. un code partagé par une cliente à
+  // ses contacts), usage_max=1 par défaut pour rester un usage unique.
   [TABS.PROMO_CODES]: [
     'promo_code_id', 'code', 'client_id', 'type', 'value', 'statut',
     'date_creation', 'date_expiration', 'used_at', 'used_by_client_id',
-    'used_for_package_id', 'notes_admin',
+    'used_for_package_id', 'notes_admin', 'usage_max', 'usage_count',
   ],
 };
 
@@ -4175,9 +4178,17 @@ function adminSearchClients() {
  * ============================================================================
  *
  *  Un code peut être générique (client_id vide, utilisable par n'importe
- *  quelle cliente) ou réservé à une seule cliente (client_id renseigné).
- *  Chaque code n'est utilisable qu'UNE SEULE FOIS — marqué "used" dès son
- *  application, jamais réutilisable ensuite.
+ *  quelle cliente — ex. un code partagé par une cliente à ses contacts) ou
+ *  réservé à une seule cliente (client_id renseigné).
+ *
+ *  Usage limité par `usage_max` (défaut 1 = usage unique, comportement
+ *  d'origine). Chaque utilisation incrémente `usage_count` ; le code ne
+ *  passe au statut "used" (définitivement épuisé) qu'une fois
+ *  usage_count >= usage_max — jusque-là il reste "active" et réutilisable
+ *  par d'autres clientes. `used_at`/`used_by_client_id`/`used_for_package_id`
+ *  ne reflètent que la DERNIÈRE utilisation (aperçu rapide) ; l'historique
+ *  complet de chaque utilisation reste dans Audit_Log (action
+ *  "use_promo_code"), jamais perdu même en cas d'usages multiples.
  *
  *  Volontairement limité à deux types de remise simples sur le montant
  *  facturé (percentage / fixed_amount) — pas de type "séances offertes" ici,
@@ -4222,6 +4233,12 @@ function validatePromoCodeForClient_(codeRaw, clientId) {
     ui.alert('Ce code promo est réservé à une autre cliente — ignoré.');
     return null;
   }
+  const usageMax = Number(promo.usage_max) || 1;
+  const usageCount = Number(promo.usage_count) || 0;
+  if (usageCount >= usageMax) {
+    ui.alert(`Ce code promo a atteint son nombre maximum d'utilisations (${usageMax}) — ignoré.`);
+    return null;
+  }
   return promo;
 }
 
@@ -4237,15 +4254,30 @@ function applyPromoDiscount_(montantBrut, promo) {
   return montantBrut;
 }
 
-/** Marque un code promo comme utilisé — jamais réutilisable ensuite. */
+/**
+ * Enregistre une utilisation d'un code promo. Incrémente usage_count ; le
+ * code ne passe à "used" (épuisé, jamais réutilisable) que lorsque
+ * usage_count atteint usage_max — sinon il reste "active" pour la
+ * utilisation suivante (ex. un code partagé à plusieurs contacts).
+ */
 function markPromoCodeUsed_(promo, clientId, packageId) {
+  const usageMax = Number(promo.usage_max) || 1;
+  const usageCountBefore = Number(promo.usage_count) || 0;
+  const usageCountAfter = usageCountBefore + 1;
+  const exhausted = usageCountAfter >= usageMax;
+
   updateRow_(TABS.PROMO_CODES, promo.rowNumber, {
-    statut: PROMO_CODE_STATUS.USED,
+    statut: exhausted ? PROMO_CODE_STATUS.USED : PROMO_CODE_STATUS.ACTIVE,
     used_at: new Date(),
     used_by_client_id: clientId,
     used_for_package_id: packageId,
+    usage_count: usageCountAfter,
   });
-  writeAuditLog_('admin', 'use_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.USED, `Forfait ${packageId}`);
+  writeAuditLog_(
+    'admin', 'use_promo_code', promo.promo_code_id,
+    `usage_count=${usageCountBefore}`, `usage_count=${usageCountAfter}`,
+    `Forfait ${packageId} (cliente ${clientId})${exhausted ? ' — code désormais épuisé' : ''}`
+  );
 }
 
 function adminCreatePromoCode() {
@@ -4269,6 +4301,10 @@ function adminCreatePromoCode() {
   const value = parseFloat(valueRaw);
   if (isNaN(value) || value <= 0) { ui.alert('Valeur invalide.'); return; }
 
+  const usageMaxRaw = ui.prompt('Nombre d\'utilisations autorisées (laisser vide pour 1 = usage unique) :').getResponseText().trim();
+  const usageMax = usageMaxRaw ? parseInt(usageMaxRaw, 10) : 1;
+  if (isNaN(usageMax) || usageMax < 1) { ui.alert('Nombre d\'utilisations invalide.'); return; }
+
   const expirationDaysRaw = ui.prompt('Validité en jours (laisser vide si aucune) :').getResponseText().trim();
   const dateExpiration = expirationDaysRaw
     ? new Date(Date.now() + parseInt(expirationDaysRaw, 10) * 24 * 60 * 60 * 1000)
@@ -4290,9 +4326,11 @@ function adminCreatePromoCode() {
     used_by_client_id: '',
     used_for_package_id: '',
     notes_admin: notesAdmin,
+    usage_max: usageMax,
+    usage_count: 0,
   });
-  writeAuditLog_('admin', 'create_promo_code', promoCodeId, '', codeRaw, clientId ? `Réservé à ${clientId}` : 'Générique');
-  ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)'));
+  writeAuditLog_('admin', 'create_promo_code', promoCodeId, '', codeRaw, `${clientId ? `Réservé à ${clientId}` : 'Générique'}, usage_max=${usageMax}`);
+  ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)') + ` — ${usageMax} utilisation(s) autorisée(s).`);
 }
 
 function adminCancelPromoCode() {
