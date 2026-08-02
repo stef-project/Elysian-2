@@ -8,15 +8,15 @@ const BOOK_URL = "https://calendar.app.google/B9JEmHdYKT9i5AbbA";
 
 const procedures = [
   { title: "Liposuction & Lipo 360", body: "Support for the swelling and fluid that follow liposuction and 360 contouring." },
-  { title: "BBL (Brazilian Butt Lift)", body: "Gentle drainage to help settle post-operative oedema while protecting the treated areas." },
+  { title: "BBL (Brazilian Butt Lift)", body: "Gentle drainage to help settle post-op oedema while protecting the treated areas." },
   { title: "Tummy Tuck (Abdominoplasty)", body: "Eases tightness and swelling across the abdomen as the body heals." },
   { title: "Breast Surgery", body: "Comfort-focused drainage after augmentation, reduction or lift, once cleared." },
   { title: "Mommy Makeover", body: "A tailored recovery plan for combined procedures." },
-  { title: "Other Cosmetic Surgery", body: "Most aesthetic and cosmetic procedures benefit from post-operative lymphatic support." },
+  { title: "Other Cosmetic Surgery", body: "Most aesthetic and cosmetic procedures benefit from post-op lymphatic support." },
 ];
 
 const benefits = [
-  "Reduce post-operative swelling and fluid retention",
+  "Reduce post-op swelling and fluid retention",
   "Ease tightness, heaviness and discomfort",
   "Support circulation and the body's natural healing rhythm",
   "Help you feel more comfortable and mobile as you recover",
@@ -24,16 +24,16 @@ const benefits = [
 
 const faqs = [
   {
-    q: "When can I start lymphatic drainage after surgery?",
-    a: "Timing depends on your procedure and your surgeon's advice. Many clients begin within the first weeks after surgery, once their surgeon has given clearance. We always recommend confirming with your surgeon first.",
+    q: "When can I start post-op lymphatic drainage?",
+    a: "Timing depends on your procedure and your surgeon's advice. Many clients begin within the first weeks post-op, once their surgeon has given clearance. We always recommend confirming with your surgeon first.",
   },
   {
-    q: "How many sessions will I need after surgery?",
+    q: "How many sessions will I need post-op?",
     a: "It varies by procedure and how your body responds. A short course of sessions usually offers the best support during recovery. We tailor a plan for you at your first visit.",
   },
   {
-    q: "Does post-surgery lymphatic drainage hurt?",
-    a: "No. The technique is gentle, slow and rhythmic, and is adapted to post-operative bodies. Most clients find it soothing and comfortable.",
+    q: "Does post-op lymphatic drainage hurt?",
+    a: "No. The technique is gentle, slow and rhythmic, and is adapted to post-op bodies. Most clients find it soothing and comfortable.",
   },
   {
     q: "Where are you located?",
@@ -73,7 +73,7 @@ export default function AfterSurgery() {
               transition={{ duration: 0.8 }}
               className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-6"
             >
-              Post-Operative Recovery · Kensington, London
+              Post-Op Recovery · Kensington, London
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -82,7 +82,7 @@ export default function AfterSurgery() {
               className="font-serif text-4xl md:text-6xl text-[#1A1A1A] font-light leading-[1.1] mb-8"
             >
               Lymphatic Drainage<br />
-              <span className="italic">After Surgery in London.</span>
+              <span className="italic">Post-Op in London.</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}
@@ -102,7 +102,7 @@ export default function AfterSurgery() {
         <section className="py-24 bg-background">
           <div className="max-w-3xl mx-auto px-6">
             <h2 className="font-serif text-3xl md:text-4xl text-[#1A1A1A] font-light mb-8">
-              Why lymphatic drainage after surgery?
+              Why lymphatic drainage post-op?
             </h2>
             <p className="font-sans text-muted-foreground font-light leading-[1.9] mb-5">
               After cosmetic or aesthetic surgery, the body naturally produces extra
@@ -111,7 +111,7 @@ export default function AfterSurgery() {
               tightness and heaviness and support your body's recovery.
             </p>
             <p className="font-sans text-muted-foreground font-light leading-[1.9]">
-              It is one of the most widely recommended forms of post-operative care
+              It is one of the most widely recommended forms of post-op care
               after procedures such as liposuction, BBL and tummy tucks, always begun
               once your surgeon has given clearance.
             </p>
@@ -155,7 +155,7 @@ export default function AfterSurgery() {
             <p className="font-sans text-sm text-muted-foreground/80 font-light leading-[1.8] mt-10 border-t border-border pt-8">
               Lymphatic drainage is a supportive wellness and recovery treatment, not
               medical care. Always follow your surgeon's guidance and obtain clearance
-              before booking post-operative drainage.
+              before booking post-op drainage.
             </p>
           </div>
         </section>
@@ -164,7 +164,7 @@ export default function AfterSurgery() {
         <section className="py-24 bg-[#F7F5F2]">
           <div className="max-w-3xl mx-auto px-6">
             <h2 className="font-serif text-3xl md:text-4xl text-[#1A1A1A] font-light mb-12">
-              Post-surgery drainage: your questions
+              Post-op drainage: your questions
             </h2>
             <div className="divide-y divide-border">
               {faqs.map((f) => (

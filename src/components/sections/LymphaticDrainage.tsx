@@ -6,8 +6,8 @@ const benefits = [
     body: "Eases puffiness and that heavy, swollen feeling. Fluid moves and settles naturally.",
   },
   {
-    title: "Supports post-surgery recovery",
-    body: "Helps settle post-operative swelling after aesthetic procedures, once your surgeon has cleared you.",
+    title: "Supports post-op recovery",
+    body: "Helps settle post-op swelling after aesthetic procedures, once your surgeon has cleared you.",
   },
   {
     title: "Enhances body-contouring results",

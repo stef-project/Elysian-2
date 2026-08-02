@@ -8,7 +8,7 @@ const careCategories = [
   },
   {
     name: "Post-Op Recovery",
-    description: "Gentle, specialist care that supports circulation and healing after surgery, at your own pace.",
+    description: "Gentle, specialist care that supports circulation and healing post-op, at your own pace.",
   },
   {
     name: "Pre & Postnatal Lymphatic Care",
@@ -34,7 +34,7 @@ const treatments = [
     calendarUrl: "https://calendar.app.google/Ev8ZV3UJwHgaE8uE9",
     description:
       "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of The Elysian Paris Method™.",
-    benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-surgery recovery"],
+    benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-op recovery"],
   },
   {
     number: "02",
@@ -45,7 +45,7 @@ const treatments = [
     calendarUrl: "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ03Mt0KA7xJm4fp59G8i-8132VCCEBaNf6tAUbZ6cf-aHA0WGCe-2eHo1Aq4U4l4c-ezs2igFpq",
     description:
       "Focusing on the legs and abdominal area, including the sides of the back. Delivers immediate lightness, improved contour, and lasting wellness benefits where fluid retention most often accumulates.",
-    benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-surgery recovery"],
+    benefits: ["Reduces inflammation", "Improves circulation", "Boosts immunity", "Post-op recovery"],
   },
   {
     number: "03",
@@ -66,7 +66,7 @@ const treatments = [
     price: "£80",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
-      "A gentle treatment designed to support the body after surgery. Specialist techniques encourage circulation, reduce swelling, and restore mobility, always respecting the pace of your recovery.",
+      "A gentle treatment designed to support the body post-op. Specialist techniques encourage circulation, reduce swelling, and restore mobility, always respecting the pace of your recovery.",
     benefits: ["Accelerates recovery", "Relieves discomfort", "Softens scar tissue", "Enhances healing"],
   },
   {
