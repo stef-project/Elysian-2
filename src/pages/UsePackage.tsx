@@ -10,12 +10,13 @@ import {
   requestVerificationCode,
   verifyCode,
   getAvailableSlots,
+  getClientDashboard,
   confirmBooking,
   generateBookingRequestId,
   PACKAGE_SERVICES,
 } from "../lib/packageBooking";
 
-type Step = "email" | "code" | "service" | "slots" | "confirmed";
+type Step = "email" | "code" | "dashboard" | "service" | "slots" | "confirmed";
 
 export default function UsePackage() {
   const [step, setStep] = useState<Step>("email");
@@ -31,6 +32,9 @@ export default function UsePackage() {
   const [availableSessions, setAvailableSessions] = useState(0);
   const [serviceId, setServiceId] = useState("");
   const [slots, setSlots] = useState<{ start: string; end: string }[]>([]);
+  const [upcomingBookings, setUpcomingBookings] = useState<
+    { serviceId: string; start: string; end: string }[]
+  >([]);
   const [bookingRequestId] = useState(generateBookingRequestId());
 
   // Page de vérification d'identité : jamais indexée, même si l'URL fuite.
@@ -71,16 +75,29 @@ export default function UsePackage() {
       setEligibleServices(res.eligibleServices);
       setPackageName(res.packageName);
       setAvailableSessions(res.availableSessions);
-      if (res.eligibleServices.length === 1) {
-        setServiceId(res.eligibleServices[0]);
-        await loadSlots(res.sessionToken, res.eligibleServices[0]);
-      } else {
-        setStep("service");
+
+      try {
+        const dashboard = await getClientDashboard(res.sessionToken);
+        setUpcomingBookings(dashboard.upcomingBookings);
+      } catch {
+        // Le tableau de bord est un plus, pas un bloquant : si l'appel échoue,
+        // on continue quand même vers la réservation.
+        setUpcomingBookings([]);
       }
+      setStep("dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const proceedToBooking = async () => {
+    if (eligibleServices.length === 1) {
+      setServiceId(eligibleServices[0]);
+      await loadSlots(sessionToken, eligibleServices[0]);
+    } else {
+      setStep("service");
     }
   };
 
@@ -206,6 +223,57 @@ export default function UsePackage() {
                 {loading ? "Verifying…" : "Verify code"}
               </button>
             </form>
+          )}
+
+          {step === "dashboard" && (
+            <div className="space-y-8">
+              <div className="space-y-3 font-sans text-sm">
+                <div className="flex justify-between border-b border-border pb-3">
+                  <span className="text-muted-foreground">Package</span>
+                  <span>{packageName}</span>
+                </div>
+                <div className="flex justify-between border-b border-border pb-3">
+                  <span className="text-muted-foreground">Sessions remaining</span>
+                  <span>{availableSessions}</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-sans text-xs tracking-[0.2em] uppercase text-muted-foreground mb-4">
+                  Upcoming appointments
+                </p>
+                {upcomingBookings.length === 0 ? (
+                  <p className="font-sans text-sm text-muted-foreground font-light">
+                    No upcoming appointments.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingBookings.map((b) => (
+                      <div key={b.start} className="flex justify-between border border-border px-4 py-3 font-sans text-sm">
+                        <span>{serviceLabel(b.serviceId)}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(b.start).toLocaleString("en-GB", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                disabled={loading}
+                onClick={proceedToBooking}
+                className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+              >
+                {loading ? "Loading…" : "Book a session"}
+              </button>
+            </div>
           )}
 
           {step === "service" && (
