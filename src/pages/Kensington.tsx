@@ -29,7 +29,7 @@ export default function Kensington() {
 
         <div className="border border-dashed border-border px-6 py-5 mb-12 inline-block">
           <p className="font-sans text-xs text-muted-foreground/70 italic">
-            Address and opening hours — to be confirmed.
+            Address and opening hours to be confirmed.
           </p>
         </div>
 
