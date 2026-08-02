@@ -41,6 +41,10 @@ function doPost(e) {
         data = handleGetSlots_(body.sessionToken, body.serviceId, body.durationMinutes);
         break;
 
+      case 'get-client-dashboard':
+        data = handleGetClientDashboard_(body.sessionToken);
+        break;
+
       case 'confirm-booking':
         data = confirmPackageBooking(
           body.sessionToken, body.bookingRequestId, body.serviceId, body.startIso, body.endIso
@@ -93,6 +97,36 @@ function handleGetSlots_(sessionTokenPlain, serviceId, durationMinutes) {
 
   const duration = Number(durationMinutes) || DEFAULT_APPOINTMENT_MINUTES;
   return { slots: computeAvailableSlots(duration) };
+}
+
+/**
+ * Valide le jeton de session et renvoie le solde du forfait + les
+ * prochains rendez-vous confirmés de la cliente — affiché avant la
+ * sélection de créneau sur /use-package (UX : la cliente voit où elle en
+ * est avant de réserver, sans avoir à appeler).
+ */
+function handleGetClientDashboard_(sessionTokenPlain) {
+  if (!sessionTokenPlain) {
+    throw new BookingBusinessError_('Session invalide.');
+  }
+  const tokenHash = hashWithPepper_(sessionTokenPlain);
+  const tokenRow = findRowBy_(TABS.SESSION_TOKENS, 'token_hash', tokenHash);
+  if (!tokenRow || new Date(tokenRow.expires_at) < new Date()) {
+    throw new BookingBusinessError_('Session invalide ou expirée, merci de recommencer la vérification.');
+  }
+
+  const pkg = findPackageById_(tokenRow.package_id);
+  const now = new Date();
+  const upcomingBookings = readAllRows_(TABS.BOOKINGS)
+    .filter((b) => b.client_id === tokenRow.client_id && b.status === BOOKING_STATUS.CONFIRMED && new Date(b.start_datetime) > now)
+    .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime))
+    .map((b) => ({ serviceId: b.service_id, start: b.start_datetime, end: b.end_datetime }));
+
+  return {
+    packageName: pkg ? pkg.nom_forfait : '',
+    availableSessions: pkg ? Number(pkg.available_sessions) : 0,
+    upcomingBookings: upcomingBookings,
+  };
 }
 
 function jsonResponse_(obj) {

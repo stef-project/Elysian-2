@@ -53,6 +53,15 @@ export const getAvailableSlots = (sessionToken: string, serviceId: string, durat
     durationMinutes,
   });
 
+// Solde du forfait + prochains rendez-vous, affiché avant la sélection de
+// créneau — la cliente voit où elle en est sans avoir à nous contacter.
+export const getClientDashboard = (sessionToken: string) =>
+  callWebApp<{
+    packageName: string;
+    availableSessions: number;
+    upcomingBookings: { serviceId: string; start: string; end: string }[];
+  }>("get-client-dashboard", { sessionToken });
+
 export const confirmBooking = (
   sessionToken: string,
   bookingRequestId: string,
