@@ -33,7 +33,7 @@ export default function Chelsea() {
           Every Friday — Limited Availability
         </p>
         <p className="font-sans text-xs text-muted-foreground/70 font-light mb-12">
-          60-minute sessions — Lymphatic Drainage, Post-Op or Pre &amp; Postnatal Care
+          60-minute sessions — Lymphatic Drainage, Post-Op, Pre/Postnatal
         </p>
 
         <div>
