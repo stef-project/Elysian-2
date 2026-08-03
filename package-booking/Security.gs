@@ -151,6 +151,51 @@ function clearFailedPromoAttempts_(email) {
   props.deleteProperty('promo_lockout::' + String(email).toLowerCase());
 }
 
+/**
+ * Anti brute-force dédié au mot de passe du portail admin (un seul compte,
+ * donc une clé fixe plutôt que par email) — mêmes principes que
+ * enforceNotLockedOut_/recordFailedAttempt_ mais sous des clés Properties
+ * distinctes ('admin_lockout'/'admin_failcount').
+ *
+ * Compromis assumé : la clé étant fixe (pas par IP, GAS Web Apps n'exposent
+ * pas l'IP appelante), n'importe qui enchaînant des mots de passe erronés
+ * bloque aussi l'admin légitime pour lockout_duration_minutes — un déni de
+ * service auto-infligé possible, mais préférable à l'absence totale de
+ * protection contre le brute-force, et sans conséquence sur les données
+ * (aucun accès obtenu, juste un blocage temporaire du portail).
+ */
+function enforceNotLockedOutForAdmin_(settings) {
+  const props = PropertiesService.getScriptProperties();
+  const lockedUntilRaw = props.getProperty('admin_lockout');
+  if (lockedUntilRaw) {
+    const lockedUntil = new Date(lockedUntilRaw);
+    if (lockedUntil > new Date()) {
+      throw new RateLimitError_('Trop de tentatives. Réessaie plus tard.');
+    }
+  }
+}
+
+/** Enregistre une tentative de connexion admin échouée ; déclenche un blocage temporaire si le seuil est dépassé. */
+function recordFailedAdminAttempt_(settings) {
+  const props = PropertiesService.getScriptProperties();
+  const count = parseInt(props.getProperty('admin_failcount') || '0', 10) + 1;
+  props.setProperty('admin_failcount', String(count));
+
+  const maxAttempts = settings.max_admin_login_attempts || 5;
+  if (count >= maxAttempts) {
+    const lockedUntil = new Date(Date.now() + settings.lockout_duration_minutes * 60 * 1000);
+    props.setProperty('admin_lockout', lockedUntil.toISOString());
+    props.deleteProperty('admin_failcount');
+  }
+}
+
+/** Réinitialise le compteur d'échecs de connexion admin après une réussite. */
+function clearFailedAdminAttempts_() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('admin_failcount');
+  props.deleteProperty('admin_lockout');
+}
+
 /** Erreur dédiée pour les cas de rate limiting, distinguée des erreurs métier. */
 function RateLimitError_(message) {
   this.name = 'RateLimitError';

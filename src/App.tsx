@@ -11,6 +11,7 @@ import Chelsea from "@/pages/Chelsea";
 import UsePackage from "@/pages/UsePackage";
 import PackageOffer from "@/pages/PackageOffer";
 import BookChelsea from "@/pages/BookChelsea";
+import AdminPortal from "@/pages/AdminPortal";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/book-chelsea" component={BookChelsea} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
+      <Route path="/admin" component={AdminPortal} />
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
       <Route path="/cookie-policy" component={Legal} />

@@ -57,6 +57,8 @@ function onOpen() {
       .addItem('Créer un code promo', 'adminCreatePromoCode')
       .addItem('Annuler un code promo', 'adminCancelPromoCode')
       .addItem('Libérer une réclamation abandonnée', 'adminReleasePromoClaim'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Portail web')
+      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword'))
     .addToUi();
 }
 

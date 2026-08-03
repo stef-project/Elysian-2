@@ -302,6 +302,7 @@ const SETTINGS_DEFAULTS = {
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
+  max_admin_login_attempts: 5,                   // anti brute-force sur le mot de passe du portail admin
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site

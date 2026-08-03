@@ -65,6 +65,12 @@ function doPost(e) {
         data = validateAndClaimPromoCode_(body.email, body.promoCode, body.serviceId);
         break;
 
+      case 'admin-clients-overview':
+        // Portail admin en lecture seule : chaque cliente, ses forfaits actifs
+        // et ses codes promo applicables. Mot de passe vérifié à chaque appel.
+        data = adminGetClientsOverview_(body.adminPassword);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }
@@ -132,6 +138,7 @@ function handleGetClientDashboard_(sessionTokenPlain) {
     packageName: pkg ? pkg.nom_forfait : '',
     availableSessions: pkg ? Number(pkg.available_sessions) : 0,
     upcomingBookings: upcomingBookings,
+    activePromoCodes: findActivePromoCodesForClient_(tokenRow.client_id),
   };
 }
 

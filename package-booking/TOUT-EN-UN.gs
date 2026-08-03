@@ -336,6 +336,7 @@ const SETTINGS_DEFAULTS = {
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
+  max_admin_login_attempts: 5,                   // anti brute-force sur le mot de passe du portail admin
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -644,6 +645,51 @@ function clearFailedPromoAttempts_(email) {
   const props = PropertiesService.getScriptProperties();
   props.deleteProperty('promo_failcount::' + String(email).toLowerCase());
   props.deleteProperty('promo_lockout::' + String(email).toLowerCase());
+}
+
+/**
+ * Anti brute-force dédié au mot de passe du portail admin (un seul compte,
+ * donc une clé fixe plutôt que par email) — mêmes principes que
+ * enforceNotLockedOut_/recordFailedAttempt_ mais sous des clés Properties
+ * distinctes ('admin_lockout'/'admin_failcount').
+ *
+ * Compromis assumé : la clé étant fixe (pas par IP, GAS Web Apps n'exposent
+ * pas l'IP appelante), n'importe qui enchaînant des mots de passe erronés
+ * bloque aussi l'admin légitime pour lockout_duration_minutes — un déni de
+ * service auto-infligé possible, mais préférable à l'absence totale de
+ * protection contre le brute-force, et sans conséquence sur les données
+ * (aucun accès obtenu, juste un blocage temporaire du portail).
+ */
+function enforceNotLockedOutForAdmin_(settings) {
+  const props = PropertiesService.getScriptProperties();
+  const lockedUntilRaw = props.getProperty('admin_lockout');
+  if (lockedUntilRaw) {
+    const lockedUntil = new Date(lockedUntilRaw);
+    if (lockedUntil > new Date()) {
+      throw new RateLimitError_('Trop de tentatives. Réessaie plus tard.');
+    }
+  }
+}
+
+/** Enregistre une tentative de connexion admin échouée ; déclenche un blocage temporaire si le seuil est dépassé. */
+function recordFailedAdminAttempt_(settings) {
+  const props = PropertiesService.getScriptProperties();
+  const count = parseInt(props.getProperty('admin_failcount') || '0', 10) + 1;
+  props.setProperty('admin_failcount', String(count));
+
+  const maxAttempts = settings.max_admin_login_attempts || 5;
+  if (count >= maxAttempts) {
+    const lockedUntil = new Date(Date.now() + settings.lockout_duration_minutes * 60 * 1000);
+    props.setProperty('admin_lockout', lockedUntil.toISOString());
+    props.deleteProperty('admin_failcount');
+  }
+}
+
+/** Réinitialise le compteur d'échecs de connexion admin après une réussite. */
+function clearFailedAdminAttempts_() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('admin_failcount');
+  props.deleteProperty('admin_lockout');
 }
 
 /** Erreur dédiée pour les cas de rate limiting, distinguée des erreurs métier. */
@@ -1580,6 +1626,8 @@ function onOpen() {
       .addItem('Créer un code promo', 'adminCreatePromoCode')
       .addItem('Annuler un code promo', 'adminCancelPromoCode')
       .addItem('Libérer une réclamation abandonnée', 'adminReleasePromoClaim'))
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Portail web')
+      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword'))
     .addToUi();
 }
 
@@ -2423,6 +2471,12 @@ function doPost(e) {
         data = validateAndClaimPromoCode_(body.email, body.promoCode, body.serviceId);
         break;
 
+      case 'admin-clients-overview':
+        // Portail admin en lecture seule : chaque cliente, ses forfaits actifs
+        // et ses codes promo applicables. Mot de passe vérifié à chaque appel.
+        data = adminGetClientsOverview_(body.adminPassword);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }
@@ -2490,6 +2544,7 @@ function handleGetClientDashboard_(sessionTokenPlain) {
     packageName: pkg ? pkg.nom_forfait : '',
     availableSessions: pkg ? Number(pkg.available_sessions) : 0,
     upcomingBookings: upcomingBookings,
+    activePromoCodes: findActivePromoCodesForClient_(tokenRow.client_id),
   };
 }
 
@@ -4610,4 +4665,119 @@ function adminReleasePromoClaim() {
     `Code ${claim.code}, email ${claim.client_email}`
   );
   ui.alert(`Réclamation libérée. Quota du code ${claim.code} restauré (usage_count : ${newUsageCount}).`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 21 — Portal.gs (portail web : vue cliente + vue admin, lecture seule)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  PORTAL.gs — Portail web : vue cliente ("où en suis-je ?") et vue admin
+ *  ("où en sont toutes mes clientes ?"), au lieu d'ouvrir le Sheet à la main.
+ * ============================================================================
+ *
+ *  Authentification admin volontairement simple (mot de passe unique,
+ *  jamais stocké en clair) : un seul compte, pas de rôles, pas de jeton de
+ *  session à gérer — chaque appel admin renvoie le mot de passe, vérifié
+ *  côté serveur à chaque fois. Protégé par le même anti brute-force que le
+ *  reste du site (Security.gs).
+ */
+
+/** Renvoie le hash du mot de passe admin, ou null si jamais configuré (voir AdminMenu.gs → adminSetPortalPassword). */
+function getAdminPasswordHash_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_PORTAL_PASSWORD_HASH') || null;
+}
+
+/**
+ * Définit (ou change) le mot de passe du portail admin — jamais stocké en
+ * clair, seulement son hash HMAC (même primitive que les codes/jetons,
+ * Security.gs). À lancer depuis le menu Sheet, une seule fois pour
+ * initialiser, ou à nouveau pour changer le mot de passe.
+ */
+function adminSetPortalPassword() {
+  const ui = ui_();
+  const response = ui.prompt('Nouveau mot de passe du portail admin (8 caractères minimum) :');
+  const password = response.getResponseText().trim();
+  if (password.length < 8) {
+    ui.alert('Mot de passe trop court — inchangé (8 caractères minimum).');
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty('ADMIN_PORTAL_PASSWORD_HASH', hashWithPepper_(password));
+  writeAuditLog_('admin', 'set_portal_password', 'admin_portal', '', '', '');
+  ui.alert('Mot de passe du portail admin mis à jour.');
+}
+
+/**
+ * Vérifie le mot de passe admin. Lève une erreur générique (jamais de détail
+ * sur la cause) en cas d'échec, de blocage anti brute-force, ou si aucun mot
+ * de passe n'a encore été configuré.
+ */
+function authenticateAdmin_(passwordPlain) {
+  const settings = getSettings();
+  enforceNotLockedOutForAdmin_(settings);
+
+  const storedHash = getAdminPasswordHash_();
+  const providedHash = passwordPlain ? hashWithPepper_(String(passwordPlain)) : '';
+
+  if (!storedHash || !passwordPlain || providedHash !== storedHash) {
+    recordFailedAdminAttempt_(settings);
+    throw new BookingBusinessError_('Mot de passe incorrect.');
+  }
+  clearFailedAdminAttempts_();
+}
+
+/**
+ * Codes promo actifs et disponibles pour une cliente donnée : réservés à
+ * elle (client_id correspondant) ou génériques (client_id vide), actifs, non
+ * expirés et pas encore épuisés. Mêmes conditions que
+ * validatePromoCodeForClient_ (PromoCodes.gs), en lecture seule ici.
+ */
+function findActivePromoCodesForClient_(clientId) {
+  const now = new Date();
+  return readAllRows_(TABS.PROMO_CODES).filter((p) => {
+    if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
+    if (p.client_id && p.client_id !== clientId) return false;
+    if (p.date_expiration) {
+      const exp = new Date(p.date_expiration);
+      if (!isNaN(exp.getTime()) && exp < now) return false;
+    }
+    const usageMax = Number(p.usage_max) || 1;
+    const usageCount = Number(p.usage_count) || 0;
+    if (usageCount >= usageMax) return false;
+    return true;
+  }).map((p) => ({
+    code: p.code,
+    discountType: p.type,
+    discountValue: Number(p.value),
+  }));
+}
+
+/**
+ * Vue d'ensemble admin : chaque cliente, ses forfaits actifs et les codes
+ * promo qui lui sont applicables. Lecture seule, aucune écriture.
+ */
+function adminGetClientsOverview_(passwordPlain) {
+  authenticateAdmin_(passwordPlain);
+
+  const packagesByClient = {};
+  readAllRows_(TABS.PACKAGES).forEach((pkg) => {
+    if (pkg.statut !== PACKAGE_STATUS.ACTIVE) return;
+    (packagesByClient[pkg.client_id] = packagesByClient[pkg.client_id] || []).push({
+      packageName: pkg.nom_forfait,
+      availableSessions: Number(pkg.available_sessions),
+      totalSessions: Number(pkg.total_sessions),
+      dateExpiration: pkg.date_expiration || '',
+    });
+  });
+
+  return readAllRows_(TABS.CLIENTS).map((c) => ({
+    clientId: c.client_id,
+    prenom: c.prenom,
+    nom: c.nom,
+    email: c.email,
+    telephone: c.telephone,
+    packages: packagesByClient[c.client_id] || [],
+    activePromoCodes: findActivePromoCodesForClient_(c.client_id),
+  }));
 }

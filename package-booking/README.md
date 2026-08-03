@@ -464,6 +464,30 @@ utilise **Libérer une réclamation abandonnée** (menu Croissance clientèle,
 `adminReleasePromoClaim`, à partir du `claim_id` visible dans
 `Promo_Code_Claims`) pour restaurer le quota consommé.
 
+### Portail web (`/admin`, `Portal.gs`)
+
+Une alternative web au Sheet + menu Elysian Admin, en lecture seule :
+
+- **Côté cliente** (`/use-package`, déjà existant) : le tableau de bord
+  affiché après vérification email + code montre désormais aussi les codes
+  promo actifs applicables à cette cliente (réservés à elle ou génériques),
+  en plus du solde de forfait et des prochains rendez-vous.
+- **Côté admin** (`/admin`, nouvelle page) : vue d'ensemble de toutes les
+  clientes, leurs forfaits actifs et les codes promo qui leur sont
+  applicables. Recherche par nom/email, aucune écriture possible.
+
+Authentification volontairement simple (un seul compte, pas de rôles) : un
+mot de passe unique, jamais stocké en clair (hash HMAC, `Security.gs`),
+défini via **Portail web → Définir le mot de passe du portail admin** dans
+le menu Elysian Admin. Chaque appel renvoie le mot de passe (vérifié côté
+serveur à chaque fois, pas de jeton de session à gérer), protégé par le même
+anti brute-force que le reste du site (`enforceNotLockedOutForAdmin_`,
+réglage `max_admin_login_attempts`, défaut 5). ⚠️ La clé de blocage étant
+unique (pas par IP), n'importe qui enchaînant des mots de passe erronés
+bloque aussi l'admin légitime pendant `lockout_duration_minutes` — un déni
+de service auto-infligé possible, mais sans accès aux données, et préférable
+à l'absence de protection contre le brute-force.
+
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
 - Fonction : `runDailyNotifications`
