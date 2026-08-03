@@ -20,6 +20,7 @@ import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { CHELSEA_BOOKING_URL } from "../lib/booking";
 import { validatePromoCode } from "../lib/packageBooking";
+import { trackBookClick } from "../lib/analytics";
 
 // Les 3 soins réellement proposés sur le créneau Chelsea, avec leur tarif
 // respectif — ids alignés sur PACKAGE_SERVICES (packageBooking.ts).
@@ -82,6 +83,7 @@ export default function BookChelsea() {
 
     // Pas de code → redirection directe
     if (!trimmedCode) {
+      trackBookClick("book_chelsea_calendar");
       window.open(CHELSEA_BOOKING_URL, "_blank", "noopener,noreferrer");
       return;
     }
@@ -100,6 +102,7 @@ export default function BookChelsea() {
   }
 
   function proceedToCalendar() {
+    trackBookClick("book_chelsea_calendar");
     window.open(CHELSEA_BOOKING_URL, "_blank", "noopener,noreferrer");
   }
 

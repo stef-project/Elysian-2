@@ -3,6 +3,7 @@ import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { BOOKING_URL, ADDRESS } from "../lib/booking";
+import { trackBookClick } from "../lib/analytics";
 
 export default function Kensington() {
   useDocumentMeta(
@@ -40,6 +41,7 @@ export default function Kensington() {
           <a
             href={BOOKING_URL}
             data-testid="button-book-kensington-page"
+            onClick={() => trackBookClick("kensington_page")}
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
           >
             Book Kensington

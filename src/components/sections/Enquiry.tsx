@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { BOOKING_URL, EMAIL, whatsappWith, mailtoWith } from "../../lib/booking";
+import { trackEvent } from "../../lib/analytics";
 
 const treatmentOptions = [
   { value: "", label: "Select a treatment" },
@@ -39,6 +40,7 @@ export function Enquiry() {
     const whatsapp = whatsappWith(body);
     const mailto = mailtoWith("Treatment enquiry: Elysian Paris", body);
     setLinks({ whatsapp, mailto });
+    trackEvent("enquiry_submit", { treatment: treatment || "unspecified" });
     // On ouvre WhatsApp par défaut, mais l'écran de confirmation propose aussi l'e-mail.
     window.open(whatsapp, "_blank", "noopener,noreferrer");
     setSubmitted(true);

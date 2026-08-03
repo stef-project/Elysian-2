@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import heroImage from "../../assets/hero-wellness.webp";
+import { trackBookClick } from "../../lib/analytics";
 
 export function Hero() {
   return (
@@ -62,6 +63,7 @@ export function Hero() {
           <a
             href="/kensington"
             data-testid="button-book-kensington"
+            onClick={() => trackBookClick("hero_kensington")}
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
           >
             Book Kensington
@@ -69,6 +71,7 @@ export function Hero() {
           <a
             href="/chelsea"
             data-testid="button-book-chelsea"
+            onClick={() => trackBookClick("hero_chelsea")}
             className="font-sans text-xs tracking-[0.2em] uppercase text-[#F7F5F2] border border-[#F7F5F2]/40 px-10 py-4 hover:border-[#F7F5F2] hover:bg-[#F7F5F2]/10 transition-colors duration-300"
           >
             Book Chelsea, Every Friday
