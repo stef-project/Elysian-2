@@ -409,6 +409,25 @@ restent du ressort de l'administratrice) :
   reste une communication transactionnelle liée à une récompense déjà
   acquise (pas une offre commerciale), donc envoyé sans condition de
   consentement marketing, comme les confirmations post-achat.
+- **Remise de bienvenue de la filleule** : dès que le parrainage est
+  enregistré à la création de la cliente, un code promo personnel (ex.
+  `WELCOME-4FQ7`) est créé **automatiquement** pour elle
+  (`grantReferralWelcomePromo_`, CRM.gs) : réservé à elle, usage unique,
+  remise et validité configurables dans `Settings`
+  (`referral_welcome_discount_type`, défaut `percentage` ;
+  `referral_welcome_discount_value`, défaut `10` — mettre `0` pour
+  désactiver le programme ; `referral_welcome_validity_days`, défaut `90`).
+  Le code est affiché à l'admin au moment de la création (à communiquer à
+  la cliente), apparaît sur le tableau de bord `/use-package` de la cliente,
+  et s'applique à la saisie de son premier paiement comme n'importe quel
+  code promo — aucune mécanique nouvelle, tout réutilise `Promo_Codes`.
+  ⚠️ **Usage unique tous canaux confondus** : si la cliente valide son code
+  `WELCOME-…` sur `/book-chelsea` (séance à l'unité), il est consommé et ne
+  pourra plus s'appliquer à son premier forfait — récupérable via « Libérer
+  une réclamation abandonnée » si c'était une erreur. Si l'échec de création
+  du code survient (cas rarissime), la création de la cliente n'est jamais
+  interrompue : l'échec est tracé dans `Audit_Log` (`welcome_promo_failed`)
+  et le code peut être recréé à la main via « Créer un code promo ».
 
 ### Codes promo (`Promo_Codes`)
 
@@ -457,6 +476,13 @@ reste du parcours cliente) — protégé par son propre anti brute-force
 réglage `max_promo_validation_attempts`, défaut 5 tentatives échouées avant
 blocage `lockout_duration_minutes`), pour empêcher de deviner des codes ou
 d'épuiser le quota d'un code multi-usages par tentatives automatisées.
+L'**expiration** (`date_expiration`) est vérifiée ici aussi, comme côté
+admin — un code périmé encore marqué `active` est refusé et passe `expired`
+au passage ; la réconciliation quotidienne fait de toute façon expirer les
+codes périmés (`promo_code_expired_reconciliation`). La validation
+(lecture du quota + incrément) tourne sous verrou (`LockService`), comme la
+création de codes — pas de dépassement de quota ni de code en doublon sous
+requêtes simultanées.
 
 `usage_count` est incrémenté **dès la validation**, avant même que la
 cliente ait réellement réservé sur Google Calendar — si elle abandonne,
@@ -466,15 +492,37 @@ utilise **Libérer une réclamation abandonnée** (menu Croissance clientèle,
 
 ### Portail web (`/admin`, `Portal.gs`)
 
-Une alternative web au Sheet + menu Elysian Admin, en lecture seule :
+Une alternative web au Sheet + menu Elysian Admin :
 
 - **Côté cliente** (`/use-package`, déjà existant) : le tableau de bord
   affiché après vérification email + code montre désormais aussi les codes
   promo actifs applicables à cette cliente (réservés à elle ou génériques),
   en plus du solde de forfait et des prochains rendez-vous.
-- **Côté admin** (`/admin`, nouvelle page) : vue d'ensemble de toutes les
-  clientes, leurs forfaits actifs et les codes promo qui leur sont
-  applicables. Recherche par nom/email, aucune écriture possible.
+- **Côté admin** (`/admin`) : vue d'ensemble de toutes les clientes, leurs
+  forfaits actifs, **leurs rendez-vous à venir** et les codes promo qui leur
+  sont applicables, plus une section **« Upcoming appointments »** globale
+  (tous les rendez-vous futurs, toutes clientes confondues, triés par date).
+  Recherche par nom/email.
+
+**Rendez-vous et Google Calendar — comment ça s'articule** : chaque
+réservation forfait confirmée crée TOUJOURS son événement dans le Google
+Calendar dédié (`Settings.calendar_id`) au moment de la confirmation — la
+synchronisation calendrier existe donc déjà, sans rien activer de plus. Le
+portail `/admin` n'est qu'une **vue supplémentaire** sur les mêmes données
+(onglet `Bookings` du Sheet), jamais une source concurrente : ce qu'on y
+voit correspond aux événements déjà présents dans le calendrier, plus les
+réservations externes saisies manuellement (ClassPass / WhatsApp,
+`external_manual` — déclaratives, sans événement Calendar).
+
+**Seule écriture du portail** (tout le reste reste en lecture seule) :
+**créer un code promo directement sur le compte d'une cliente** (bouton
+« + Add promo code » sur sa fiche — remise `%` ou `£`, validité optionnelle,
+usage unique). L'appel (`admin-create-promo-code`, `adminPortalCreatePromoCode_`)
+est protégé par le même mot de passe + anti brute-force que la vue
+d'ensemble, réutilise exactement le même cœur de création/validation que le
+menu Sheet (`createPromoCode_`, PromoCodes.gs), et trace chaque création
+dans `Audit_Log` (acteur `admin_portal`). Le code apparaît immédiatement
+sur le tableau de bord `/use-package` de la cliente.
 
 Authentification volontairement simple (un seul compte, pas de rôles) : un
 mot de passe unique, jamais stocké en clair (hash HMAC, `Security.gs`),
@@ -501,6 +549,7 @@ de service auto-infligé possible, mais sans accès aux données, et préférabl
 | Fonction | Rôle |
 |---|---|
 | `initializeSheets` | Crée les onglets et leurs en-têtes (une fois) |
+| `adminSyncSettingsKeys` | Ajoute à l'onglet Settings les clés de réglage manquantes (après une mise à jour du code), sans toucher aux valeurs existantes — menu « Synchroniser les réglages manquants » |
 | `runReconciliationCheck` | Contrôle quotidien (à brancher sur un déclencheur) |
 | `onOpen` | Ajoute le menu Elysian Admin (automatique à l'ouverture du Sheet) |
 | `adminAddPackageTemplate` | Crée un modèle de forfait au catalogue |

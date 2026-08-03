@@ -299,6 +299,9 @@ const SETTINGS_DEFAULTS = {
   referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
   referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
   referral_reward_label: 'Massage offert — récompense parrainage',
+  referral_welcome_discount_type: 'percentage',  // remise de bienvenue de la filleule : 'percentage' ou 'fixed_amount'
+  referral_welcome_discount_value: 10,           // valeur de la remise (10 = -10% par défaut) ; 0 = désactivé
+  referral_welcome_validity_days: 90,            // durée de validité du code de bienvenue de la filleule
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)

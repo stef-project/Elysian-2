@@ -62,3 +62,41 @@ function getWorkdaysArray(settings) {
 function clearSettingsCache() {
   CacheService.getScriptCache().remove(SETTINGS_CACHE_KEY);
 }
+
+/**
+ * Ajoute à l'onglet Settings les clés de SETTINGS_DEFAULTS qui n'y figurent
+ * pas encore, avec leur valeur par défaut. L'onglet n'est pré-rempli qu'à la
+ * toute première initialisation (initializeSheets) : sans cette fonction,
+ * chaque réglage ajouté dans une version ultérieure du code resterait
+ * invisible dans le Sheet (le défaut s'applique, mais impossible de le
+ * modifier sans connaître le nom exact de la clé). Ne modifie JAMAIS une
+ * valeur existante — ajoute seulement les lignes manquantes.
+ */
+function adminSyncSettingsKeys() {
+  const ui = ui_();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TABS.SETTINGS);
+  if (!sheet) { ui.alert('Onglet Settings introuvable — lance initializeSheets d\'abord.'); return; }
+
+  const existing = new Set();
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach(([key]) => {
+      if (key) existing.add(String(key).trim());
+    });
+  }
+
+  const missing = Object.keys(SETTINGS_DEFAULTS).filter((k) => !existing.has(k));
+  if (missing.length === 0) {
+    ui.alert('Aucune clé manquante — l\'onglet Settings est déjà complet.');
+    return;
+  }
+
+  missing.forEach((key) => {
+    sheet.appendRow([key, SETTINGS_DEFAULTS[key], '']);
+  });
+  clearSettingsCache();
+  writeAuditLog_('admin', 'sync_settings_keys', 'Settings', '', missing.join(', '), '');
+  ui.alert(
+    `Clé(s) ajoutée(s) à Settings avec leur valeur par défaut :\n\n${missing.join('\n')}\n\n` +
+    'Modifie les valeurs directement dans l\'onglet si besoin.'
+  );
+}

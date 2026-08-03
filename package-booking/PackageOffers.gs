@@ -63,6 +63,15 @@ function findOrPromptCreateClient_(email) {
   });
   writeAuditLog_('admin', 'add_client', clientId, '', email,
     referralTag ? `Créée via "Proposer un forfait" — parrainage : ${referralTag}` : 'Créée via "Proposer un forfait"');
+
+  // Cliente parrainée : remise de bienvenue automatique (CRM.gs), comme dans
+  // adminAddClient — même règle quel que soit le point d'entrée de création.
+  if (referralTag) {
+    const welcomeCode = grantReferralWelcomePromo_(clientId, referralTag);
+    if (welcomeCode) {
+      ui.alert(`Code de bienvenue créé automatiquement : ${welcomeCode} — communique-le à la cliente, il s'applique à son premier paiement.`);
+    }
+  }
   return findRowBy_(TABS.CLIENTS, 'client_id', clientId);
 }
 

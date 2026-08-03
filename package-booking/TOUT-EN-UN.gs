@@ -333,6 +333,9 @@ const SETTINGS_DEFAULTS = {
   referral_milestone_count: 3,                   // nombre de filleul(e)s converti(e)s par palier de récompense
   referral_reward_sessions: 1,                   // séances offertes à la marraine par palier atteint
   referral_reward_label: 'Massage offert — récompense parrainage',
+  referral_welcome_discount_type: 'percentage',  // remise de bienvenue de la filleule : 'percentage' ou 'fixed_amount'
+  referral_welcome_discount_value: 10,           // valeur de la remise (10 = -10% par défaut) ; 0 = désactivé
+  referral_welcome_validity_days: 90,            // durée de validité du code de bienvenue de la filleule
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
@@ -488,6 +491,44 @@ function getWorkdaysArray(settings) {
 /** À appeler après toute modification manuelle de Settings pour forcer une relecture immédiate. */
 function clearSettingsCache() {
   CacheService.getScriptCache().remove(SETTINGS_CACHE_KEY);
+}
+
+/**
+ * Ajoute à l'onglet Settings les clés de SETTINGS_DEFAULTS qui n'y figurent
+ * pas encore, avec leur valeur par défaut. L'onglet n'est pré-rempli qu'à la
+ * toute première initialisation (initializeSheets) : sans cette fonction,
+ * chaque réglage ajouté dans une version ultérieure du code resterait
+ * invisible dans le Sheet (le défaut s'applique, mais impossible de le
+ * modifier sans connaître le nom exact de la clé). Ne modifie JAMAIS une
+ * valeur existante — ajoute seulement les lignes manquantes.
+ */
+function adminSyncSettingsKeys() {
+  const ui = ui_();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TABS.SETTINGS);
+  if (!sheet) { ui.alert('Onglet Settings introuvable — lance initializeSheets d\'abord.'); return; }
+
+  const existing = new Set();
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach(([key]) => {
+      if (key) existing.add(String(key).trim());
+    });
+  }
+
+  const missing = Object.keys(SETTINGS_DEFAULTS).filter((k) => !existing.has(k));
+  if (missing.length === 0) {
+    ui.alert('Aucune clé manquante — l\'onglet Settings est déjà complet.');
+    return;
+  }
+
+  missing.forEach((key) => {
+    sheet.appendRow([key, SETTINGS_DEFAULTS[key], '']);
+  });
+  clearSettingsCache();
+  writeAuditLog_('admin', 'sync_settings_keys', 'Settings', '', missing.join(', '), '');
+  ui.alert(
+    `Clé(s) ajoutée(s) à Settings avec leur valeur par défaut :\n\n${missing.join('\n')}\n\n` +
+    'Modifie les valeurs directement dans l\'onglet si besoin.'
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1594,6 +1635,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Prolonger / suspendre un forfait', 'adminExtendOrSuspendPackage')
     .addItem('Lancer la réconciliation maintenant', 'runReconciliationCheck')
+    .addItem('Synchroniser les réglages manquants (Settings)', 'adminSyncSettingsKeys')
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Catalogue de forfaits (Phase 2)')
       .addItem('Ajouter un modèle de forfait', 'adminAddPackageTemplate')
@@ -1658,7 +1700,17 @@ function adminAddClient() {
     tags: referralTag,
   });
   writeAuditLog_('admin', 'add_client', clientId, '', email, referralTag ? `Parrainage : ${referralTag}` : '');
-  ui.alert(`Cliente ajoutée : ${clientId}` + (referralTag ? ' (parrainage enregistré)' : ''));
+
+  // Cliente parrainée : remise de bienvenue automatique (CRM.gs) — code promo
+  // personnel, visible sur son tableau de bord /use-package et applicable à
+  // la saisie du paiement. '' si le programme est désactivé dans Settings.
+  const welcomeCode = referralTag ? grantReferralWelcomePromo_(clientId, referralTag) : '';
+
+  ui.alert(
+    `Cliente ajoutée : ${clientId}` +
+    (referralTag ? ' (parrainage enregistré)' : '') +
+    (welcomeCode ? `\n\nCode de bienvenue créé automatiquement : ${welcomeCode} — communique-le à la cliente, il s'applique à son premier paiement.` : '')
+  );
 }
 
 /**
@@ -2384,6 +2436,18 @@ function runReconciliationCheck() {
       writeAuditLog_('system', 'offer_expired_reconciliation', o.offer_id, o.statut, OFFER_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
     });
 
+  // --- Correction automatique sûre : codes promo expirés ---
+  // Même principe que les offres : comparaison de dates objective, aucun
+  // paiement ni forfait touché. Sans cette passe, un code périmé resterait
+  // au statut "active" tant que personne n'essaie de l'utiliser côté admin.
+  readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => p.statut === PROMO_CODE_STATUS.ACTIVE && p.date_expiration &&
+      !isNaN(new Date(p.date_expiration).getTime()) && new Date(p.date_expiration) < nowForOffers)
+    .forEach((p) => {
+      updateRow_(TABS.PROMO_CODES, p.rowNumber, { statut: PROMO_CODE_STATUS.EXPIRED });
+      writeAuditLog_('system', 'promo_code_expired_reconciliation', p.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
+    });
+
   // --- Écriture des anomalies détectées ---
   issues.forEach(([type, entity, details]) => {
     appendRow_(TABS.RECONCILIATION_ISSUES, {
@@ -2472,9 +2536,16 @@ function doPost(e) {
         break;
 
       case 'admin-clients-overview':
-        // Portail admin en lecture seule : chaque cliente, ses forfaits actifs
-        // et ses codes promo applicables. Mot de passe vérifié à chaque appel.
+        // Portail admin : chaque cliente, ses forfaits actifs, ses rendez-vous
+        // à venir et ses codes promo applicables. Mot de passe vérifié à chaque appel.
         data = adminGetClientsOverview_(body.adminPassword);
+        break;
+
+      case 'admin-create-promo-code':
+        // Seule écriture du portail admin : créer un code promo, généralement
+        // réservé à une cliente précise. Même mot de passe + anti brute-force
+        // que la vue d'ensemble ; même cœur de création que le menu Sheet.
+        data = adminPortalCreatePromoCode_(body.adminPassword, body.params);
         break;
 
       default:
@@ -3222,6 +3293,15 @@ function findOrPromptCreateClient_(email) {
   });
   writeAuditLog_('admin', 'add_client', clientId, '', email,
     referralTag ? `Créée via "Proposer un forfait" — parrainage : ${referralTag}` : 'Créée via "Proposer un forfait"');
+
+  // Cliente parrainée : remise de bienvenue automatique (CRM.gs), comme dans
+  // adminAddClient — même règle quel que soit le point d'entrée de création.
+  if (referralTag) {
+    const welcomeCode = grantReferralWelcomePromo_(clientId, referralTag);
+    if (welcomeCode) {
+      ui.alert(`Code de bienvenue créé automatiquement : ${welcomeCode} — communique-le à la cliente, il s'applique à son premier paiement.`);
+    }
+  }
   return findRowBy_(TABS.CLIENTS, 'client_id', clientId);
 }
 
@@ -4080,6 +4160,58 @@ function promptReferralTag_() {
 }
 
 /**
+ * Remise de bienvenue de la cliente parrainée (la filleule) — appelée juste
+ * après la création d'une cliente dont le parrainage a été enregistré
+ * (adminAddClient, AdminMenu.gs / findOrPromptCreateClient_, PackageOffers.gs).
+ *
+ * Crée automatiquement un code promo personnel (réservé à cette cliente,
+ * usage unique), avec la remise configurée dans Settings :
+ *   - referral_welcome_discount_type  ('percentage' ou 'fixed_amount')
+ *   - referral_welcome_discount_value (0 = programme désactivé, aucun code créé)
+ *   - referral_welcome_validity_days  (durée de validité du code)
+ *
+ * Le code apparaît automatiquement sur le tableau de bord /use-package de la
+ * cliente et dans le portail admin /admin (findActivePromoCodesForClient_),
+ * et s'applique à la saisie du paiement comme n'importe quel code promo
+ * (promptAndRecordPayment_) — aucune mécanique nouvelle, tout est réutilisé.
+ *
+ * @returns {string} le code créé (ex. "WELCOME-4FQ7"), ou '' si désactivé
+ *   ou si la création du code a échoué — la création de la cliente, déjà
+ *   faite au moment de l'appel, ne doit JAMAIS être interrompue par un
+ *   problème sur le code cadeau (l'échec est tracé dans Audit_Log, le code
+ *   peut être recréé à la main via "Créer un code promo").
+ */
+function grantReferralWelcomePromo_(clientId, referralTag) {
+  try {
+    const settings = getSettings();
+    const value = Number(settings.referral_welcome_discount_value) || 0;
+    if (value <= 0) return '';
+
+    const type = settings.referral_welcome_discount_type === PROMO_CODE_TYPE.FIXED_AMOUNT
+      ? PROMO_CODE_TYPE.FIXED_AMOUNT
+      : PROMO_CODE_TYPE.PERCENTAGE;
+    const validityDays = Number(settings.referral_welcome_validity_days) || 90;
+
+    const code = generateUniquePromoCode_('WELCOME');
+    createPromoCode_({
+      code: code,
+      clientId: clientId,
+      type: type,
+      value: value,
+      usageMax: 1,
+      dateExpiration: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000),
+      notesAdmin: `Remise de bienvenue automatique — cliente parrainée (${referralTag})`,
+      actor: 'system',
+    });
+    return code;
+  } catch (err) {
+    writeAuditLog_('system', 'welcome_promo_failed', clientId, '', '',
+      String(err && err.message ? err.message : err));
+    return '';
+  }
+}
+
+/**
  * Appelée depuis activatePackageIfPending_ (Payments.gs) à chaque activation
  * de forfait. Compte les filleul(e)s de clientId ayant confirmé au moins un
  * paiement, et accorde automatiquement une récompense (séance(s) offerte(s))
@@ -4346,6 +4478,90 @@ function findPromoCodeByCode_(codeRaw) {
 }
 
 /**
+ * Génère un code promo lisible et unique (ex. "WELCOME-4FQ7"), en excluant
+ * les caractères ambigus (0/O, 1/I/L). Vérifie l'unicité contre l'onglet
+ * Promo_Codes — jamais deux codes identiques, même générés le même jour.
+ */
+function generateUniquePromoCode_(prefix) {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let suffix = '';
+    for (let i = 0; i < 4; i++) {
+      suffix += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    }
+    const code = `${String(prefix || 'PROMO').toUpperCase()}-${suffix}`;
+    if (!findPromoCodeByCode_(code)) return code;
+  }
+  throw new Error('Impossible de générer un code promo unique après 20 tentatives.');
+}
+
+/**
+ * Cœur (non interactif) de la création d'un code promo — seule fonction qui
+ * écrit dans Promo_Codes. Réutilisée par le menu Sheet (adminCreatePromoCode),
+ * le portail admin web (adminPortalCreatePromoCode_, Portal.gs) et la remise
+ * de bienvenue automatique des clientes parrainées (grantReferralWelcomePromo_,
+ * CRM.gs) — la validation et l'écriture ne sont jamais dupliquées.
+ *
+ * Lève BookingBusinessError_ (message montrable) en cas de paramètre invalide.
+ *
+ * @param {{code: string, clientId: string, type: string, value: number,
+ *          usageMax: number, dateExpiration: (Date|string), notesAdmin: string,
+ *          actor: string}} params
+ * @returns {string} promo_code_id créé
+ */
+function createPromoCode_(params) {
+  const code = String(params.code || '').trim().toUpperCase();
+  if (!code) throw new BookingBusinessError_('Code promo vide.');
+
+  if (Object.values(PROMO_CODE_TYPE).indexOf(params.type) === -1) {
+    throw new BookingBusinessError_('Type de remise invalide.');
+  }
+  const value = Number(params.value);
+  if (isNaN(value) || value <= 0) throw new BookingBusinessError_('Valeur de remise invalide.');
+  if (params.type === PROMO_CODE_TYPE.PERCENTAGE && value > 100) {
+    throw new BookingBusinessError_('Un pourcentage de remise ne peut pas dépasser 100.');
+  }
+  const usageMax = Number(params.usageMax) || 1;
+  if (usageMax < 1) throw new BookingBusinessError_('Nombre d\'utilisations invalide.');
+
+  // Vérification d'unicité et écriture sous verrou — sans lui, deux appels
+  // simultanés (double-clic sur le portail) passeraient tous les deux le
+  // check d'unicité avant que l'un des deux n'écrive, créant un doublon.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+  try {
+    if (findPromoCodeByCode_(code)) throw new BookingBusinessError_('Ce code existe déjà.');
+
+    const promoCodeId = genId_('PROMO');
+    appendRow_(TABS.PROMO_CODES, {
+      promo_code_id: promoCodeId,
+      code: code,
+      client_id: params.clientId || '',
+      type: params.type,
+      value: value,
+      statut: PROMO_CODE_STATUS.ACTIVE,
+      date_creation: new Date(),
+      date_expiration: params.dateExpiration || '',
+      used_at: '',
+      used_by_client_id: '',
+      used_for_package_id: '',
+      notes_admin: params.notesAdmin || '',
+      usage_max: usageMax,
+      usage_count: 0,
+    });
+    writeAuditLog_(
+      params.actor || 'admin', 'create_promo_code', promoCodeId, '', code,
+      `${params.clientId ? `Réservé à ${params.clientId}` : 'Générique'}, usage_max=${usageMax}`
+    );
+    return promoCodeId;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Valide un code promo pour une cliente donnée. Renvoie la ligne du code si
  * valide, ou null avec un message d'alerte si invalide — ne bloque jamais
  * la saisie du paiement en cours, un code invalide est simplement ignoré.
@@ -4452,24 +4668,21 @@ function adminCreatePromoCode() {
 
   const notesAdmin = ui.prompt('Note interne (optionnel) :').getResponseText().trim();
 
-  const promoCodeId = genId_('PROMO');
-  appendRow_(TABS.PROMO_CODES, {
-    promo_code_id: promoCodeId,
-    code: codeRaw,
-    client_id: clientId,
-    type: typeRaw,
-    value: value,
-    statut: PROMO_CODE_STATUS.ACTIVE,
-    date_creation: new Date(),
-    date_expiration: dateExpiration,
-    used_at: '',
-    used_by_client_id: '',
-    used_for_package_id: '',
-    notes_admin: notesAdmin,
-    usage_max: usageMax,
-    usage_count: 0,
-  });
-  writeAuditLog_('admin', 'create_promo_code', promoCodeId, '', codeRaw, `${clientId ? `Réservé à ${clientId}` : 'Générique'}, usage_max=${usageMax}`);
+  try {
+    createPromoCode_({
+      code: codeRaw,
+      clientId: clientId,
+      type: typeRaw,
+      value: value,
+      usageMax: usageMax,
+      dateExpiration: dateExpiration,
+      notesAdmin: notesAdmin,
+      actor: 'admin',
+    });
+  } catch (err) {
+    ui.alert(err && err.message ? err.message : 'Création du code impossible.');
+    return;
+  }
   ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)') + ` — ${usageMax} utilisation(s) autorisée(s).`);
 }
 
@@ -4535,6 +4748,13 @@ function validateAndClaimPromoCode_(email, code, serviceId) {
   // compteur d'échecs — sinon un email déjà bloqué resterait bloqué à vie.
   enforceNotLockedOutForPromo_(normalizedEmail, settings);
 
+  // Lecture du quota + incrément sous verrou : endpoint public, donc des
+  // requêtes simultanées sur le même code pourraient sinon toutes lire le
+  // même usage_count et dépasser usage_max.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, merci de réessayer dans un instant.');
+  }
   try {
     const result = claimPromoCode_(normalizedEmail, normalizedCode, svcId);
     clearFailedPromoAttempts_(normalizedEmail);
@@ -4544,6 +4764,8 @@ function validateAndClaimPromoCode_(email, code, serviceId) {
       recordFailedPromoAttempt_(normalizedEmail, settings);
     }
     throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -4557,6 +4779,19 @@ function claimPromoCode_(normalizedEmail, normalizedCode, svcId) {
 
   if (promoRow.statut !== PROMO_CODE_STATUS.ACTIVE) {
     throw new BookingBusinessError_('Ce code promo n\'est plus actif.');
+  }
+
+  // Expiration vérifiée aussi côté public — même règle que la validation
+  // admin (validatePromoCodeForClient_, PromoCodes.gs) : un code périmé mais
+  // encore "active" (statut pas encore rafraîchi) est refusé ET marqué
+  // expiré au passage, pour ne jamais laisser un canal accepter ce que
+  // l'autre refuse.
+  if (promoRow.date_expiration) {
+    const exp = new Date(promoRow.date_expiration);
+    if (!isNaN(exp.getTime()) && exp < new Date()) {
+      updateRow_(TABS.PROMO_CODES, promoRow.rowNumber, { statut: PROMO_CODE_STATUS.EXPIRED });
+      throw new BookingBusinessError_('Ce code promo a expiré.');
+    }
   }
 
   // Défaut 1 (usage unique) si la case est vide — même convention que
@@ -4728,34 +4963,56 @@ function authenticateAdmin_(passwordPlain) {
 }
 
 /**
- * Codes promo actifs et disponibles pour une cliente donnée : réservés à
- * elle (client_id correspondant) ou génériques (client_id vide), actifs, non
- * expirés et pas encore épuisés. Mêmes conditions que
- * validatePromoCodeForClient_ (PromoCodes.gs), en lecture seule ici.
+ * Un code promo est-il encore utilisable à cet instant (actif, non expiré,
+ * quota non épuisé) ? Mêmes conditions que validatePromoCodeForClient_
+ * (PromoCodes.gs), en lecture seule ici — la restriction par cliente
+ * (client_id) se vérifie séparément, selon le contexte d'appel.
  */
-function findActivePromoCodesForClient_(clientId) {
-  const now = new Date();
-  return readAllRows_(TABS.PROMO_CODES).filter((p) => {
-    if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
-    if (p.client_id && p.client_id !== clientId) return false;
-    if (p.date_expiration) {
-      const exp = new Date(p.date_expiration);
-      if (!isNaN(exp.getTime()) && exp < now) return false;
-    }
-    const usageMax = Number(p.usage_max) || 1;
-    const usageCount = Number(p.usage_count) || 0;
-    if (usageCount >= usageMax) return false;
-    return true;
-  }).map((p) => ({
+function isPromoCodeCurrentlyAvailable_(p, now) {
+  if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
+  if (p.date_expiration) {
+    const exp = new Date(p.date_expiration);
+    if (!isNaN(exp.getTime()) && exp < now) return false;
+  }
+  const usageMax = Number(p.usage_max) || 1;
+  const usageCount = Number(p.usage_count) || 0;
+  if (usageCount >= usageMax) return false;
+  return true;
+}
+
+/** Forme renvoyée au site pour un code promo (jamais la ligne brute du Sheet). */
+function promoCodeToDto_(p) {
+  return {
     code: p.code,
     discountType: p.type,
     discountValue: Number(p.value),
-  }));
+  };
 }
 
 /**
- * Vue d'ensemble admin : chaque cliente, ses forfaits actifs et les codes
- * promo qui lui sont applicables. Lecture seule, aucune écriture.
+ * Codes promo actifs et disponibles pour une cliente donnée : réservés à
+ * elle (client_id correspondant) ou génériques (client_id vide), actifs, non
+ * expirés et pas encore épuisés. Utilisé par le tableau de bord /use-package
+ * (une seule cliente à la fois).
+ */
+function findActivePromoCodesForClient_(clientId) {
+  const now = new Date();
+  return readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => isPromoCodeCurrentlyAvailable_(p, now))
+    .filter((p) => !p.client_id || p.client_id === clientId)
+    .map(promoCodeToDto_);
+}
+
+/**
+ * Vue d'ensemble admin : chaque cliente, ses forfaits actifs, ses rendez-vous
+ * à venir et les codes promo qui lui sont applicables.
+ *
+ * Les rendez-vous listés ici sont exactement ceux du Sheet (onglet Bookings) :
+ * les réservations forfait confirmées (qui ont TOUJOURS leur événement Google
+ * Calendar créé au moment de la confirmation — le portail n'est qu'une vue
+ * supplémentaire, jamais une source concurrente du calendrier) et les
+ * réservations externes saisies manuellement (ClassPass / WhatsApp,
+ * external_manual — purement déclaratives, sans événement Calendar).
  */
 function adminGetClientsOverview_(passwordPlain) {
   authenticateAdmin_(passwordPlain);
@@ -4771,6 +5028,29 @@ function adminGetClientsOverview_(passwordPlain) {
     });
   });
 
+  const now = new Date();
+  const bookingsByClient = {};
+  readAllRows_(TABS.BOOKINGS).forEach((b) => {
+    if ([BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.EXTERNAL_MANUAL].indexOf(b.status) === -1) return;
+    if (!(new Date(b.start_datetime) > now)) return;
+    (bookingsByClient[b.client_id] = bookingsByClient[b.client_id] || []).push({
+      serviceId: b.service_id,
+      start: b.start_datetime,
+      end: b.end_datetime,
+      source: b.source || '',
+      status: b.status,
+    });
+  });
+  Object.keys(bookingsByClient).forEach((clientId) => {
+    bookingsByClient[clientId].sort((a, b) => new Date(a.start) - new Date(b.start));
+  });
+
+  // Une seule lecture de Promo_Codes pour toute la vue — surtout pas
+  // findActivePromoCodesForClient_ par cliente, qui relirait l'onglet entier
+  // à chaque itération (N clientes = N lectures, lent et coûteux en quota).
+  const availablePromos = readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
+
   return readAllRows_(TABS.CLIENTS).map((c) => ({
     clientId: c.client_id,
     prenom: c.prenom,
@@ -4778,6 +5058,53 @@ function adminGetClientsOverview_(passwordPlain) {
     email: c.email,
     telephone: c.telephone,
     packages: packagesByClient[c.client_id] || [],
-    activePromoCodes: findActivePromoCodesForClient_(c.client_id),
+    upcomingBookings: bookingsByClient[c.client_id] || [],
+    activePromoCodes: availablePromos
+      .filter((p) => !p.client_id || p.client_id === c.client_id)
+      .map(promoCodeToDto_),
   }));
+}
+
+/**
+ * Création d'un code promo depuis le portail admin web — la seule écriture
+ * autorisée du portail (tout le reste reste en lecture seule). Même mot de
+ * passe + anti brute-force que la vue d'ensemble, et exactement le même cœur
+ * de création/validation que le menu Sheet (createPromoCode_, PromoCodes.gs)
+ * — rien n'est dupliqué, tout est tracé dans Audit_Log (acteur
+ * "admin_portal" pour distinguer l'origine).
+ *
+ * params : { clientEmail (optionnel — vide = code générique), code (optionnel
+ * — vide = généré automatiquement), discountType, discountValue, usageMax
+ * (optionnel, défaut 1), validityDays (optionnel), note (optionnel) }.
+ */
+function adminPortalCreatePromoCode_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  let clientId = '';
+  const clientEmail = String((params && params.clientEmail) || '').trim().toLowerCase();
+  if (clientEmail) {
+    const client = findClientByEmail_(clientEmail);
+    if (!client) throw new BookingBusinessError_('Aucune cliente avec cet email.');
+    clientId = client.client_id;
+  }
+
+  const validityDays = Number((params && params.validityDays) || 0);
+  const dateExpiration = validityDays > 0
+    ? new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000)
+    : '';
+
+  const code = String((params && params.code) || '').trim().toUpperCase() || generateUniquePromoCode_('PROMO');
+
+  createPromoCode_({
+    code: code,
+    clientId: clientId,
+    type: (params && params.discountType) || '',
+    value: (params && params.discountValue),
+    usageMax: Number((params && params.usageMax) || 1),
+    dateExpiration: dateExpiration,
+    notesAdmin: String((params && params.note) || '').trim() || 'Créé depuis le portail admin web',
+    actor: 'admin_portal',
+  });
+
+  return { code: code, clientId: clientId };
 }
