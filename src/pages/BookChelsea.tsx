@@ -192,7 +192,7 @@ export default function BookChelsea() {
                 type="text"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                placeholder="e.g. VIVI08"
+                placeholder="Enter your code"
                 className="w-full border border-[#D4C9BD] bg-[#FAFAF9] px-4 py-3 font-sans text-sm text-[#1A1A1A] uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:border-[#BF944A] transition-colors tracking-widest"
               />
             </div>
