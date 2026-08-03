@@ -145,7 +145,46 @@ function resolveIdempotentBookingResult_(bookingRequestId) {
     // pour ne JAMAIS en créer un deuxième pour la même demande.
     return resumePendingBooking_(existingBooking);
   }
-  return null;
+  // Tout autre statut (annulée, reportée, no-show, saisie externe...) : la
+  // demande a déjà vécu son cycle de vie complet — on ne recrée JAMAIS une
+  // réservation sous le même booking_request_id, sinon deux lignes
+  // porteraient le même identifiant d'idempotence.
+  throw new BookingBusinessError_('Cette demande de réservation a déjà été traitée. Merci de refaire une nouvelle réservation.');
+}
+
+/**
+ * Valide qu'un créneau demandé respecte les règles d'ouverture (jour
+ * travaillé, horaires, fenêtre de réservation) — appliqué au parcours
+ * PUBLIC uniquement : le site ne propose que des créneaux calculés par
+ * computeAvailableSlots (mêmes règles), donc une demande hors règles est
+ * forcément forgée ou périmée. Le parcours admin garde sa liberté
+ * (arrangement exceptionnel hors horaires). Les heures s'évaluent dans le
+ * fuseau du script (appsscript.json, Europe/London) — le même que
+ * computeAvailableSlots, jamais celui du navigateur de la cliente.
+ */
+function assertSlotWithinBookingRules_(startIso, endIso) {
+  const settings = getSettings();
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
+    throw new BookingBusinessError_('Créneau invalide.');
+  }
+  const now = new Date();
+  if (start <= now) {
+    throw new BookingBusinessError_('Ce créneau est déjà passé, merci d\'en choisir un autre.');
+  }
+  if (start > new Date(now.getTime() + settings.lookahead_days * 24 * 60 * 60 * 1000)) {
+    throw new BookingBusinessError_('Ce créneau est au-delà de la fenêtre de réservation, merci d\'en choisir un autre.');
+  }
+  const isoWeekday = ((start.getDay() + 6) % 7) + 1; // JS: 0=dimanche -> ISO: 7=dimanche
+  if (getWorkdaysArray(settings).indexOf(isoWeekday) === -1) {
+    throw new BookingBusinessError_('Ce jour n\'est pas ouvert à la réservation.');
+  }
+  const closingTime = new Date(start);
+  closingTime.setHours(settings.workday_end_hour, 0, 0, 0);
+  if (start.getHours() < settings.workday_start_hour || end > closingTime) {
+    throw new BookingBusinessError_('Ce créneau est en dehors des horaires d\'ouverture.');
+  }
 }
 
 /**
@@ -177,6 +216,9 @@ function createNewPackageBooking_(clientId, packageId, serviceId, startIso, endI
   }
   if (Number(pkg.available_sessions) < 1) {
     throw new BookingBusinessError_('Aucune séance disponible sur ce forfait.');
+  }
+  if (!(meta && meta.isAdminCreated)) {
+    assertSlotWithinBookingRules_(startIso, endIso);
   }
   if (!isSlotStillFree(startIso, endIso)) {
     throw new BookingBusinessError_('Ce créneau vient d\'être réservé par quelqu\'un d\'autre. Merci d\'en choisir un autre.');

@@ -147,6 +147,30 @@ function adminGetClientsOverview_(passwordPlain) {
   const availablePromos = readAllRows_(TABS.PROMO_CODES)
     .filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
 
+  // Paiements (la vue "commandes") par cliente — plus récents d'abord, avec
+  // total net confirmé, pour suivre les achats sans ouvrir le Sheet. Les
+  // montants ne sont visibles qu'ici, derrière le mot de passe admin —
+  // jamais dans le tableau de bord cliente /use-package.
+  const paymentsByClient = {};
+  const totalNetByClient = {};
+  readAllRows_(TABS.PAYMENTS).forEach((p) => {
+    (paymentsByClient[p.client_id] = paymentsByClient[p.client_id] || []).push({
+      date: p.date_paiement,
+      montantBrut: Number(p.montant_brut) || 0,
+      montantNet: Number(p.montant_net) || 0,
+      devise: p.devise || 'GBP',
+      moyen: p.moyen_paiement,
+      statut: p.statut_paiement,
+      packageId: p.package_id,
+    });
+    if (p.statut_paiement === PAYMENT_STATUS.CONFIRME) {
+      totalNetByClient[p.client_id] = (totalNetByClient[p.client_id] || 0) + (Number(p.montant_net) || 0);
+    }
+  });
+  Object.keys(paymentsByClient).forEach((cid) => {
+    paymentsByClient[cid].sort((a, b) => new Date(b.date) - new Date(a.date));
+  });
+
   return readAllRows_(TABS.CLIENTS).map((c) => ({
     clientId: c.client_id,
     prenom: c.prenom,
@@ -155,6 +179,10 @@ function adminGetClientsOverview_(passwordPlain) {
     telephone: c.telephone,
     packages: packagesByClient[c.client_id] || [],
     upcomingBookings: bookingsByClient[c.client_id] || [],
+    // Les 5 paiements les plus récents suffisent pour la vue d'ensemble —
+    // l'historique complet reste dans la Fiche_Client (menu Sheet).
+    payments: (paymentsByClient[c.client_id] || []).slice(0, 5),
+    totalNetConfirmed: Number((totalNetByClient[c.client_id] || 0).toFixed(2)),
     activePromoCodes: availablePromos
       .filter((p) => !p.client_id || p.client_id === c.client_id)
       .map(promoCodeToDto_),

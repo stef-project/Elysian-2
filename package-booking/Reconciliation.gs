@@ -152,7 +152,49 @@ function runReconciliationCheck() {
       writeAuditLog_('system', 'promo_code_expired_reconciliation', p.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
     });
 
+  // --- Nettoyage : codes de vérification et jetons de session périmés ---
+  // Une ligne est écrite à CHAQUE demande de code / session, et chaque
+  // vérification relit tout l'onglet : sans purge, le parcours cliente
+  // ralentit indéfiniment. Aucune valeur à conserver au-delà de quelques
+  // jours — l'Audit_Log garde déjà la trace de chaque demande, et seules
+  // des lignes expirées (inutilisables) sont supprimées.
+  purgeExpiredRows_(TABS.VERIFICATION_CODES, 'expires_at', 7);
+  purgeExpiredRows_(TABS.SESSION_TOKENS, 'expires_at', 7);
+
   // --- Écriture des anomalies détectées ---
+  writeReconciliationIssues_(issues);
+
+  Logger.log(`Réconciliation terminée : ${issues.length} anomalie(s) signalée(s).`);
+  return issues.length;
+}
+
+/**
+ * Supprime les lignes d'un onglet dont la colonne d'expiration est dépassée
+ * depuis plus de retentionDays jours. Suppression de bas en haut pour que
+ * les numéros de ligne restent valides pendant l'opération.
+ */
+function purgeExpiredRows_(tabName, expiryColumn, retentionDays) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const sh = sheet_(tabName);
+  if (!sh) return;
+
+  const toDelete = readAllRows_(tabName)
+    .filter((r) => {
+      const exp = new Date(r[expiryColumn]);
+      return !isNaN(exp.getTime()) && exp < cutoff;
+    })
+    .map((r) => r.rowNumber)
+    .sort((a, b) => b - a);
+
+  toDelete.forEach((rowNumber) => sh.deleteRow(rowNumber));
+  if (toDelete.length > 0) {
+    writeAuditLog_('system', 'purge_expired_rows', tabName, '', String(toDelete.length),
+      `Lignes expirées depuis plus de ${retentionDays} jours supprimées (réconciliation quotidienne)`);
+  }
+}
+
+/** Écrit les anomalies détectées dans l'onglet Reconciliation_Issues. */
+function writeReconciliationIssues_(issues) {
   issues.forEach(([type, entity, details]) => {
     appendRow_(TABS.RECONCILIATION_ISSUES, {
       timestamp_detection: new Date(),
@@ -163,7 +205,4 @@ function runReconciliationCheck() {
       resolution_notes: '',
     });
   });
-
-  Logger.log(`Réconciliation terminée : ${issues.length} anomalie(s) signalée(s).`);
-  return issues.length;
 }

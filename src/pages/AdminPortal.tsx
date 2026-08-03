@@ -316,9 +316,10 @@ export default function AdminPortal() {
 
                   {c.packages.length === 0 &&
                     c.upcomingBookings.length === 0 &&
+                    c.payments.length === 0 &&
                     c.activePromoCodes.length === 0 && (
                       <p className="font-sans text-xs text-muted-foreground/70">
-                        No active packages, upcoming appointments or promo codes.
+                        No active packages, upcoming appointments, payments or promo codes.
                       </p>
                     )}
 
@@ -350,6 +351,29 @@ export default function AdminPortal() {
                           <span className="text-muted-foreground">Next appointment</span>
                           <span>
                             {formatDateTime(b.start)} · {serviceLabel(b.serviceId)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {c.payments.length > 0 && (
+                    <div className="space-y-1 mb-2 border-t border-border/50 pt-2">
+                      <p className="font-sans text-xs uppercase tracking-widest text-muted-foreground">
+                        Recent payments · total {c.totalNetConfirmed.toFixed(2)} GBP net
+                      </p>
+                      {c.payments.map((pay, i) => (
+                        <div key={`${pay.date}-${i}`} className="flex justify-between font-sans text-sm">
+                          <span className="text-muted-foreground">
+                            {new Date(pay.date).toLocaleDateString("en-GB")} · {pay.moyen.split("_").join(" ")}
+                          </span>
+                          <span>
+                            {pay.montantBrut.toFixed(2)} {pay.devise}
+                            {pay.statut !== "confirme" && (
+                              <span className="ml-2 text-xs uppercase tracking-widest text-[#BF944A]">
+                                {pay.statut === "a_confirmer" ? "to confirm" : pay.statut}
+                              </span>
+                            )}
                           </span>
                         </div>
                       ))}
