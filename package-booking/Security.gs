@@ -110,6 +110,47 @@ function clearFailedAttempts_(email) {
   props.deleteProperty('lockout::' + String(email).toLowerCase());
 }
 
+/**
+ * Anti brute-force dédié à la validation de codes promo (endpoint public
+ * validate-promo, sans OTP contrairement au reste du parcours cliente) —
+ * mêmes principes que enforceNotLockedOut_/recordFailedAttempt_ mais sous
+ * des clés Properties distinctes ('promo_lockout::'/'promo_failcount::'),
+ * pour ne jamais mélanger ce compteur avec celui des codes de vérification.
+ */
+function enforceNotLockedOutForPromo_(email, settings) {
+  const props = PropertiesService.getScriptProperties();
+  const key = 'promo_lockout::' + String(email).toLowerCase();
+  const lockedUntilRaw = props.getProperty(key);
+  if (lockedUntilRaw) {
+    const lockedUntil = new Date(lockedUntilRaw);
+    if (lockedUntil > new Date()) {
+      throw new RateLimitError_('Trop de tentatives de code promo. Réessaie plus tard.');
+    }
+  }
+}
+
+/** Enregistre une tentative de code promo échouée ; déclenche un blocage temporaire si le seuil est dépassé. */
+function recordFailedPromoAttempt_(email, settings) {
+  const props = PropertiesService.getScriptProperties();
+  const countKey = 'promo_failcount::' + String(email).toLowerCase();
+  const count = parseInt(props.getProperty(countKey) || '0', 10) + 1;
+  props.setProperty(countKey, String(count));
+
+  const maxAttempts = settings.max_promo_validation_attempts || 5;
+  if (count >= maxAttempts) {
+    const lockedUntil = new Date(Date.now() + settings.lockout_duration_minutes * 60 * 1000);
+    props.setProperty('promo_lockout::' + String(email).toLowerCase(), lockedUntil.toISOString());
+    props.deleteProperty(countKey);
+  }
+}
+
+/** Réinitialise le compteur d'échecs de validation promo après une réussite. */
+function clearFailedPromoAttempts_(email) {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('promo_failcount::' + String(email).toLowerCase());
+  props.deleteProperty('promo_lockout::' + String(email).toLowerCase());
+}
+
 /** Erreur dédiée pour les cas de rate limiting, distinguée des erreurs métier. */
 function RateLimitError_(message) {
   this.name = 'RateLimitError';

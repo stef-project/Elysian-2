@@ -440,6 +440,30 @@ réservés à une cliente précise (`client_id` renseigné) ou génériques
 - **Annuler un code promo** : passe un code `active` à `cancelled`,
   quel que soit son usage restant.
 
+### Validation de code promo côté client (`/book-chelsea`, `Promo_Code_Claims`)
+
+En plus de la saisie admin ci-dessus, un code promo peut aussi être validé
+directement par la cliente sur `/book-chelsea` (email + code, action GAS
+`validate-promo`, `PromoCodeClaims.gs`) avant redirection vers le calendrier
+Chelsea. Chaque validation crée une ligne dans `Promo_Code_Claims`
+(`claim_id`, `code`, `client_email`, `service_id`, `discount_type`,
+`discount_value`, `claimed_at`, `booking_status`) et incrémente
+`usage_count` sur `Promo_Codes` — un même (email, code) ne peut jamais
+réclamer deux fois.
+
+⚠️ Cet endpoint est **public et sans vérification OTP** (contrairement au
+reste du parcours cliente) — protégé par son propre anti brute-force
+(`enforceNotLockedOutForPromo_`/`recordFailedPromoAttempt_`, `Security.gs`,
+réglage `max_promo_validation_attempts`, défaut 5 tentatives échouées avant
+blocage `lockout_duration_minutes`), pour empêcher de deviner des codes ou
+d'épuiser le quota d'un code multi-usages par tentatives automatisées.
+
+`usage_count` est incrémenté **dès la validation**, avant même que la
+cliente ait réellement réservé sur Google Calendar — si elle abandonne,
+utilise **Libérer une réclamation abandonnée** (menu Croissance clientèle,
+`adminReleasePromoClaim`, à partir du `claim_id` visible dans
+`Promo_Code_Claims`) pour restaurer le quota consommé.
+
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
 - Fonction : `runDailyNotifications`

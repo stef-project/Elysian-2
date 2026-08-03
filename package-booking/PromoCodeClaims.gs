@@ -7,6 +7,12 @@
  *  Un code promo est valide UNE SEULE FOIS par email client.
  *  Appelé depuis WebApp.gs (action 'validate-promo').
  *
+ *  ⚠️ Endpoint public, SANS vérification OTP (contrairement au reste du
+ *  parcours cliente) — donc protégé par son propre anti brute-force
+ *  (enforceNotLockedOutForPromo_/recordFailedPromoAttempt_, Security.gs,
+ *  clés Properties dédiées 'promo_*') pour empêcher de deviner des codes
+ *  ou d'épuiser le quota d'un code multi-usages par tentatives automatisées.
+ *
  *  La fonction enregistre immédiatement la réclamation dans
  *  Promo_Code_Claims dès la validation — l'email est ainsi "verrouillé"
  *  avant même que le client arrive sur Google Calendar. Si la réservation
@@ -22,30 +28,53 @@
  * @param {string} serviceId    - Soin sélectionné (ex. 'lymphatic-1z')
  * @returns {{ discountType, discountValue, message }}
  * @throws BookingBusinessError_ si le code est invalide, expiré ou déjà utilisé
+ * @throws RateLimitError_ si trop de tentatives récentes pour cet email
  */
 function validateAndClaimPromoCode_(email, code, serviceId) {
   if (!email || !code) {
     throw new BookingBusinessError_('Email et code promo requis.');
   }
 
+  const settings = getSettings();
   const normalizedEmail = String(email).trim().toLowerCase();
   const normalizedCode  = String(code).trim().toUpperCase();
   const svcId           = String(serviceId || '').trim();
 
+  // Le verrouillage lui-même (RateLimitError_) n'est jamais "absorbé" par le
+  // compteur d'échecs — sinon un email déjà bloqué resterait bloqué à vie.
+  enforceNotLockedOutForPromo_(normalizedEmail, settings);
+
+  try {
+    const result = claimPromoCode_(normalizedEmail, normalizedCode, svcId);
+    clearFailedPromoAttempts_(normalizedEmail);
+    return result;
+  } catch (err) {
+    if (err instanceof BookingBusinessError_) {
+      recordFailedPromoAttempt_(normalizedEmail, settings);
+    }
+    throw err;
+  }
+}
+
+/** @private Cœur de la validation/réclamation — séparé pour isoler le comptage anti brute-force. */
+function claimPromoCode_(normalizedEmail, normalizedCode, svcId) {
   // --- 1. Chercher le code dans Promo_Codes ---
   const promoRow = findRowBy_(TABS.PROMO_CODES, 'code', normalizedCode);
   if (!promoRow) {
     throw new BookingBusinessError_('Code promo invalide.');
   }
 
-  if (promoRow.statut !== 'active') {
+  if (promoRow.statut !== PROMO_CODE_STATUS.ACTIVE) {
     throw new BookingBusinessError_('Ce code promo n\'est plus actif.');
   }
 
-  const usageMax   = Number(promoRow.usage_max)   || 0;
+  // Défaut 1 (usage unique) si la case est vide — même convention que
+  // validatePromoCodeForClient_ (PromoCodes.gs), pour que le même code se
+  // comporte identiquement qu'il soit validé côté admin ou côté client.
+  const usageMax   = Number(promoRow.usage_max)   || 1;
   const usageCount = Number(promoRow.usage_count) || 0;
 
-  if (usageMax > 0 && usageCount >= usageMax) {
+  if (usageCount >= usageMax) {
     throw new BookingBusinessError_('Ce code promo a atteint sa limite d\'utilisation globale.');
   }
 
@@ -110,4 +139,39 @@ function findExistingClaim_(normalizedEmail, normalizedCode) {
       String(r.client_email).trim().toLowerCase() === normalizedEmail &&
       String(r.code).trim().toUpperCase()         === normalizedCode
   ) || null;
+}
+
+/**
+ * Libère le quota consommé par une réclamation abandonnée (cliente qui a
+ * validé un code mais n'a jamais finalisé sa réservation sur Calendar) —
+ * décrémente usage_count sur Promo_Codes et marque la réclamation
+ * "released" pour ne jamais la libérer deux fois. Sans cette fonction,
+ * un usage_count incrémenté à la validation (avant même la réservation)
+ * resterait consommé indéfiniment en cas d'abandon.
+ */
+function adminReleasePromoClaim() {
+  const ui = ui_();
+  const claimId = ui.prompt('claim_id de la réclamation à libérer (voir onglet Promo_Code_Claims) :').getResponseText().trim();
+  const claim = findRowBy_(TABS.PROMO_CODE_CLAIMS, 'claim_id', claimId);
+  if (!claim) { ui.alert('Réclamation introuvable.'); return; }
+  if (claim.booking_status === 'released') { ui.alert('Cette réclamation a déjà été libérée.'); return; }
+
+  const promo = findPromoCodeByCode_(claim.code);
+  if (!promo) { ui.alert('Code promo introuvable, opération annulée.'); return; }
+
+  const usageCount = Number(promo.usage_count) || 0;
+  const newUsageCount = Math.max(0, usageCount - 1);
+  updateRow_(TABS.PROMO_CODES, promo.rowNumber, {
+    usage_count: newUsageCount,
+    // Si le code avait été marqué épuisé par cette réclamation, le rouvrir.
+    statut: promo.statut === PROMO_CODE_STATUS.USED ? PROMO_CODE_STATUS.ACTIVE : promo.statut,
+  });
+  updateRow_(TABS.PROMO_CODE_CLAIMS, claim.rowNumber, { booking_status: 'released' });
+
+  writeAuditLog_(
+    'admin', 'release_promo_claim', claim.claim_id,
+    `usage_count=${usageCount}`, `usage_count=${newUsageCount}`,
+    `Code ${claim.code}, email ${claim.client_email}`
+  );
+  ui.alert(`Réclamation libérée. Quota du code ${claim.code} restauré (usage_count : ${newUsageCount}).`);
 }
