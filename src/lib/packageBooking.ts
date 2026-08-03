@@ -179,6 +179,18 @@ export type AdminClientOverview = {
   // (leur événement Google Calendar existe déjà — le portail n'est qu'une
   // vue) + réservations externes saisies manuellement (ClassPass/WhatsApp).
   upcomingBookings: AdminUpcomingBooking[];
+  // Les 5 paiements les plus récents (la vue "commandes") — l'historique
+  // complet reste dans la Fiche_Client côté Sheet.
+  payments: {
+    date: string;
+    montantBrut: number;
+    montantNet: number;
+    devise: string;
+    moyen: string;
+    statut: string;
+    packageId: string;
+  }[];
+  totalNetConfirmed: number;
   activePromoCodes: ActivePromoCode[];
 };
 

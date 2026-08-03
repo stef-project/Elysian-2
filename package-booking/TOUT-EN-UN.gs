@@ -1184,7 +1184,46 @@ function resolveIdempotentBookingResult_(bookingRequestId) {
     // pour ne JAMAIS en créer un deuxième pour la même demande.
     return resumePendingBooking_(existingBooking);
   }
-  return null;
+  // Tout autre statut (annulée, reportée, no-show, saisie externe...) : la
+  // demande a déjà vécu son cycle de vie complet — on ne recrée JAMAIS une
+  // réservation sous le même booking_request_id, sinon deux lignes
+  // porteraient le même identifiant d'idempotence.
+  throw new BookingBusinessError_('Cette demande de réservation a déjà été traitée. Merci de refaire une nouvelle réservation.');
+}
+
+/**
+ * Valide qu'un créneau demandé respecte les règles d'ouverture (jour
+ * travaillé, horaires, fenêtre de réservation) — appliqué au parcours
+ * PUBLIC uniquement : le site ne propose que des créneaux calculés par
+ * computeAvailableSlots (mêmes règles), donc une demande hors règles est
+ * forcément forgée ou périmée. Le parcours admin garde sa liberté
+ * (arrangement exceptionnel hors horaires). Les heures s'évaluent dans le
+ * fuseau du script (appsscript.json, Europe/London) — le même que
+ * computeAvailableSlots, jamais celui du navigateur de la cliente.
+ */
+function assertSlotWithinBookingRules_(startIso, endIso) {
+  const settings = getSettings();
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
+    throw new BookingBusinessError_('Créneau invalide.');
+  }
+  const now = new Date();
+  if (start <= now) {
+    throw new BookingBusinessError_('Ce créneau est déjà passé, merci d\'en choisir un autre.');
+  }
+  if (start > new Date(now.getTime() + settings.lookahead_days * 24 * 60 * 60 * 1000)) {
+    throw new BookingBusinessError_('Ce créneau est au-delà de la fenêtre de réservation, merci d\'en choisir un autre.');
+  }
+  const isoWeekday = ((start.getDay() + 6) % 7) + 1; // JS: 0=dimanche -> ISO: 7=dimanche
+  if (getWorkdaysArray(settings).indexOf(isoWeekday) === -1) {
+    throw new BookingBusinessError_('Ce jour n\'est pas ouvert à la réservation.');
+  }
+  const closingTime = new Date(start);
+  closingTime.setHours(settings.workday_end_hour, 0, 0, 0);
+  if (start.getHours() < settings.workday_start_hour || end > closingTime) {
+    throw new BookingBusinessError_('Ce créneau est en dehors des horaires d\'ouverture.');
+  }
 }
 
 /**
@@ -1216,6 +1255,9 @@ function createNewPackageBooking_(clientId, packageId, serviceId, startIso, endI
   }
   if (Number(pkg.available_sessions) < 1) {
     throw new BookingBusinessError_('Aucune séance disponible sur ce forfait.');
+  }
+  if (!(meta && meta.isAdminCreated)) {
+    assertSlotWithinBookingRules_(startIso, endIso);
   }
   if (!isSlotStillFree(startIso, endIso)) {
     throw new BookingBusinessError_('Ce créneau vient d\'être réservé par quelqu\'un d\'autre. Merci d\'en choisir un autre.');
@@ -2453,7 +2495,49 @@ function runReconciliationCheck() {
       writeAuditLog_('system', 'promo_code_expired_reconciliation', p.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
     });
 
+  // --- Nettoyage : codes de vérification et jetons de session périmés ---
+  // Une ligne est écrite à CHAQUE demande de code / session, et chaque
+  // vérification relit tout l'onglet : sans purge, le parcours cliente
+  // ralentit indéfiniment. Aucune valeur à conserver au-delà de quelques
+  // jours — l'Audit_Log garde déjà la trace de chaque demande, et seules
+  // des lignes expirées (inutilisables) sont supprimées.
+  purgeExpiredRows_(TABS.VERIFICATION_CODES, 'expires_at', 7);
+  purgeExpiredRows_(TABS.SESSION_TOKENS, 'expires_at', 7);
+
   // --- Écriture des anomalies détectées ---
+  writeReconciliationIssues_(issues);
+
+  Logger.log(`Réconciliation terminée : ${issues.length} anomalie(s) signalée(s).`);
+  return issues.length;
+}
+
+/**
+ * Supprime les lignes d'un onglet dont la colonne d'expiration est dépassée
+ * depuis plus de retentionDays jours. Suppression de bas en haut pour que
+ * les numéros de ligne restent valides pendant l'opération.
+ */
+function purgeExpiredRows_(tabName, expiryColumn, retentionDays) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const sh = sheet_(tabName);
+  if (!sh) return;
+
+  const toDelete = readAllRows_(tabName)
+    .filter((r) => {
+      const exp = new Date(r[expiryColumn]);
+      return !isNaN(exp.getTime()) && exp < cutoff;
+    })
+    .map((r) => r.rowNumber)
+    .sort((a, b) => b - a);
+
+  toDelete.forEach((rowNumber) => sh.deleteRow(rowNumber));
+  if (toDelete.length > 0) {
+    writeAuditLog_('system', 'purge_expired_rows', tabName, '', String(toDelete.length),
+      `Lignes expirées depuis plus de ${retentionDays} jours supprimées (réconciliation quotidienne)`);
+  }
+}
+
+/** Écrit les anomalies détectées dans l'onglet Reconciliation_Issues. */
+function writeReconciliationIssues_(issues) {
   issues.forEach(([type, entity, details]) => {
     appendRow_(TABS.RECONCILIATION_ISSUES, {
       timestamp_detection: new Date(),
@@ -2464,9 +2548,6 @@ function runReconciliationCheck() {
       resolution_notes: '',
     });
   });
-
-  Logger.log(`Réconciliation terminée : ${issues.length} anomalie(s) signalée(s).`);
-  return issues.length;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -5172,6 +5253,30 @@ function adminGetClientsOverview_(passwordPlain) {
   const availablePromos = readAllRows_(TABS.PROMO_CODES)
     .filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
 
+  // Paiements (la vue "commandes") par cliente — plus récents d'abord, avec
+  // total net confirmé, pour suivre les achats sans ouvrir le Sheet. Les
+  // montants ne sont visibles qu'ici, derrière le mot de passe admin —
+  // jamais dans le tableau de bord cliente /use-package.
+  const paymentsByClient = {};
+  const totalNetByClient = {};
+  readAllRows_(TABS.PAYMENTS).forEach((p) => {
+    (paymentsByClient[p.client_id] = paymentsByClient[p.client_id] || []).push({
+      date: p.date_paiement,
+      montantBrut: Number(p.montant_brut) || 0,
+      montantNet: Number(p.montant_net) || 0,
+      devise: p.devise || 'GBP',
+      moyen: p.moyen_paiement,
+      statut: p.statut_paiement,
+      packageId: p.package_id,
+    });
+    if (p.statut_paiement === PAYMENT_STATUS.CONFIRME) {
+      totalNetByClient[p.client_id] = (totalNetByClient[p.client_id] || 0) + (Number(p.montant_net) || 0);
+    }
+  });
+  Object.keys(paymentsByClient).forEach((cid) => {
+    paymentsByClient[cid].sort((a, b) => new Date(b.date) - new Date(a.date));
+  });
+
   return readAllRows_(TABS.CLIENTS).map((c) => ({
     clientId: c.client_id,
     prenom: c.prenom,
@@ -5180,6 +5285,10 @@ function adminGetClientsOverview_(passwordPlain) {
     telephone: c.telephone,
     packages: packagesByClient[c.client_id] || [],
     upcomingBookings: bookingsByClient[c.client_id] || [],
+    // Les 5 paiements les plus récents suffisent pour la vue d'ensemble —
+    // l'historique complet reste dans la Fiche_Client (menu Sheet).
+    payments: (paymentsByClient[c.client_id] || []).slice(0, 5),
+    totalNetConfirmed: Number((totalNetByClient[c.client_id] || 0).toFixed(2)),
     activePromoCodes: availablePromos
       .filter((p) => !p.client_id || p.client_id === c.client_id)
       .map(promoCodeToDto_),

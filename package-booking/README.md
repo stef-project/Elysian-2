@@ -138,6 +138,10 @@ la bascule.
   horaire creuse (ex. 3h–4h du matin).
 
 Les anomalies détectées apparaissent dans l'onglet `Reconciliation_Issues`.
+La réconciliation purge aussi les lignes périmées de `Verification_Codes`
+et `Session_Tokens` (expirées depuis plus de 7 jours) — sans ça, ces
+onglets grossissent à chaque demande de code et ralentissent le parcours
+cliente ; l'`Audit_Log` conserve la trace de chaque demande.
 
 ## 9. Utilisation quotidienne (menu Elysian Admin)
 
@@ -536,7 +540,11 @@ tracée dans `Audit_Log` (acteur `admin_portal`) :
 
 La vue d'ensemble affiche aussi les forfaits **en attente de paiement**
 (badge « awaiting payment ») pour faciliter la relance — ils restent non
-réservables tant que le paiement n'est pas confirmé, comme partout.
+réservables tant que le paiement n'est pas confirmé, comme partout — et les
+**5 derniers paiements de chaque cliente** (date, moyen, montant, statut)
+avec le **total net confirmé** : la vue « commandes », sans ouvrir le
+Sheet. L'historique complet reste dans la Fiche_Client. Les montants ne
+sont visibles que derrière le mot de passe admin, jamais côté cliente.
 
 Authentification volontairement simple (un seul compte, pas de rôles) : un
 mot de passe unique, jamais stocké en clair (hash HMAC, `Security.gs`),
