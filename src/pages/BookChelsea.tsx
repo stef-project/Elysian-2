@@ -108,7 +108,7 @@ export default function BookChelsea() {
           Book Chelsea
         </h1>
         <p className="font-sans text-sm text-muted-foreground font-light mb-2 text-center">
-          Lymphatic Drainage · 1 Zone
+          Lymphatic Drainage, Post-Op, Pre/Postnatal
         </p>
         <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-10 text-center">
           Every Friday · 60 min
@@ -190,7 +190,7 @@ export default function BookChelsea() {
             <div className="border border-[#D4C9BD] p-6 text-left space-y-3">
               <div className="flex justify-between items-baseline">
                 <span className="font-sans text-xs text-muted-foreground uppercase tracking-[0.1em]">
-                  Lymphatic Drainage 1 Zone
+                  Session price
                 </span>
                 <span className="font-sans text-sm line-through text-muted-foreground">
                   £{FULL_PRICE}
