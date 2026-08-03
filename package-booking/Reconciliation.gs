@@ -111,6 +111,18 @@ function runReconciliationCheck() {
     }
   });
 
+  // --- Forfaits orphelins : client_id sans ligne Clients correspondante ---
+  // Cause typique : une cliente supprimée à la main dans l'onglet Clients
+  // alors que ses forfaits restent. Ces forfaits deviennent invisibles dans
+  // /admin (la vue part des clientes) — signalé, jamais corrigé d'office.
+  const knownClientIds = new Set(readAllRows_(TABS.CLIENTS).map((c) => String(c.client_id).trim()));
+  packages
+    .filter((p) => p.client_id && !knownClientIds.has(String(p.client_id).trim()))
+    .forEach((p) => issues.push([
+      'package_orphan_client', p.package_id,
+      `client_id "${p.client_id}" introuvable dans Clients (cliente supprimée ?) — forfait invisible dans /admin`,
+    ]));
+
   // --- Correction automatique sûre : pending ancien sans calendar_event_id ---
   const staleThreshold = new Date(Date.now() - settings.reconciliation_stale_pending_minutes * 60 * 1000);
   bookings

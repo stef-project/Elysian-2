@@ -164,6 +164,7 @@ export default function AdminPortal() {
   const [error, setError] = useState("");
   const [clients, setClients] = useState<AdminClientOverview[] | null>(null);
   const [search, setSearch] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const load = async (pwd: string) => {
     setLoading(true);
@@ -171,6 +172,7 @@ export default function AdminPortal() {
     try {
       const data = await adminGetClientsOverview(pwd);
       setClients(data);
+      setLastUpdated(new Date());
       sessionStorage.setItem(PASSWORD_STORAGE_KEY, pwd);
     } catch (err) {
       sessionStorage.removeItem(PASSWORD_STORAGE_KEY);
@@ -179,6 +181,25 @@ export default function AdminPortal() {
       setLoading(false);
     }
   };
+
+  // Le portail ne chargeait les données qu'une fois, à la connexion : tout
+  // changement fait ensuite dans le Sheet (forfait ajouté, code annulé,
+  // cliente supprimée) restait invisible ou fantôme jusqu'à la déconnexion.
+  // Re-synchronisation : au retour sur l'onglet + toutes les 60 s + bouton.
+  useEffect(() => {
+    if (clients === null) return;
+    const refetch = () => {
+      const saved = sessionStorage.getItem(PASSWORD_STORAGE_KEY);
+      if (saved && document.visibilityState === "visible") load(saved);
+    };
+    const intervalId = window.setInterval(refetch, 60000);
+    window.addEventListener("focus", refetch);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients === null]);
 
   // Reste connectée pour le reste de l'onglet : le mot de passe ne survit
   // jamais à la fermeture de l'onglet (sessionStorage, pas localStorage).
@@ -263,6 +284,20 @@ export default function AdminPortal() {
                 placeholder="Search by name or email"
                 className="flex-1 max-w-sm bg-transparent border-b border-border py-2 focus:outline-none focus:border-primary transition-colors font-sans text-sm"
               />
+              <span className="font-sans text-xs text-muted-foreground">
+                {loading
+                  ? "Refreshing…"
+                  : lastUpdated
+                    ? `Updated ${lastUpdated.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                    : ""}
+              </span>
+              <button
+                onClick={() => load(password)}
+                disabled={loading}
+                className="font-sans text-xs text-muted-foreground hover:text-primary transition-colors underline disabled:opacity-50"
+              >
+                Refresh
+              </button>
               <button
                 onClick={() => {
                   sessionStorage.removeItem(PASSWORD_STORAGE_KEY);

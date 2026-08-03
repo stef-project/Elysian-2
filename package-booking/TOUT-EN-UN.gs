@@ -2454,6 +2454,18 @@ function runReconciliationCheck() {
     }
   });
 
+  // --- Forfaits orphelins : client_id sans ligne Clients correspondante ---
+  // Cause typique : une cliente supprimée à la main dans l'onglet Clients
+  // alors que ses forfaits restent. Ces forfaits deviennent invisibles dans
+  // /admin (la vue part des clientes) — signalé, jamais corrigé d'office.
+  const knownClientIds = new Set(readAllRows_(TABS.CLIENTS).map((c) => String(c.client_id).trim()));
+  packages
+    .filter((p) => p.client_id && !knownClientIds.has(String(p.client_id).trim()))
+    .forEach((p) => issues.push([
+      'package_orphan_client', p.package_id,
+      `client_id "${p.client_id}" introuvable dans Clients (cliente supprimée ?) — forfait invisible dans /admin`,
+    ]));
+
   // --- Correction automatique sûre : pending ancien sans calendar_event_id ---
   const staleThreshold = new Date(Date.now() - settings.reconciliation_stale_pending_minutes * 60 * 1000);
   bookings
@@ -5161,13 +5173,22 @@ function authenticateAdmin_(passwordPlain) {
 }
 
 /**
+ * Normalise un statut lu dans le Sheet pour comparaison (espaces parasites,
+ * casse) — une cellule retouchée à la main ("Active ", "ACTIVE") ne doit
+ * jamais faire disparaître silencieusement une ligne du portail.
+ */
+function normStatus_(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+/**
  * Un code promo est-il encore utilisable à cet instant (actif, non expiré,
  * quota non épuisé) ? Mêmes conditions que validatePromoCodeForClient_
  * (PromoCodes.gs), en lecture seule ici — la restriction par cliente
  * (client_id) se vérifie séparément, selon le contexte d'appel.
  */
 function isPromoCodeCurrentlyAvailable_(p, now) {
-  if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
+  if (normStatus_(p.statut) !== PROMO_CODE_STATUS.ACTIVE) return false;
   if (p.date_expiration) {
     const exp = new Date(p.date_expiration);
     if (!isNaN(exp.getTime()) && exp < now) return false;
@@ -5220,22 +5241,24 @@ function adminGetClientsOverview_(passwordPlain) {
   // réservables (findEligiblePackages_/confirmPackageBooking exigent ACTIVE).
   const packagesByClient = {};
   readAllRows_(TABS.PACKAGES).forEach((pkg) => {
-    if ([PACKAGE_STATUS.ACTIVE, PACKAGE_STATUS.PENDING_PAYMENT].indexOf(pkg.statut) === -1) return;
-    (packagesByClient[pkg.client_id] = packagesByClient[pkg.client_id] || []).push({
+    const statut = normStatus_(pkg.statut);
+    if ([PACKAGE_STATUS.ACTIVE, PACKAGE_STATUS.PENDING_PAYMENT].indexOf(statut) === -1) return;
+    const cid = String(pkg.client_id || '').trim();
+    (packagesByClient[cid] = packagesByClient[cid] || []).push({
       packageName: pkg.nom_forfait,
       availableSessions: Number(pkg.available_sessions),
       totalSessions: Number(pkg.total_sessions),
       dateExpiration: pkg.date_expiration || '',
-      statut: pkg.statut,
+      statut: statut,
     });
   });
 
   const now = new Date();
   const bookingsByClient = {};
   readAllRows_(TABS.BOOKINGS).forEach((b) => {
-    if ([BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.EXTERNAL_MANUAL].indexOf(b.status) === -1) return;
+    if ([BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.EXTERNAL_MANUAL].indexOf(normStatus_(b.status)) === -1) return;
     if (!(new Date(b.start_datetime) > now)) return;
-    (bookingsByClient[b.client_id] = bookingsByClient[b.client_id] || []).push({
+    (bookingsByClient[String(b.client_id || '').trim()] = bookingsByClient[String(b.client_id || '').trim()] || []).push({
       serviceId: b.service_id,
       start: b.start_datetime,
       end: b.end_datetime,
@@ -5260,39 +5283,43 @@ function adminGetClientsOverview_(passwordPlain) {
   const paymentsByClient = {};
   const totalNetByClient = {};
   readAllRows_(TABS.PAYMENTS).forEach((p) => {
-    (paymentsByClient[p.client_id] = paymentsByClient[p.client_id] || []).push({
+    const cid = String(p.client_id || '').trim();
+    (paymentsByClient[cid] = paymentsByClient[cid] || []).push({
       date: p.date_paiement,
       montantBrut: Number(p.montant_brut) || 0,
       montantNet: Number(p.montant_net) || 0,
       devise: p.devise || 'GBP',
       moyen: p.moyen_paiement,
-      statut: p.statut_paiement,
+      statut: normStatus_(p.statut_paiement),
       packageId: p.package_id,
     });
-    if (p.statut_paiement === PAYMENT_STATUS.CONFIRME) {
-      totalNetByClient[p.client_id] = (totalNetByClient[p.client_id] || 0) + (Number(p.montant_net) || 0);
+    if (normStatus_(p.statut_paiement) === PAYMENT_STATUS.CONFIRME) {
+      totalNetByClient[cid] = (totalNetByClient[cid] || 0) + (Number(p.montant_net) || 0);
     }
   });
   Object.keys(paymentsByClient).forEach((cid) => {
     paymentsByClient[cid].sort((a, b) => new Date(b.date) - new Date(a.date));
   });
 
-  return readAllRows_(TABS.CLIENTS).map((c) => ({
-    clientId: c.client_id,
-    prenom: c.prenom,
-    nom: c.nom,
-    email: c.email,
-    telephone: c.telephone,
-    packages: packagesByClient[c.client_id] || [],
-    upcomingBookings: bookingsByClient[c.client_id] || [],
-    // Les 5 paiements les plus récents suffisent pour la vue d'ensemble —
-    // l'historique complet reste dans la Fiche_Client (menu Sheet).
-    payments: (paymentsByClient[c.client_id] || []).slice(0, 5),
-    totalNetConfirmed: Number((totalNetByClient[c.client_id] || 0).toFixed(2)),
-    activePromoCodes: availablePromos
-      .filter((p) => !p.client_id || p.client_id === c.client_id)
-      .map(promoCodeToDto_),
-  }));
+  return readAllRows_(TABS.CLIENTS).map((c) => {
+    const cid = String(c.client_id || '').trim();
+    return {
+      clientId: c.client_id,
+      prenom: c.prenom,
+      nom: c.nom,
+      email: c.email,
+      telephone: c.telephone,
+      packages: packagesByClient[cid] || [],
+      upcomingBookings: bookingsByClient[cid] || [],
+      // Les 5 paiements les plus récents suffisent pour la vue d'ensemble —
+      // l'historique complet reste dans la Fiche_Client (menu Sheet).
+      payments: (paymentsByClient[cid] || []).slice(0, 5),
+      totalNetConfirmed: Number((totalNetByClient[cid] || 0).toFixed(2)),
+      activePromoCodes: availablePromos
+        .filter((p) => !p.client_id || String(p.client_id).trim() === cid)
+        .map(promoCodeToDto_),
+    };
+  });
 }
 
 /**
