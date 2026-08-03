@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
 import {
   EMAIL,
   ADDRESS,
@@ -17,17 +19,37 @@ import {
 
 const LAST_UPDATED = "July 2026";
 
+// /privacy, /terms et /cookie-policy rendent tous ce même composant — seule
+// l'ancre de destination (et le titre de page) change. Sans cette table, les
+// trois routes atterrissaient identiquement en haut de page (bug constaté :
+// window.location.hash n'est jamais renseigné par un chemin comme "/terms",
+// contrairement à ce que l'ancien code supposait).
+const ROUTE_TO_SECTION: Record<string, { id: string; title: string }> = {
+  "/privacy": { id: "privacy", title: "Privacy Policy | Elysian Paris" },
+  "/terms": { id: "terms", title: "Terms of Service | Elysian Paris" },
+  "/cookie-policy": { id: "cookies", title: "Cookie Policy | Elysian Paris" },
+};
+
 export default function Legal() {
-  // Défile vers la section visée (#privacy / #terms / #cookies) à l'arrivée.
+  const [location] = useLocation();
+  const section = ROUTE_TO_SECTION[location];
+
+  useDocumentMeta(
+    section?.title ?? "Policies | Elysian Paris",
+    "Elysian Paris company information, privacy policy, terms of service and cookie policy."
+  );
+
+  // Défile vers la section visée à l'arrivée (par route, ou par ancre #xxx
+  // en secours pour un lien direct vers une section précise).
   useEffect(() => {
-    const id = window.location.hash.replace("#", "");
+    const id = section?.id || window.location.hash.replace("#", "");
     if (id) {
       const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
       window.scrollTo(0, 0);
     }
-  }, []);
+  }, [location, section]);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">

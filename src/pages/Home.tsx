@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
@@ -16,6 +17,18 @@ import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { CookieConsent } from "../components/ui/CookieConsent";
 
 export default function Home() {
+  // Défile vers la section visée quand on arrive avec un ancrage (ex.
+  // /#treatments, utilisé par la Navbar/le Footer/BOOKING_URL depuis les
+  // autres pages) — un rechargement complet arrive avant que React n'ait
+  // rendu les sections, donc le saut natif du navigateur ne suffit pas seul.
+  useEffect(() => {
+    const id = window.location.hash.replace("#", "");
+    if (id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <a

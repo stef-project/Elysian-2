@@ -24,19 +24,19 @@ export function Navbar() {
         <div className="flex-1 flex items-center">
           <nav className="hidden md:flex items-center gap-10">
             <a
-              href="#about"
+              href="/#about"
               className="text-[11px] font-sans font-light tracking-[0.18em] uppercase text-foreground/60 hover:text-foreground transition-colors duration-300"
             >
               About
             </a>
             <a
-              href="#treatments"
+              href="/#treatments"
               className="text-[11px] font-sans font-light tracking-[0.18em] uppercase text-foreground/60 hover:text-foreground transition-colors duration-300"
             >
               Treatments
             </a>
             <a
-              href="#location"
+              href="/#location"
               className="text-[11px] font-sans font-light tracking-[0.18em] uppercase text-foreground/60 hover:text-foreground transition-colors duration-300"
             >
               Visit
