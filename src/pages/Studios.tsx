@@ -58,12 +58,6 @@ export default function Studios() {
             >
               Book Kensington
             </a>
-            <Link
-              href="/kensington"
-              className="mt-5 font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
-            >
-              See the full Kensington studio
-            </Link>
           </div>
 
           <div className="border border-border p-10 text-center flex flex-col">
@@ -90,12 +84,6 @@ export default function Studios() {
               className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
             >
               Book Chelsea, Every Friday
-            </Link>
-            <Link
-              href="/chelsea"
-              className="mt-5 font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
-            >
-              Details for our Friday studio
             </Link>
           </div>
         </div>
