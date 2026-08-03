@@ -62,7 +62,7 @@ export default function Studios() {
               href="/kensington"
               className="mt-5 font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
             >
-              More about Kensington
+              See the full Kensington studio
             </Link>
           </div>
 
@@ -95,7 +95,7 @@ export default function Studios() {
               href="/chelsea"
               className="mt-5 font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
             >
-              More about Chelsea
+              Details for our Friday studio
             </Link>
           </div>
         </div>
