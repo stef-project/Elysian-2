@@ -13,6 +13,7 @@ import {
   getClientDashboard,
   confirmBooking,
   generateBookingRequestId,
+  ApiBusinessError,
   PACKAGE_SERVICES,
   type ActivePromoCode,
 } from "../lib/packageBooking";
@@ -37,7 +38,7 @@ export default function UsePackage() {
     { serviceId: string; start: string; end: string }[]
   >([]);
   const [activePromoCodes, setActivePromoCodes] = useState<ActivePromoCode[]>([]);
-  const [bookingRequestId] = useState(generateBookingRequestId());
+  const [bookingRequestId, setBookingRequestId] = useState(generateBookingRequestId());
 
   // Page de vérification d'identité : jamais indexée, même si l'URL fuite.
   useEffect(() => {
@@ -132,6 +133,16 @@ export default function UsePackage() {
       await confirmBooking(sessionToken, bookingRequestId, serviceId, slot.start, slot.end);
       setStep("confirmed");
     } catch (err) {
+      // Échec MÉTIER (le serveur a répondu : rien n'a été confirmé sous cet
+      // identifiant, ex. créneau pris ou échec Calendar avec séance
+      // restaurée) → nouvel identifiant, pour que le prochain créneau choisi
+      // ne soit pas rejeté par l'idempotence de la tentative précédente.
+      // Erreur RÉSEAU (issue inconnue : la réservation a pu réussir) → on
+      // garde l'identifiant, un retry renverra le résultat déjà obtenu au
+      // lieu de créer un doublon.
+      if (err instanceof ApiBusinessError) {
+        setBookingRequestId(generateBookingRequestId());
+      }
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setLoading(false);

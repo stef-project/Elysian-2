@@ -16,6 +16,21 @@ export const isPackageBookingConfigured = () => PACKAGE_BOOKING_WEB_APP_URL.leng
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
+// Erreur MÉTIER renvoyée par le backend (success: false) : le serveur a
+// répondu, l'issue de la requête est donc connue avec certitude — contrairement
+// aux erreurs réseau/parsing (Error générique) où la requête a pu aboutir côté
+// serveur sans qu'on reçoive la réponse. Cette distinction permet par exemple
+// de régénérer un booking_request_id après un échec métier (rien n'a été créé
+// sous cet identifiant) tout en le CONSERVANT après une erreur réseau (un
+// retry avec le même identifiant renverra le résultat déjà obtenu, sans
+// jamais créer de doublon — c'est le rôle de l'idempotence).
+export class ApiBusinessError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiBusinessError";
+  }
+}
+
 // Content-Type volontairement "text/plain" : évite le preflight CORS que les
 // Web Apps Apps Script ne savent pas gérer. Le corps reste du JSON valide.
 async function callWebApp<T>(action: string, payload: Record<string, unknown>): Promise<T> {
@@ -45,7 +60,7 @@ async function callWebApp<T>(action: string, payload: Record<string, unknown>): 
     throw new Error("Une erreur est survenue, merci de réessayer.");
   }
   if (json.success === false) {
-    throw new Error(json.error);
+    throw new ApiBusinessError(json.error);
   }
   return json.data;
 }
