@@ -41,6 +41,12 @@ export function Navbar() {
             >
               Visit
             </a>
+            <a
+              href="/kensington"
+              className="text-[11px] font-sans font-light tracking-[0.18em] uppercase text-foreground/60 hover:text-foreground transition-colors duration-300"
+            >
+              Studios
+            </a>
           </nav>
         </div>
 

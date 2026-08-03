@@ -45,7 +45,7 @@ export function Footer() {
                 { label: "Lymphatic Drainage", href: "/#treatments" },
                 { label: "Maderotherapy", href: "/#treatments" },
                 { label: "Lymphatic Drainage Post-Op", href: "/lymphatic-drainage-after-surgery" },
-                { label: "Prenatal & Postnatal", href: "/#treatments" },
+                { label: "Prenatal & Postnatal", href: "/prenatal-postnatal-massage-london" },
                 { label: "Cavitation Fusion", href: "/cavitation-body-contouring-london" },
               ].map((t) => (
                 <li key={t.label}>
@@ -64,6 +64,21 @@ export function Footer() {
             <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-5">
               Visit
             </p>
+            <ul className="space-y-2.5 mb-4">
+              {[
+                { label: "Kensington Studio", href: "/kensington" },
+                { label: "Chelsea Studio", href: "/chelsea" },
+              ].map((l) => (
+                <li key={l.label}>
+                  <a
+                    href={l.href}
+                    className="font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
             <div className="space-y-3">
               <p className="font-sans text-xs text-[#F7F5F2]/50 font-light leading-relaxed">
                 61 Kensington Church Street<br />

@@ -23,6 +23,10 @@ export default defineConfig({
           __dirname,
           "cavitation-body-contouring-london/index.html"
         ),
+        prenatal: path.resolve(
+          __dirname,
+          "prenatal-postnatal-massage-london/index.html"
+        ),
       },
     },
   },
