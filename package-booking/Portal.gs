@@ -159,9 +159,11 @@ function adminGetClientsOverview_(passwordPlain) {
     .filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
 
   // Paiements (la vue "commandes") par cliente — plus récents d'abord, avec
-  // total net confirmé, pour suivre les achats sans ouvrir le Sheet. Les
-  // montants ne sont visibles qu'ici, derrière le mot de passe admin —
-  // jamais dans le tableau de bord cliente /use-package.
+  // total net confirmé. Les montants ne sont visibles qu'ici, derrière le
+  // mot de passe admin — jamais dans le tableau de bord cliente /use-package.
+  // NB : seuls les paiements enregistrés dans le système apparaissent — les
+  // paiements Stripe des Appointment Schedules (Workspace) restent hors
+  // système, aucune API de paiement n'étant intégrée.
   const paymentsByClient = {};
   const totalNetByClient = {};
   readAllRows_(TABS.PAYMENTS).forEach((p) => {
@@ -262,4 +264,133 @@ function adminPortalCancelPromoCode_(passwordPlain, params) {
   if (!code) throw new BookingBusinessError_('Code manquant.');
   cancelPromoCodeByCode_(code, 'admin_portal');
   return { code: code.toUpperCase() };
+}
+
+/**
+ * Création d'une cliente depuis le portail admin — pour enregistrer une
+ * nouvelle cliente sans ouvrir le Sheet. Mêmes protections que les autres
+ * écritures du portail (mot de passe + anti brute-force, Audit_Log). Le
+ * parrainage reste côté menu Sheet (recherche interactive de la marraine) —
+ * non exposé ici.
+ */
+function adminPortalAddClient_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const prenom = String((params && params.prenom) || '').trim();
+  const nom = String((params && params.nom) || '').trim();
+  const email = String((params && params.email) || '').trim().toLowerCase();
+  const telephone = String((params && params.telephone) || '').trim();
+
+  if (!prenom) throw new BookingBusinessError_('Prénom manquant.');
+  if (!email || email.indexOf('@') === -1) throw new BookingBusinessError_('Email invalide.');
+  if (findClientByEmail_(email)) throw new BookingBusinessError_('Une cliente avec cet email existe déjà.');
+
+  const clientId = genId_('CLI');
+  appendRow_(TABS.CLIENTS, {
+    client_id: clientId,
+    prenom: prenom,
+    nom: nom,
+    email: email,
+    telephone: telephone,
+    notes_admin: '',
+    date_creation: new Date(),
+    tags: '',
+  });
+  writeAuditLog_('admin_portal', 'add_client', clientId, '', email, 'Créée via le portail admin');
+  return { clientId: clientId };
+}
+
+/**
+ * Attribution d'un forfait depuis le portail admin. Par choix de
+ * l'administratrice, le portail ne gère AUCUN paiement (suivi séparé, hors
+ * système) : le forfait est créé directement ACTIF — donc réservable
+ * immédiatement, avec événement Google Calendar créé à chaque réservation
+ * confirmée — accompagné d'une ligne Payments neutre (0, moyen "other")
+ * pour respecter l'invariant "aucun forfait actif sans trace de paiement"
+ * (même principe que grantComplimentaryPackage_, Payments.gs). Si le montant
+ * réel doit un jour être suivi, il se saisit via le menu Sheet → Paiements.
+ * Aucun email automatique n'est envoyé à la cliente.
+ *
+ * "Séances restantes" optionnel (défaut = total) : permet d'enregistrer une
+ * cliente existante dont le forfait est déjà entamé — used_sessions est posé
+ * à total - restantes pour que la réconciliation (total = dispo + réservées
+ * + utilisées) reste juste.
+ */
+function adminPortalAddPackage_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const clientEmail = String((params && params.clientEmail) || '').trim().toLowerCase();
+  const client = findClientByEmail_(clientEmail);
+  if (!client) throw new BookingBusinessError_('Aucune cliente avec cet email.');
+
+  const packageName = String((params && params.packageName) || '').trim();
+  if (!packageName) throw new BookingBusinessError_('Nom du forfait manquant.');
+
+  const services = (Array.isArray(params && params.servicesIncluded) ? params.servicesIncluded : [])
+    .map((s) => String(s || '').trim())
+    .filter((s) => s.length > 0);
+  if (services.length === 0) throw new BookingBusinessError_('Sélectionne au moins un soin inclus.');
+
+  const totalSessions = parseInt((params && params.totalSessions), 10);
+  if (isNaN(totalSessions) || totalSessions < 1) throw new BookingBusinessError_('Nombre de séances invalide.');
+
+  const availableRaw = params && params.availableSessions;
+  const availableSessions = (availableRaw === undefined || availableRaw === null || availableRaw === '')
+    ? totalSessions
+    : parseInt(availableRaw, 10);
+  if (isNaN(availableSessions) || availableSessions < 0 || availableSessions > totalSessions) {
+    throw new BookingBusinessError_('Séances restantes invalides (entre 0 et le total).');
+  }
+
+  let dateExpiration = '';
+  const expirationRaw = String((params && params.expirationDate) || '').trim();
+  if (expirationRaw) {
+    const exp = new Date(expirationRaw);
+    if (isNaN(exp.getTime())) throw new BookingBusinessError_('Date d\'expiration invalide.');
+    dateExpiration = expirationRaw;
+  }
+
+  const packageId = genId_('PKG');
+  appendRow_(TABS.PACKAGES, {
+    package_id: packageId,
+    client_id: client.client_id,
+    nom_forfait: packageName,
+    soins_inclus: services.join(', '),
+    total_sessions: totalSessions,
+    available_sessions: availableSessions,
+    reserved_sessions: 0,
+    used_sessions: totalSessions - availableSessions,
+    date_achat: new Date(),
+    date_expiration: dateExpiration,
+    moyen_paiement: '',
+    statut: PACKAGE_STATUS.ACTIVE,
+    notes_admin: 'Enregistré via le portail admin — paiement suivi hors système',
+    package_template_id: '',
+  });
+
+  const paymentId = genId_('PAY');
+  const financials = computePaymentFinancials_(0, 0);
+  appendRow_(TABS.PAYMENTS, {
+    payment_id: paymentId,
+    client_id: client.client_id,
+    package_id: packageId,
+    montant_brut: 0,
+    devise: 'GBP',
+    moyen_paiement: PAYMENT_METHOD.OTHER,
+    fournisseur_paiement: '',
+    frais_paiement: 0,
+    montant_net: financials.montant_net,
+    taux_frais: financials.taux_frais,
+    date_paiement: new Date(),
+    reference_transaction: '',
+    statut_paiement: PAYMENT_STATUS.CONFIRME,
+    justificatif_notes: 'Forfait enregistré via le portail admin — paiement suivi hors système (montant non renseigné ici)',
+    mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
+  });
+
+  writeAuditLog_('admin_portal', 'add_package', packageId, '',
+    `${totalSessions} séances (dispo ${availableSessions}) — actif`,
+    `Cliente ${client.client_id} — créé via portail admin, paiement hors système (${paymentId})`);
+
+  return { packageId: packageId };
 }

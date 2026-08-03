@@ -530,6 +530,18 @@ que la vue d'ensemble, réutilisant les mêmes cœurs que le menu Sheet
 (`createPromoCode_` / `cancelPromoCodeByCode_`, PromoCodes.gs), chacune
 tracée dans `Audit_Log` (acteur `admin_portal`) :
 
+- **Créer une cliente** (bouton « + Add client » en haut — prénom, nom,
+  email, téléphone). Le parrainage reste côté menu Sheet (recherche
+  interactive de la marraine).
+- **Attribuer un forfait** (bouton « + Add package » sur la fiche — nom,
+  soins inclus, séances totales et restantes, expiration optionnelle). Le
+  forfait est **immédiatement actif et réservable** (synchro Google
+  Calendar à chaque réservation confirmée). Volontairement **aucune saisie
+  de paiement ici** : le paiement est suivi hors système — une ligne
+  Payments neutre à 0 (moyen `other`) est écrite pour respecter
+  l'invariant « aucun forfait actif sans trace de paiement » ; le montant
+  réel peut toujours se saisir via le menu Sheet → Paiements. Aucun email
+  automatique n'est envoyé à la cliente.
 - **Créer un code promo directement sur le compte d'une cliente** (bouton
   « + Add promo code » sur sa fiche — remise `%` ou `£`, validité
   optionnelle, usage unique). Le code apparaît immédiatement sur le tableau

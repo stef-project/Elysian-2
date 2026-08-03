@@ -179,8 +179,9 @@ export type AdminClientOverview = {
   // (leur événement Google Calendar existe déjà — le portail n'est qu'une
   // vue) + réservations externes saisies manuellement (ClassPass/WhatsApp).
   upcomingBookings: AdminUpcomingBooking[];
-  // Les 5 paiements les plus récents (la vue "commandes") — l'historique
-  // complet reste dans la Fiche_Client côté Sheet.
+  // Les 5 paiements les plus récents — uniquement ceux enregistrés dans le
+  // système (les paiements Stripe des Appointment Schedules restent hors
+  // système). L'historique complet reste dans la Fiche_Client côté Sheet.
   payments: {
     date: string;
     montantBrut: number;
@@ -218,6 +219,26 @@ export const adminCreatePromoCode = (
 // annulé ici l'est pour toutes les clientes — demander confirmation avant.
 export const adminCancelPromoCode = (adminPassword: string, code: string) =>
   callWebApp<{ code: string }>("admin-cancel-promo-code", { adminPassword, params: { code } });
+
+// Crée une cliente depuis le portail admin (le parrainage reste côté Sheet).
+export const adminAddClient = (
+  adminPassword: string,
+  params: { prenom: string; nom: string; email: string; telephone?: string }
+) => callWebApp<{ clientId: string }>("admin-add-client", { adminPassword, params });
+
+// Attribue un forfait immédiatement actif (réservable, synchro Calendar) —
+// le paiement est suivi hors système, par choix : aucune saisie de montant ici.
+export const adminAddPackage = (
+  adminPassword: string,
+  params: {
+    clientEmail: string;
+    packageName: string;
+    servicesIncluded: string[];
+    totalSessions: number;
+    availableSessions?: number | "";
+    expirationDate?: string;
+  }
+) => callWebApp<{ packageId: string }>("admin-add-package", { adminPassword, params });
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.
