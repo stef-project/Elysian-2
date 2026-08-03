@@ -41,6 +41,7 @@ function adminGenerateDashboard() {
   sheet.autoResizeColumn(2);
   ss.setActiveSheet(sheet);
 
+  syncSheetHeaderRow_(TABS.DASHBOARD_HISTORY);
   appendRow_(TABS.DASHBOARD_HISTORY, snapshot);
 
   ui.alert(`Tableau de bord généré dans l'onglet "${TABS.DASHBOARD}" (historique enregistré dans "${TABS.DASHBOARD_HISTORY}").`);
@@ -55,6 +56,8 @@ function buildDashboardReport_() {
   const packages = readAllRows_(TABS.PACKAGES);
   const payments = readAllRows_(TABS.PAYMENTS);
   const bookings = readAllRows_(TABS.BOOKINGS);
+  const clients = readAllRows_(TABS.CLIENTS);
+  const promoCodes = readAllRows_(TABS.PROMO_CODES);
   const settings = getSettings();
   const now = new Date();
 
@@ -148,6 +151,33 @@ function buildDashboardReport_() {
     : 0;
   line('Taux de conversion ClassPass → forfait', `${classpassConversionRate.toFixed(1)}%`);
 
+  // --- Parrainage & codes promo ---
+  section('Parrainage & codes promo');
+  const referredClients = clients.filter((c) =>
+    parseTags_(c.tags).some((t) => t.indexOf(REFERRAL_TAG_PREFIX) === 0)
+  );
+  line('Clientes parrainées (tag referred-by)', referredClients.length);
+  line('  → client_id concernés', referredClients.map((c) => c.client_id).join(', ') || '(aucun)');
+
+  // Même définition de "convertie" que checkReferralMilestones_ (CRM.gs) :
+  // au moins un paiement RÉEL confirmé — un forfait offert ne compte pas.
+  const convertedReferred = referredClients.filter((c) =>
+    payments.some((p) =>
+      p.client_id === c.client_id &&
+      p.statut_paiement === PAYMENT_STATUS.CONFIRME &&
+      p.moyen_paiement !== PAYMENT_METHOD.COMPLIMENTARY
+    )
+  );
+  line('Filleules converties (≥ 1 paiement réel confirmé)', convertedReferred.length);
+  line('  → client_id concernés', convertedReferred.map((c) => c.client_id).join(', ') || '(aucun)');
+
+  const availablePromoCodes = promoCodes.filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
+  line('Codes promo utilisables (actifs, non expirés, quota restant)', availablePromoCodes.length);
+  line('  → codes concernés', availablePromoCodes.map((p) => p.code).join(', ') || '(aucun)');
+
+  const promoUsages = promoCodes.reduce((sum, p) => sum + (Number(p.usage_count) || 0), 0);
+  line('Utilisations de codes promo (total, tous canaux)', promoUsages);
+
   const snapshot = {
     generated_at: now,
     offres_proposees: offersTotal,
@@ -162,7 +192,29 @@ function buildDashboardReport_() {
     clientes_classpass: classpassClientIds.length,
     classpass_vers_direct: classpassToDirect.length,
     taux_conversion_classpass: Number(classpassConversionRate.toFixed(1)),
+    clientes_parrainees: referredClients.length,
+    filleules_converties: convertedReferred.length,
+    promo_codes_actifs: availablePromoCodes.length,
+    promo_utilisations: promoUsages,
   };
 
   return { rows, snapshot };
+}
+
+/**
+ * Réécrit la ligne d'en-têtes d'un onglet si elle ne correspond plus à
+ * HEADERS (colonnes ajoutées dans une version ultérieure du code, toujours
+ * en fin de liste) — les données existantes ne sont jamais touchées, seule
+ * la ligne 1 est réécrite. Sans ça, les nouvelles colonnes d'un classeur
+ * déjà initialisé se rempliraient sans titre.
+ */
+function syncSheetHeaderRow_(tabName) {
+  const sh = sheet_(tabName);
+  if (!sh) return;
+  const headers = HEADERS[tabName];
+  const current = sh.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (headers.some((h, i) => current[i] !== h)) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
 }

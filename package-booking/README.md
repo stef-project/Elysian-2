@@ -331,7 +331,9 @@ obtenu.
 Générer le tableau de bord`) : génère l'onglet `Dashboard` avec les 12
 indicateurs (offres proposées/vendues, taux de conversion, CA brut/frais/
 net, forfaits actifs, séances encore dues, forfaits proches de
-l'expiration, clientes ClassPass, conversion ClassPass → forfait) — chaque
+l'expiration, clientes ClassPass, conversion ClassPass → forfait, et
+depuis l'extension parrainage/promo : clientes parrainées, filleules
+converties, codes promo utilisables, utilisations de codes) — chaque
 indicateur liste les `id` concernés en dessous pour rester actionnable, pas
 juste un chiffre. Onglet de rapport régénéré à la demande, comme
 `Fiche_Client`.
@@ -417,8 +419,12 @@ restent du ressort de l'administratrice) :
   (`referral_welcome_discount_type`, défaut `percentage` ;
   `referral_welcome_discount_value`, défaut `10` — mettre `0` pour
   désactiver le programme ; `referral_welcome_validity_days`, défaut `90`).
-  Le code est affiché à l'admin au moment de la création (à communiquer à
-  la cliente), apparaît sur le tableau de bord `/use-package` de la cliente,
+  Le code est affiché à l'admin au moment de la création **et envoyé
+  automatiquement par email à la cliente** si elle a un email
+  (`Settings.referral_welcome_send_email`, défaut `oui` — mettre `non` pour
+  le communiquer soi-même ; un échec d'envoi ne remet jamais en cause le
+  code créé, tracé `welcome_promo_email_failed`). Il apparaît aussi sur le
+  tableau de bord `/use-package` de la cliente,
   et s'applique à la saisie de son premier paiement comme n'importe quel
   code promo — aucune mécanique nouvelle, tout réutilise `Promo_Codes`.
   ⚠️ **Usage unique tous canaux confondus** : si la cliente valide son code
@@ -514,15 +520,23 @@ voit correspond aux événements déjà présents dans le calendrier, plus les
 réservations externes saisies manuellement (ClassPass / WhatsApp,
 `external_manual` — déclaratives, sans événement Calendar).
 
-**Seule écriture du portail** (tout le reste reste en lecture seule) :
-**créer un code promo directement sur le compte d'une cliente** (bouton
-« + Add promo code » sur sa fiche — remise `%` ou `£`, validité optionnelle,
-usage unique). L'appel (`admin-create-promo-code`, `adminPortalCreatePromoCode_`)
-est protégé par le même mot de passe + anti brute-force que la vue
-d'ensemble, réutilise exactement le même cœur de création/validation que le
-menu Sheet (`createPromoCode_`, PromoCodes.gs), et trace chaque création
-dans `Audit_Log` (acteur `admin_portal`). Le code apparaît immédiatement
-sur le tableau de bord `/use-package` de la cliente.
+**Écritures du portail** (tout le reste reste en lecture seule) — deux
+actions seulement, protégées par le même mot de passe + anti brute-force
+que la vue d'ensemble, réutilisant les mêmes cœurs que le menu Sheet
+(`createPromoCode_` / `cancelPromoCodeByCode_`, PromoCodes.gs), chacune
+tracée dans `Audit_Log` (acteur `admin_portal`) :
+
+- **Créer un code promo directement sur le compte d'une cliente** (bouton
+  « + Add promo code » sur sa fiche — remise `%` ou `£`, validité
+  optionnelle, usage unique). Le code apparaît immédiatement sur le tableau
+  de bord `/use-package` de la cliente.
+- **Annuler un code promo actif** (bouton `×` sur le code, avec
+  confirmation — ⚠️ un code générique annulé l'est pour toutes les
+  clientes).
+
+La vue d'ensemble affiche aussi les forfaits **en attente de paiement**
+(badge « awaiting payment ») pour faciliter la relance — ils restent non
+réservables tant que le paiement n'est pas confirmé, comme partout.
 
 Authentification volontairement simple (un seul compte, pas de rôles) : un
 mot de passe unique, jamais stocké en clair (hash HMAC, `Security.gs`),

@@ -120,6 +120,43 @@ function grantReferralWelcomePromo_(clientId, referralTag) {
       notesAdmin: `Remise de bienvenue automatique — cliente parrainée (${referralTag})`,
       actor: 'system',
     });
+
+    // Email automatique du code à la filleule — désactivable via
+    // Settings.referral_welcome_send_email = 'non' (pour le communiquer
+    // soi-même). Lié à l'enregistrement du parrainage à la création du
+    // compte, comme l'email de récompense de la marraine — pas soumis au
+    // consentement marketing (jamais renseigné à cet instant de toute
+    // façon). Un échec d'envoi ne remet jamais en cause le code déjà créé.
+    if (['non', 'no', 'false', '0'].indexOf(String(settings.referral_welcome_send_email).trim().toLowerCase()) === -1) {
+      try {
+        const client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
+        if (client && client.email) {
+          const discountLabel = type === PROMO_CODE_TYPE.PERCENTAGE ? `${value}%` : `${value} GBP`;
+          MailApp.sendEmail(
+            client.email,
+            'Bienvenue chez Elysian Paris — votre remise de bienvenue',
+            [
+              `Bonjour ${client.prenom || ''},`,
+              '',
+              'Bienvenue ! Comme vous nous avez rejoints sur recommandation, voici votre code de bienvenue personnel :',
+              '',
+              `    ${code}`,
+              '',
+              `Il vous donne droit à ${discountLabel} de remise sur votre premier achat, valable ${validityDays} jours (usage unique).`,
+              'Communiquez-le simplement au moment du paiement.',
+              '',
+              'À très bientôt,',
+              'Elysian Paris',
+            ].join('\n')
+          );
+          writeAuditLog_('system', 'send_welcome_promo_email', clientId, '', code, '');
+        }
+      } catch (emailErr) {
+        writeAuditLog_('system', 'welcome_promo_email_failed', clientId, '', code,
+          String(emailErr && emailErr.message ? emailErr.message : emailErr));
+      }
+    }
+
     return code;
   } catch (err) {
     writeAuditLog_('system', 'welcome_promo_failed', clientId, '', '',
