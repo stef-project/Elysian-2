@@ -5,6 +5,8 @@ import {
   adminGetClientsOverview,
   adminCreatePromoCode,
   adminCancelPromoCode,
+  adminAddClient,
+  adminAddPackage,
   PACKAGE_SERVICES,
   type AdminClientOverview,
 } from "../lib/packageBooking";
@@ -142,6 +144,207 @@ function PromoCodeForm({
         Cancel
       </button>
       {error && <p className="w-full text-red-600">{error}</p>}
+    </form>
+  );
+}
+
+// Création d'une cliente depuis le portail — le parrainage (recherche de la
+// marraine) reste côté menu Sheet, volontairement non exposé ici.
+function AddClientForm({ password, onCreated }: { password: string; onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="font-sans text-xs tracking-[0.15em] uppercase border border-[#1A1A1A] px-4 py-2 hover:bg-[#1A1A1A] hover:text-[#F7F5F2] transition-colors"
+      >
+        + Add client
+      </button>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      await adminAddClient(password, { prenom, nom, email, telephone });
+      setOpen(false);
+      setPrenom("");
+      setNom("");
+      setEmail("");
+      setTelephone("");
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputClass =
+    "bg-transparent border-b border-border py-1 focus:outline-none focus:border-primary font-sans text-sm";
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border border-border p-4 font-sans text-xs w-full">
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">First name</span>
+        <input required value={prenom} onChange={(e) => setPrenom(e.target.value)} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">Last name</span>
+        <input value={nom} onChange={(e) => setNom(e.target.value)} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">Email</span>
+        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">Phone (optional)</span>
+        <input value={telephone} onChange={(e) => setTelephone(e.target.value)} className={inputClass} />
+      </label>
+      <button
+        type="submit"
+        disabled={submitting}
+        className="tracking-[0.15em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-4 py-2 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+      >
+        {submitting ? "Creating…" : "Create client"}
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-primary underline">
+        Cancel
+      </button>
+      {error && <p className="w-full text-red-600">{error}</p>}
+    </form>
+  );
+}
+
+// Attribution d'un forfait immédiatement actif (réservable, synchro Google
+// Calendar à chaque réservation). Aucun montant ici : le paiement est suivi
+// hors système — une trace neutre à 0 est écrite côté Sheet (invariant
+// "aucun forfait actif sans trace de paiement").
+function AddPackageForm({
+  clientEmail,
+  password,
+  onCreated,
+}: {
+  clientEmail: string;
+  password: string;
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [packageName, setPackageName] = useState("");
+  const [services, setServices] = useState<string[]>([]);
+  const [totalSessions, setTotalSessions] = useState("");
+  const [availableSessions, setAvailableSessions] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="font-sans text-xs text-muted-foreground hover:text-primary transition-colors underline mt-2 mr-4"
+      >
+        + Add package
+      </button>
+    );
+  }
+
+  const toggleService = (id: string) =>
+    setServices((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const total = parseInt(totalSessions, 10);
+    if (isNaN(total) || total < 1) {
+      setError("Enter a valid total number of sessions.");
+      return;
+    }
+    if (services.length === 0) {
+      setError("Select at least one included service.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await adminAddPackage(password, {
+        clientEmail,
+        packageName,
+        servicesIncluded: services,
+        totalSessions: total,
+        availableSessions: availableSessions === "" ? "" : parseInt(availableSessions, 10),
+        expirationDate: expirationDate || undefined,
+      });
+      setOpen(false);
+      setPackageName("");
+      setServices([]);
+      setTotalSessions("");
+      setAvailableSessions("");
+      setExpirationDate("");
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputClass =
+    "bg-transparent border-b border-border py-1 focus:outline-none focus:border-primary font-sans text-sm";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 border border-border/60 p-4 mt-3 font-sans text-xs">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Package name</span>
+          <input required value={packageName} onChange={(e) => setPackageName(e.target.value)} placeholder="e.g. Pack 5 Drainage" className={inputClass} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Total sessions</span>
+          <input type="number" min="1" required value={totalSessions} onChange={(e) => setTotalSessions(e.target.value)} className={`w-24 ${inputClass}`} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Sessions left (default = total)</span>
+          <input type="number" min="0" value={availableSessions} onChange={(e) => setAvailableSessions(e.target.value)} className={`w-32 ${inputClass}`} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Expiry date (optional)</span>
+          <input type="date" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} className={inputClass} />
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <span className="w-full text-muted-foreground">Included services</span>
+        {PACKAGE_SERVICES.map((s) => (
+          <label key={s.id} className="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" checked={services.includes(s.id)} onChange={() => toggleService(s.id)} />
+            <span>{s.label}</span>
+          </label>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="tracking-[0.15em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-4 py-2 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+        >
+          {submitting ? "Creating…" : "Create package"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-primary underline">
+          Cancel
+        </button>
+      </div>
+      <p className="text-muted-foreground/70">
+        The package is active immediately — the client can book with it right away (calendar synced). No payment is recorded here.
+      </p>
+      {error && <p className="text-red-600">{error}</p>}
     </form>
   );
 }
@@ -310,6 +513,10 @@ export default function AdminPortal() {
               </button>
             </div>
 
+            <div className="mb-8">
+              <AddClientForm password={password} onCreated={() => load(password)} />
+            </div>
+
             <section className="mb-10">
               <h2 className="font-serif text-xl text-[#1A1A1A] font-light mb-4">
                 Upcoming appointments
@@ -415,6 +622,7 @@ export default function AdminPortal() {
                     </div>
                   )}
 
+
                   {c.activePromoCodes.map((p) => (
                     <div key={p.code} className="inline-flex items-center gap-2 bg-[#F0EBE1] px-3 py-1 mt-1 mr-2 font-sans text-xs">
                       <span className="tracking-widest">{p.code}</span>
@@ -443,6 +651,11 @@ export default function AdminPortal() {
 
                   {c.email && (
                     <div>
+                      <AddPackageForm
+                        clientEmail={c.email}
+                        password={password}
+                        onCreated={() => load(password)}
+                      />
                       <PromoCodeForm
                         clientEmail={c.email}
                         password={password}

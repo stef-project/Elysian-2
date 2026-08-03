@@ -84,6 +84,19 @@ function doPost(e) {
         data = adminPortalCancelPromoCode_(body.adminPassword, body.params);
         break;
 
+      case 'admin-add-client':
+        // Écriture du portail admin : créer une cliente (sans parrainage —
+        // celui-ci reste côté menu Sheet, recherche interactive).
+        data = adminPortalAddClient_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-add-package':
+        // Écriture du portail admin : attribuer un forfait immédiatement
+        // actif (paiement suivi hors système — trace neutre à 0 dans
+        // Payments pour l'invariant "aucun forfait actif sans trace").
+        data = adminPortalAddPackage_(body.adminPassword, body.params);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }
