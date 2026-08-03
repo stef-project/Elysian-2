@@ -21,8 +21,14 @@ import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { CHELSEA_BOOKING_URL } from "../lib/booking";
 import { validatePromoCode } from "../lib/packageBooking";
 
-const SERVICE_ID = "lymphatic-1z";
-const FULL_PRICE = 120;
+// Les 3 soins réellement proposés sur le créneau Chelsea, avec leur tarif
+// respectif — ids alignés sur PACKAGE_SERVICES (packageBooking.ts).
+const TREATMENTS = [
+  { id: "lymphatic-1z", label: "Lymphatic Drainage", price: 120 },
+  { id: "post-op", label: "Post-Op Care", price: 80 },
+  { id: "prenatal", label: "Prenatal & Postnatal Massage", price: 80 },
+] as const;
+
 const DEPOSIT = 50;
 
 type Step = "form" | "code-valid" | "error";
@@ -38,6 +44,7 @@ export default function BookChelsea() {
   // Pré-remplissage du code si passé en ?code= dans l'URL (lien Vivi)
   const [promoCode, setPromoCode] = useState("");
   const [email, setEmail] = useState("");
+  const [treatmentId, setTreatmentId] = useState<string>(TREATMENTS[0].id);
   const [step, setStep] = useState<Step>("form");
   const [discount, setDiscount] = useState<{
     type: "fixed_amount" | "percentage";
@@ -47,16 +54,18 @@ export default function BookChelsea() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const treatment = TREATMENTS.find((t) => t.id === treatmentId) ?? TREATMENTS[0];
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const codeParam = params.get("code");
     if (codeParam) setPromoCode(codeParam.toUpperCase());
   }, []);
 
-  function computeFinalPrice(type: "fixed_amount" | "percentage", value: number): number {
-    if (type === "fixed_amount") return Math.max(0, FULL_PRICE - value);
-    if (type === "percentage") return Math.max(0, FULL_PRICE * (1 - value / 100));
-    return FULL_PRICE;
+  function computeFinalPrice(type: "fixed_amount" | "percentage", value: number, fullPrice: number): number {
+    if (type === "fixed_amount") return Math.max(0, fullPrice - value);
+    if (type === "percentage") return Math.max(0, fullPrice * (1 - value / 100));
+    return fullPrice;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -79,8 +88,8 @@ export default function BookChelsea() {
 
     setLoading(true);
     try {
-      const result = await validatePromoCode(trimmedEmail, trimmedCode, SERVICE_ID);
-      const finalPrice = computeFinalPrice(result.discountType, result.discountValue);
+      const result = await validatePromoCode(trimmedEmail, trimmedCode, treatmentId);
+      const finalPrice = computeFinalPrice(result.discountType, result.discountValue, treatment.price);
       setDiscount({ type: result.discountType, value: result.discountValue, finalPrice });
       setStep("code-valid");
     } catch (err: unknown) {
@@ -116,6 +125,38 @@ export default function BookChelsea() {
 
         {step === "form" && (
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Choix du soin */}
+            <div>
+              <label className="font-sans text-[11px] tracking-[0.15em] uppercase text-[#1A1A1A] block mb-2">
+                Choose your treatment
+              </label>
+              <div className="space-y-2">
+                {TREATMENTS.map((t) => (
+                  <label
+                    key={t.id}
+                    className={`flex items-center justify-between border px-4 py-3 cursor-pointer transition-colors ${
+                      treatmentId === t.id
+                        ? "border-[#BF944A] bg-[#F0EBE1]"
+                        : "border-[#D4C9BD] bg-[#FAFAF9] hover:border-[#BF944A]/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="treatment"
+                        value={t.id}
+                        checked={treatmentId === t.id}
+                        onChange={() => setTreatmentId(t.id)}
+                        className="accent-[#BF944A]"
+                      />
+                      <span className="font-sans text-sm text-[#1A1A1A]">{t.label}</span>
+                    </span>
+                    <span className="font-serif text-base text-[#1A1A1A]">£{t.price}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* Email */}
             <div>
               <label
@@ -190,10 +231,10 @@ export default function BookChelsea() {
             <div className="border border-[#D4C9BD] p-6 text-left space-y-3">
               <div className="flex justify-between items-baseline">
                 <span className="font-sans text-xs text-muted-foreground uppercase tracking-[0.1em]">
-                  Session price
+                  {treatment.label}
                 </span>
                 <span className="font-sans text-sm line-through text-muted-foreground">
-                  £{FULL_PRICE}
+                  £{treatment.price}
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
@@ -204,7 +245,7 @@ export default function BookChelsea() {
                   −£
                   {discount.type === "fixed_amount"
                     ? discount.value
-                    : Math.round(FULL_PRICE * discount.value / 100)}
+                    : Math.round(treatment.price * discount.value / 100)}
                 </span>
               </div>
               <div className="border-t border-[#E8E0D6] pt-3 flex justify-between items-baseline">
