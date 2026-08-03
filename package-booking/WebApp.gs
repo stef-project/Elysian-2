@@ -59,6 +59,12 @@ function doPost(e) {
         data = respondToOffer(body.offerId, body.token, body.response);
         break;
 
+      case 'validate-promo':
+        // Valide un code promo pour un email + soin donné, et enregistre la
+        // réclamation (une seule fois par email × code). Appelé depuis /book-chelsea.
+        data = validateAndClaimPromoCode_(body.email, body.promoCode, body.serviceId);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }

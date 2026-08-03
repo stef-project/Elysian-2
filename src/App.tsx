@@ -9,6 +9,7 @@ import Kensington from "@/pages/Kensington";
 import Chelsea from "@/pages/Chelsea";
 import UsePackage from "@/pages/UsePackage";
 import PackageOffer from "@/pages/PackageOffer";
+import BookChelsea from "@/pages/BookChelsea";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/kensington" component={Kensington} />
       <Route path="/chelsea" component={Chelsea} />
+      <Route path="/book-chelsea" component={BookChelsea} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
       <Route path="/privacy" component={Legal} />
