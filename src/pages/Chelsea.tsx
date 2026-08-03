@@ -36,7 +36,7 @@ export default function Chelsea() {
           60-minute sessions: Lymphatic Drainage, Post-Op, Pre/Postnatal
         </p>
 
-        <div>
+        <div className="mb-8">
           <Link
             href="/book-chelsea"
             data-testid="button-book-chelsea-page"
@@ -45,6 +45,13 @@ export default function Chelsea() {
             Book Chelsea, Every Friday
           </Link>
         </div>
+
+        <Link
+          href="/kensington"
+          className="font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
+        >
+          Visit our permanent studio in Kensington
+        </Link>
       </main>
 
       <Footer />

@@ -36,7 +36,7 @@ export default function Kensington() {
           </p>
         </div>
 
-        <div>
+        <div className="mb-8">
           <a
             href={BOOKING_URL}
             data-testid="button-book-kensington-page"
@@ -45,6 +45,13 @@ export default function Kensington() {
             Book Kensington
           </a>
         </div>
+
+        <a
+          href="/chelsea"
+          className="font-sans text-xs text-muted-foreground/70 hover:text-primary font-light underline underline-offset-4 transition-colors duration-300"
+        >
+          Also visiting Chelsea on Fridays
+        </a>
       </main>
 
       <Footer />
