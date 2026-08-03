@@ -7,7 +7,7 @@ import { useDocumentMeta } from "../lib/useDocumentMeta";
 export default function Chelsea() {
   useDocumentMeta(
     "Lymphatic Drainage Chelsea | Elysian Paris",
-    "Elysian Paris in Chelsea — exclusive weekly appointments on the King's Road. Expert lymphatic drainage and body sculpting, every Friday."
+    "Elysian Paris in Chelsea: exclusive weekly appointments on the King's Road. Expert lymphatic drainage and body sculpting, every Friday."
   );
 
   return (
@@ -17,7 +17,7 @@ export default function Chelsea() {
 
       <main className="max-w-3xl mx-auto px-6 py-32 md:py-40 text-center">
         <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4">
-          Flagship Studio on the King's Road
+          Weekly Studio on the King's Road
         </p>
         <h1 className="font-serif text-4xl md:text-6xl text-[#1A1A1A] font-light leading-tight mb-6">
           Elysian Paris Chelsea
@@ -30,10 +30,10 @@ export default function Chelsea() {
           number of appointments available.
         </p>
         <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-2">
-          Every Friday — Limited Availability
+          Every Friday, Limited Availability
         </p>
         <p className="font-sans text-xs text-muted-foreground/70 font-light mb-12">
-          60-minute sessions — Lymphatic Drainage, Post-Op, Pre/Postnatal
+          60-minute sessions: Lymphatic Drainage, Post-Op, Pre/Postnatal
         </p>
 
         <div>
@@ -42,7 +42,7 @@ export default function Chelsea() {
             data-testid="button-book-chelsea-page"
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
           >
-            Book Chelsea — Every Friday
+            Book Chelsea, Every Friday
           </Link>
         </div>
       </main>

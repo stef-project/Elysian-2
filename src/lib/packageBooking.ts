@@ -118,10 +118,13 @@ export const respondToOffer = (offerId: string, token: string, response: "accept
 //  Un code n'est valide qu'une seule fois par email.
 // ─────────────────────────────────────────────────────────────────────────
 
+// "percentage" (pas "percent") : doit correspondre exactement à
+// PROMO_CODE_TYPE.PERCENTAGE côté GAS (Constants.gs) — c'est cette chaîne
+// qui est stockée dans Promo_Codes.type et renvoyée telle quelle.
 export const validatePromoCode = (email: string, promoCode: string, serviceId: string) =>
   callWebApp<{
     claimId: string;
-    discountType: "fixed_amount" | "percent";
+    discountType: "fixed_amount" | "percentage";
     discountValue: number;
     message: string;
   }>("validate-promo", { email, promoCode, serviceId });

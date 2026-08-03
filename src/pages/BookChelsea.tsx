@@ -29,7 +29,7 @@ type Step = "form" | "code-valid" | "error";
 
 export default function BookChelsea() {
   useDocumentMeta(
-    "Book Chelsea — Elysian Paris",
+    "Book Chelsea | Elysian Paris",
     "Book your Lymphatic Drainage session at Elysian Paris Chelsea. Every Friday on the King's Road."
   );
 
@@ -40,7 +40,7 @@ export default function BookChelsea() {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<Step>("form");
   const [discount, setDiscount] = useState<{
-    type: "fixed_amount" | "percent";
+    type: "fixed_amount" | "percentage";
     value: number;
     finalPrice: number;
   } | null>(null);
@@ -53,9 +53,9 @@ export default function BookChelsea() {
     if (codeParam) setPromoCode(codeParam.toUpperCase());
   }, []);
 
-  function computeFinalPrice(type: "fixed_amount" | "percent", value: number): number {
+  function computeFinalPrice(type: "fixed_amount" | "percentage", value: number): number {
     if (type === "fixed_amount") return Math.max(0, FULL_PRICE - value);
-    if (type === "percent") return Math.max(0, FULL_PRICE * (1 - value / 100));
+    if (type === "percentage") return Math.max(0, FULL_PRICE * (1 - value / 100));
     return FULL_PRICE;
   }
 
@@ -102,13 +102,13 @@ export default function BookChelsea() {
       <main className="max-w-xl mx-auto px-6 py-32 md:py-40">
         {/* En-tête */}
         <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4 text-center">
-          Flagship Studio · King's Road
+          Weekly Studio · King's Road
         </p>
         <h1 className="font-serif text-3xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-4 text-center">
           Book Chelsea
         </h1>
         <p className="font-sans text-sm text-muted-foreground font-light mb-2 text-center">
-          Lymphatic Drainage — 1 Zone
+          Lymphatic Drainage · 1 Zone
         </p>
         <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-10 text-center">
           Every Friday · 60 min
@@ -226,7 +226,7 @@ export default function BookChelsea() {
             <p className="font-sans text-xs text-muted-foreground leading-relaxed">
               Your promo code has been saved. Click below to choose your Friday
               slot on Google Calendar. Your £{DEPOSIT} deposit will be taken at
-              that step — the balance of £{Math.max(0, discount.finalPrice - DEPOSIT)}{" "}
+              that step, and the balance of £{Math.max(0, discount.finalPrice - DEPOSIT)}{" "}
               is payable at the studio.
             </p>
 
