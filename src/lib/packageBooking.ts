@@ -226,8 +226,9 @@ export const adminAddClient = (
   params: { prenom: string; nom: string; email: string; telephone?: string }
 ) => callWebApp<{ clientId: string }>("admin-add-client", { adminPassword, params });
 
-// Attribue un forfait immédiatement actif (réservable, synchro Calendar) —
-// le paiement est suivi hors système, par choix : aucune saisie de montant ici.
+// Attribue un forfait immédiatement actif (réservable, synchro Calendar).
+// amountPaid optionnel : renseigné → paiement enregistré avec le vrai montant
+// (CA du tableau de bord juste) ; vide → trace neutre à 0, suivi hors système.
 export const adminAddPackage = (
   adminPassword: string,
   params: {
@@ -237,8 +238,23 @@ export const adminAddPackage = (
     totalSessions: number;
     availableSessions?: number | "";
     expirationDate?: string;
+    amountPaid?: number | "";
+    paymentMethod?: string;
   }
 ) => callWebApp<{ packageId: string }>("admin-add-package", { adminPassword, params });
+
+// Moyens de paiement reconnus côté GAS (Payments.moyen_paiement) — garder
+// synchronisé avec PAYMENT_METHOD (Constants.gs).
+export const PAYMENT_METHODS: { id: string; label: string }[] = [
+  { id: "revolut_card_payment", label: "Revolut card" },
+  { id: "revolut_pay", label: "Revolut Pay" },
+  { id: "bank_transfer", label: "Bank transfer" },
+  { id: "stripe", label: "Stripe" },
+  { id: "classpass", label: "ClassPass" },
+  { id: "card_in_person", label: "Card in person" },
+  { id: "cash", label: "Cash" },
+  { id: "other", label: "Other" },
+];
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.

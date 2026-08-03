@@ -283,21 +283,34 @@ function adminPortalAddClient_(passwordPlain, params) {
 
   if (!prenom) throw new BookingBusinessError_('Prénom manquant.');
   if (!email || email.indexOf('@') === -1) throw new BookingBusinessError_('Email invalide.');
-  if (findClientByEmail_(email)) throw new BookingBusinessError_('Une cliente avec cet email existe déjà.');
 
-  const clientId = genId_('CLI');
-  appendRow_(TABS.CLIENTS, {
-    client_id: clientId,
-    prenom: prenom,
-    nom: nom,
-    email: email,
-    telephone: telephone,
-    notes_admin: '',
-    date_creation: new Date(),
-    tags: '',
-  });
-  writeAuditLog_('admin_portal', 'add_client', clientId, '', email, 'Créée via le portail admin');
-  return { clientId: clientId };
+  // Unicité + écriture sous verrou — sans lui, un double-clic ou un retry
+  // réseau (requête échouée côté navigateur mais exécutée côté serveur)
+  // ferait passer deux fois le check avant la première écriture : cliente
+  // en double. Même principe que createPromoCode_.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+  try {
+    if (findClientByEmail_(email)) throw new BookingBusinessError_('Une cliente avec cet email existe déjà.');
+
+    const clientId = genId_('CLI');
+    appendRow_(TABS.CLIENTS, {
+      client_id: clientId,
+      prenom: prenom,
+      nom: nom,
+      email: email,
+      telephone: telephone,
+      notes_admin: '',
+      date_creation: new Date(),
+      tags: '',
+    });
+    writeAuditLog_('admin_portal', 'add_client', clientId, '', email, 'Créée via le portail admin');
+    return { clientId: clientId };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
@@ -350,47 +363,93 @@ function adminPortalAddPackage_(passwordPlain, params) {
     dateExpiration = expirationRaw;
   }
 
-  const packageId = genId_('PKG');
-  appendRow_(TABS.PACKAGES, {
-    package_id: packageId,
-    client_id: client.client_id,
-    nom_forfait: packageName,
-    soins_inclus: services.join(', '),
-    total_sessions: totalSessions,
-    available_sessions: availableSessions,
-    reserved_sessions: 0,
-    used_sessions: totalSessions - availableSessions,
-    date_achat: new Date(),
-    date_expiration: dateExpiration,
-    moyen_paiement: '',
-    statut: PACKAGE_STATUS.ACTIVE,
-    notes_admin: 'Enregistré via le portail admin — paiement suivi hors système',
-    package_template_id: '',
-  });
+  // Montant payé OPTIONNEL : renseigné → le paiement est enregistré avec le
+  // vrai montant (le CA du tableau de bord reste juste) ; vide → trace
+  // neutre à 0, paiement suivi hors système (comportement d'origine).
+  const amountRaw = params && params.amountPaid;
+  const amountPaid = (amountRaw === undefined || amountRaw === null || amountRaw === '')
+    ? null
+    : parseFloat(amountRaw);
+  if (amountPaid !== null && (isNaN(amountPaid) || amountPaid < 0)) {
+    throw new BookingBusinessError_('Montant payé invalide.');
+  }
+  const paymentMethod = String((params && params.paymentMethod) || '').trim().toLowerCase() || PAYMENT_METHOD.OTHER;
+  if (Object.values(PAYMENT_METHOD).indexOf(paymentMethod) === -1) {
+    throw new BookingBusinessError_('Moyen de paiement invalide.');
+  }
 
-  const paymentId = genId_('PAY');
-  const financials = computePaymentFinancials_(0, 0);
-  appendRow_(TABS.PAYMENTS, {
-    payment_id: paymentId,
-    client_id: client.client_id,
-    package_id: packageId,
-    montant_brut: 0,
-    devise: 'GBP',
-    moyen_paiement: PAYMENT_METHOD.OTHER,
-    fournisseur_paiement: '',
-    frais_paiement: 0,
-    montant_net: financials.montant_net,
-    taux_frais: financials.taux_frais,
-    date_paiement: new Date(),
-    reference_transaction: '',
-    statut_paiement: PAYMENT_STATUS.CONFIRME,
-    justificatif_notes: 'Forfait enregistré via le portail admin — paiement suivi hors système (montant non renseigné ici)',
-    mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
-  });
+  // Écriture sous verrou, avec rejet des re-soumissions : un forfait n'a pas
+  // de clé naturelle d'unicité, donc un double-clic ou un retry réseau
+  // (requête échouée côté navigateur mais exécutée côté serveur) créerait
+  // deux forfaits identiques + deux lignes Payments. Même cliente + même nom
+  // + même total créés il y a moins de 2 minutes = re-soumission, refusée.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+  try {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const duplicate = readAllRows_(TABS.PACKAGES).find((p) =>
+      String(p.client_id).trim() === client.client_id &&
+      String(p.nom_forfait).trim().toLowerCase() === packageName.toLowerCase() &&
+      Number(p.total_sessions) === totalSessions &&
+      new Date(p.date_achat) > twoMinutesAgo
+    );
+    if (duplicate) {
+      throw new BookingBusinessError_(
+        `Un forfait identique vient d'être créé pour cette cliente (${duplicate.package_id}) — probable double-clic, rien n'a été recréé.`
+      );
+    }
 
-  writeAuditLog_('admin_portal', 'add_package', packageId, '',
-    `${totalSessions} séances (dispo ${availableSessions}) — actif`,
-    `Cliente ${client.client_id} — créé via portail admin, paiement hors système (${paymentId})`);
+    const packageId = genId_('PKG');
+    appendRow_(TABS.PACKAGES, {
+      package_id: packageId,
+      client_id: client.client_id,
+      nom_forfait: packageName,
+      soins_inclus: services.join(', '),
+      total_sessions: totalSessions,
+      available_sessions: availableSessions,
+      reserved_sessions: 0,
+      used_sessions: totalSessions - availableSessions,
+      date_achat: new Date(),
+      date_expiration: dateExpiration,
+      moyen_paiement: '',
+      statut: PACKAGE_STATUS.ACTIVE,
+      notes_admin: 'Enregistré via le portail admin — paiement suivi hors système',
+      package_template_id: '',
+    });
 
-  return { packageId: packageId };
+    const paymentId = genId_('PAY');
+    const montantBrut = amountPaid !== null ? amountPaid : 0;
+    const financials = computePaymentFinancials_(montantBrut, 0);
+    appendRow_(TABS.PAYMENTS, {
+      payment_id: paymentId,
+      client_id: client.client_id,
+      package_id: packageId,
+      montant_brut: montantBrut,
+      devise: 'GBP',
+      moyen_paiement: paymentMethod,
+      fournisseur_paiement: '',
+      frais_paiement: 0,
+      montant_net: financials.montant_net,
+      taux_frais: financials.taux_frais,
+      date_paiement: new Date(),
+      reference_transaction: '',
+      statut_paiement: PAYMENT_STATUS.CONFIRME,
+      justificatif_notes: amountPaid !== null
+        ? 'Forfait et paiement saisis via le portail admin'
+        : 'Forfait enregistré via le portail admin — paiement suivi hors système (montant non renseigné ici)',
+      mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
+    });
+
+    writeAuditLog_('admin_portal', 'add_package', packageId, '',
+      `${totalSessions} séances (dispo ${availableSessions}) — actif`,
+      `Cliente ${client.client_id} — créé via portail admin, ` +
+      (amountPaid !== null ? `paiement ${montantBrut} GBP (${paymentMethod})` : 'paiement hors système') +
+      ` (${paymentId})`);
+
+    return { packageId: packageId };
+  } finally {
+    lock.releaseLock();
+  }
 }

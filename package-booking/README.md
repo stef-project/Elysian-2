@@ -536,12 +536,15 @@ tracée dans `Audit_Log` (acteur `admin_portal`) :
 - **Attribuer un forfait** (bouton « + Add package » sur la fiche — nom,
   soins inclus, séances totales et restantes, expiration optionnelle). Le
   forfait est **immédiatement actif et réservable** (synchro Google
-  Calendar à chaque réservation confirmée). Volontairement **aucune saisie
-  de paiement ici** : le paiement est suivi hors système — une ligne
-  Payments neutre à 0 (moyen `other`) est écrite pour respecter
-  l'invariant « aucun forfait actif sans trace de paiement » ; le montant
-  réel peut toujours se saisir via le menu Sheet → Paiements. Aucun email
-  automatique n'est envoyé à la cliente.
+  Calendar à chaque réservation confirmée). Champ **« Amount paid »
+  optionnel** : renseigné → le paiement est enregistré avec le vrai montant
+  et le moyen choisi (le CA du tableau de bord reste juste) ; laissé vide →
+  paiement suivi hors système, une ligne Payments neutre à 0 (moyen
+  `other`) est écrite pour respecter l'invariant « aucun forfait actif sans
+  trace de paiement », le montant réel restant saisissable via le menu
+  Sheet → Paiements. Création protégée par verrou + rejet des
+  re-soumissions (même cliente/nom/total < 2 min). Aucun email automatique
+  n'est envoyé à la cliente.
 - **Créer un code promo directement sur le compte d'une cliente** (bouton
   « + Add promo code » sur sa fiche — remise `%` ou `£`, validité
   optionnelle, usage unique). Le code apparaît immédiatement sur le tableau
