@@ -14,6 +14,7 @@ import {
   confirmBooking,
   generateBookingRequestId,
   PACKAGE_SERVICES,
+  type ActivePromoCode,
 } from "../lib/packageBooking";
 
 type Step = "email" | "code" | "dashboard" | "service" | "slots" | "confirmed";
@@ -35,6 +36,7 @@ export default function UsePackage() {
   const [upcomingBookings, setUpcomingBookings] = useState<
     { serviceId: string; start: string; end: string }[]
   >([]);
+  const [activePromoCodes, setActivePromoCodes] = useState<ActivePromoCode[]>([]);
   const [bookingRequestId] = useState(generateBookingRequestId());
 
   // Page de vérification d'identité : jamais indexée, même si l'URL fuite.
@@ -84,10 +86,12 @@ export default function UsePackage() {
       try {
         const dashboard = await getClientDashboard(res.sessionToken);
         setUpcomingBookings(dashboard.upcomingBookings);
+        setActivePromoCodes(dashboard.activePromoCodes);
       } catch {
         // Le tableau de bord est un plus, pas un bloquant : si l'appel échoue,
         // on continue quand même vers la réservation.
         setUpcomingBookings([]);
+        setActivePromoCodes([]);
       }
       setStep("dashboard");
     } catch (err) {
@@ -278,6 +282,24 @@ export default function UsePackage() {
                   </div>
                 )}
               </div>
+
+              {activePromoCodes.length > 0 && (
+                <div>
+                  <p className="font-sans text-xs tracking-[0.2em] uppercase text-muted-foreground mb-4">
+                    Active promo codes
+                  </p>
+                  <div className="space-y-3">
+                    {activePromoCodes.map((p) => (
+                      <div key={p.code} className="flex justify-between border border-[#BF944A]/40 bg-[#F0EBE1] px-4 py-3 font-sans text-sm">
+                        <span className="tracking-widest">{p.code}</span>
+                        <span className="text-[#BF944A]">
+                          {p.discountType === "percentage" ? `${p.discountValue}% off` : `£${p.discountValue} off`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button
                 disabled={loading}

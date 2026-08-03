@@ -22,11 +22,19 @@ async function callWebApp<T>(action: string, payload: Record<string, unknown>): 
   if (!isPackageBookingConfigured()) {
     throw new Error("Ce service n'est pas encore disponible. Merci de nous contacter directement.");
   }
-  const res = await fetch(PACKAGE_BOOKING_WEB_APP_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...payload }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(PACKAGE_BOOKING_WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, ...payload }),
+    });
+  } catch {
+    // La requête elle-même a échoué (hors ligne, DNS, etc.) avant toute
+    // réponse — même principe que le catch JSON ci-dessous : jamais montrer
+    // le message technique brut du navigateur (ex. "Failed to fetch").
+    throw new Error("Une erreur est survenue, merci de réessayer.");
+  }
   let json: ApiResponse<T>;
   try {
     json = (await res.json()) as ApiResponse<T>;
@@ -61,13 +69,21 @@ export const getAvailableSlots = (sessionToken: string, serviceId: string, durat
     durationMinutes,
   });
 
-// Solde du forfait + prochains rendez-vous, affiché avant la sélection de
-// créneau — la cliente voit où elle en est sans avoir à nous contacter.
+export type ActivePromoCode = {
+  code: string;
+  discountType: "fixed_amount" | "percentage";
+  discountValue: number;
+};
+
+// Solde du forfait + prochains rendez-vous + codes promo actifs pour cette
+// cliente, affiché avant la sélection de créneau — la cliente voit où elle
+// en est sans avoir à nous contacter.
 export const getClientDashboard = (sessionToken: string) =>
   callWebApp<{
     packageName: string;
     availableSessions: number;
     upcomingBookings: { serviceId: string; start: string; end: string }[];
+    activePromoCodes: ActivePromoCode[];
   }>("get-client-dashboard", { sessionToken });
 
 export const confirmBooking = (
@@ -128,6 +144,31 @@ export const validatePromoCode = (email: string, promoCode: string, serviceId: s
     discountValue: number;
     message: string;
   }>("validate-promo", { email, promoCode, serviceId });
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Portail admin (page /admin) — lecture seule. Le mot de passe est renvoyé
+//  à chaque appel plutôt que via un jeton de session à durée de vie propre :
+//  volontairement simple (un seul compte), vérifié côté serveur à chaque
+//  fois, avec le même anti brute-force que le reste du site.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type AdminClientOverview = {
+  clientId: string;
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  packages: {
+    packageName: string;
+    availableSessions: number;
+    totalSessions: number;
+    dateExpiration: string;
+  }[];
+  activePromoCodes: ActivePromoCode[];
+};
+
+export const adminGetClientsOverview = (adminPassword: string) =>
+  callWebApp<AdminClientOverview[]>("admin-clients-overview", { adminPassword });
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.
