@@ -160,13 +160,6 @@ export default function BookChelsea() {
             {errorMsg && (
               <p className="font-sans text-xs text-red-600">{errorMsg}</p>
             )}
-              <div className="flex justify-between items-baseline mt-1">
-                <span className="font-sans text-xs text-muted-foreground uppercase tracking-[0.1em]">
-                  Deposit (taken online)
-                </span>
-                <span className="font-sans text-sm text-[#1A1A1A]">£{DEPOSIT}</span>
-              </div>
-            </div>
 
             {/* CTA */}
             <button
