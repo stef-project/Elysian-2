@@ -2,7 +2,7 @@ import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
-import { BOOKING_URL } from "../lib/booking";
+import { BOOKING_URL, ADDRESS } from "../lib/booking";
 
 export default function Kensington() {
   useDocumentMeta(
@@ -27,9 +27,12 @@ export default function Kensington() {
           drainage, body sculpting and personalised wellness treatments.
         </p>
 
-        <div className="border border-dashed border-border px-6 py-5 mb-12 inline-block">
-          <p className="font-sans text-xs text-muted-foreground/70 italic">
-            Address and opening hours to be confirmed.
+        <div className="mb-12">
+          <p className="font-sans text-sm text-muted-foreground font-light">
+            {ADDRESS}
+          </p>
+          <p className="font-sans text-xs text-muted-foreground/70 font-light mt-1">
+            Open 24/7 · By appointment only
           </p>
         </div>
 
