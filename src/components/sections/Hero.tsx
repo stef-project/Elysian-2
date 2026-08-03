@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import heroImage from "../../assets/hero-wellness.webp";
 import { trackBookClick } from "../../lib/analytics";
+import { BOOKING_URL } from "../../lib/booking";
 
 export function Hero() {
   return (
@@ -60,8 +61,11 @@ export function Hero() {
           transition={{ duration: 0.8, delay: 1.3 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
+          {/* Accès direct aux soins en un clic — les pages studios /kensington
+              et /chelsea restent accessibles via le footer et la page Studios,
+              mais le CTA principal ne doit jamais imposer un clic intermédiaire. */}
           <a
-            href="/kensington"
+            href={BOOKING_URL}
             data-testid="button-book-kensington"
             onClick={() => trackBookClick("hero_kensington")}
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
@@ -69,7 +73,7 @@ export function Hero() {
             Book Kensington
           </a>
           <a
-            href="/chelsea"
+            href="/book-chelsea"
             data-testid="button-book-chelsea"
             onClick={() => trackBookClick("hero_chelsea")}
             className="font-sans text-xs tracking-[0.2em] uppercase text-[#F7F5F2] border border-[#F7F5F2]/40 px-10 py-4 hover:border-[#F7F5F2] hover:bg-[#F7F5F2]/10 transition-colors duration-300"

@@ -68,6 +68,10 @@ export function Footer() {
               {[
                 { label: "Kensington Studio", href: "/kensington" },
                 { label: "Chelsea Studio", href: "/chelsea" },
+                // Page privée des clientes ayant déjà un forfait — pas de
+                // vente de forfaits sur le site, uniquement ce point d'entrée
+                // discret (aussi lié dans leurs emails de confirmation/rappel).
+                { label: "Book with your package", href: "/use-package" },
               ].map((l) => (
                 <li key={l.label}>
                   <a
