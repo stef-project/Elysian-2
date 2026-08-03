@@ -421,6 +421,13 @@ restent du ressort de l'administratrice) :
   la cliente), apparaît sur le tableau de bord `/use-package` de la cliente,
   et s'applique à la saisie de son premier paiement comme n'importe quel
   code promo — aucune mécanique nouvelle, tout réutilise `Promo_Codes`.
+  ⚠️ **Usage unique tous canaux confondus** : si la cliente valide son code
+  `WELCOME-…` sur `/book-chelsea` (séance à l'unité), il est consommé et ne
+  pourra plus s'appliquer à son premier forfait — récupérable via « Libérer
+  une réclamation abandonnée » si c'était une erreur. Si l'échec de création
+  du code survient (cas rarissime), la création de la cliente n'est jamais
+  interrompue : l'échec est tracé dans `Audit_Log` (`welcome_promo_failed`)
+  et le code peut être recréé à la main via « Créer un code promo ».
 
 ### Codes promo (`Promo_Codes`)
 
@@ -469,6 +476,13 @@ reste du parcours cliente) — protégé par son propre anti brute-force
 réglage `max_promo_validation_attempts`, défaut 5 tentatives échouées avant
 blocage `lockout_duration_minutes`), pour empêcher de deviner des codes ou
 d'épuiser le quota d'un code multi-usages par tentatives automatisées.
+L'**expiration** (`date_expiration`) est vérifiée ici aussi, comme côté
+admin — un code périmé encore marqué `active` est refusé et passe `expired`
+au passage ; la réconciliation quotidienne fait de toute façon expirer les
+codes périmés (`promo_code_expired_reconciliation`). La validation
+(lecture du quota + incrément) tourne sous verrou (`LockService`), comme la
+création de codes — pas de dépassement de quota ni de code en doublon sous
+requêtes simultanées.
 
 `usage_count` est incrémenté **dès la validation**, avant même que la
 cliente ait réellement réservé sur Google Calendar — si elle abandonne,
@@ -535,6 +549,7 @@ de service auto-infligé possible, mais sans accès aux données, et préférabl
 | Fonction | Rôle |
 |---|---|
 | `initializeSheets` | Crée les onglets et leurs en-têtes (une fois) |
+| `adminSyncSettingsKeys` | Ajoute à l'onglet Settings les clés de réglage manquantes (après une mise à jour du code), sans toucher aux valeurs existantes — menu « Synchroniser les réglages manquants » |
 | `runReconciliationCheck` | Contrôle quotidien (à brancher sur un déclencheur) |
 | `onOpen` | Ajoute le menu Elysian Admin (automatique à l'ouverture du Sheet) |
 | `adminAddPackageTemplate` | Crée un modèle de forfait au catalogue |

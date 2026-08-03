@@ -66,7 +66,6 @@ function generateUniquePromoCode_(prefix) {
 function createPromoCode_(params) {
   const code = String(params.code || '').trim().toUpperCase();
   if (!code) throw new BookingBusinessError_('Code promo vide.');
-  if (findPromoCodeByCode_(code)) throw new BookingBusinessError_('Ce code existe déjà.');
 
   if (Object.values(PROMO_CODE_TYPE).indexOf(params.type) === -1) {
     throw new BookingBusinessError_('Type de remise invalide.');
@@ -79,28 +78,41 @@ function createPromoCode_(params) {
   const usageMax = Number(params.usageMax) || 1;
   if (usageMax < 1) throw new BookingBusinessError_('Nombre d\'utilisations invalide.');
 
-  const promoCodeId = genId_('PROMO');
-  appendRow_(TABS.PROMO_CODES, {
-    promo_code_id: promoCodeId,
-    code: code,
-    client_id: params.clientId || '',
-    type: params.type,
-    value: value,
-    statut: PROMO_CODE_STATUS.ACTIVE,
-    date_creation: new Date(),
-    date_expiration: params.dateExpiration || '',
-    used_at: '',
-    used_by_client_id: '',
-    used_for_package_id: '',
-    notes_admin: params.notesAdmin || '',
-    usage_max: usageMax,
-    usage_count: 0,
-  });
-  writeAuditLog_(
-    params.actor || 'admin', 'create_promo_code', promoCodeId, '', code,
-    `${params.clientId ? `Réservé à ${params.clientId}` : 'Générique'}, usage_max=${usageMax}`
-  );
-  return promoCodeId;
+  // Vérification d'unicité et écriture sous verrou — sans lui, deux appels
+  // simultanés (double-clic sur le portail) passeraient tous les deux le
+  // check d'unicité avant que l'un des deux n'écrive, créant un doublon.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+  try {
+    if (findPromoCodeByCode_(code)) throw new BookingBusinessError_('Ce code existe déjà.');
+
+    const promoCodeId = genId_('PROMO');
+    appendRow_(TABS.PROMO_CODES, {
+      promo_code_id: promoCodeId,
+      code: code,
+      client_id: params.clientId || '',
+      type: params.type,
+      value: value,
+      statut: PROMO_CODE_STATUS.ACTIVE,
+      date_creation: new Date(),
+      date_expiration: params.dateExpiration || '',
+      used_at: '',
+      used_by_client_id: '',
+      used_for_package_id: '',
+      notes_admin: params.notesAdmin || '',
+      usage_max: usageMax,
+      usage_count: 0,
+    });
+    writeAuditLog_(
+      params.actor || 'admin', 'create_promo_code', promoCodeId, '', code,
+      `${params.clientId ? `Réservé à ${params.clientId}` : 'Générique'}, usage_max=${usageMax}`
+    );
+    return promoCodeId;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**

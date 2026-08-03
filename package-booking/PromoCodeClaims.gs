@@ -44,6 +44,13 @@ function validateAndClaimPromoCode_(email, code, serviceId) {
   // compteur d'échecs — sinon un email déjà bloqué resterait bloqué à vie.
   enforceNotLockedOutForPromo_(normalizedEmail, settings);
 
+  // Lecture du quota + incrément sous verrou : endpoint public, donc des
+  // requêtes simultanées sur le même code pourraient sinon toutes lire le
+  // même usage_count et dépasser usage_max.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, merci de réessayer dans un instant.');
+  }
   try {
     const result = claimPromoCode_(normalizedEmail, normalizedCode, svcId);
     clearFailedPromoAttempts_(normalizedEmail);
@@ -53,6 +60,8 @@ function validateAndClaimPromoCode_(email, code, serviceId) {
       recordFailedPromoAttempt_(normalizedEmail, settings);
     }
     throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -66,6 +75,19 @@ function claimPromoCode_(normalizedEmail, normalizedCode, svcId) {
 
   if (promoRow.statut !== PROMO_CODE_STATUS.ACTIVE) {
     throw new BookingBusinessError_('Ce code promo n\'est plus actif.');
+  }
+
+  // Expiration vérifiée aussi côté public — même règle que la validation
+  // admin (validatePromoCodeForClient_, PromoCodes.gs) : un code périmé mais
+  // encore "active" (statut pas encore rafraîchi) est refusé ET marqué
+  // expiré au passage, pour ne jamais laisser un canal accepter ce que
+  // l'autre refuse.
+  if (promoRow.date_expiration) {
+    const exp = new Date(promoRow.date_expiration);
+    if (!isNaN(exp.getTime()) && exp < new Date()) {
+      updateRow_(TABS.PROMO_CODES, promoRow.rowNumber, { statut: PROMO_CODE_STATUS.EXPIRED });
+      throw new BookingBusinessError_('Ce code promo a expiré.');
+    }
   }
 
   // Défaut 1 (usage unique) si la case est vide — même convention que

@@ -140,6 +140,18 @@ function runReconciliationCheck() {
       writeAuditLog_('system', 'offer_expired_reconciliation', o.offer_id, o.statut, OFFER_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
     });
 
+  // --- Correction automatique sûre : codes promo expirés ---
+  // Même principe que les offres : comparaison de dates objective, aucun
+  // paiement ni forfait touché. Sans cette passe, un code périmé resterait
+  // au statut "active" tant que personne n'essaie de l'utiliser côté admin.
+  readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => p.statut === PROMO_CODE_STATUS.ACTIVE && p.date_expiration &&
+      !isNaN(new Date(p.date_expiration).getTime()) && new Date(p.date_expiration) < nowForOffers)
+    .forEach((p) => {
+      updateRow_(TABS.PROMO_CODES, p.rowNumber, { statut: PROMO_CODE_STATUS.EXPIRED });
+      writeAuditLog_('system', 'promo_code_expired_reconciliation', p.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.EXPIRED, 'Expiration automatique (réconciliation quotidienne)');
+    });
+
   // --- Écriture des anomalies détectées ---
   issues.forEach(([type, entity, details]) => {
     appendRow_(TABS.RECONCILIATION_ISSUES, {

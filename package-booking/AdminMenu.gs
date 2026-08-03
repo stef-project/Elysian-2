@@ -25,6 +25,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Prolonger / suspendre un forfait', 'adminExtendOrSuspendPackage')
     .addItem('Lancer la réconciliation maintenant', 'runReconciliationCheck')
+    .addItem('Synchroniser les réglages manquants (Settings)', 'adminSyncSettingsKeys')
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Catalogue de forfaits (Phase 2)')
       .addItem('Ajouter un modèle de forfait', 'adminAddPackageTemplate')

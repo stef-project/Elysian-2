@@ -55,29 +55,44 @@ function authenticateAdmin_(passwordPlain) {
 }
 
 /**
- * Codes promo actifs et disponibles pour une cliente donnée : réservés à
- * elle (client_id correspondant) ou génériques (client_id vide), actifs, non
- * expirés et pas encore épuisés. Mêmes conditions que
- * validatePromoCodeForClient_ (PromoCodes.gs), en lecture seule ici.
+ * Un code promo est-il encore utilisable à cet instant (actif, non expiré,
+ * quota non épuisé) ? Mêmes conditions que validatePromoCodeForClient_
+ * (PromoCodes.gs), en lecture seule ici — la restriction par cliente
+ * (client_id) se vérifie séparément, selon le contexte d'appel.
  */
-function findActivePromoCodesForClient_(clientId) {
-  const now = new Date();
-  return readAllRows_(TABS.PROMO_CODES).filter((p) => {
-    if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
-    if (p.client_id && p.client_id !== clientId) return false;
-    if (p.date_expiration) {
-      const exp = new Date(p.date_expiration);
-      if (!isNaN(exp.getTime()) && exp < now) return false;
-    }
-    const usageMax = Number(p.usage_max) || 1;
-    const usageCount = Number(p.usage_count) || 0;
-    if (usageCount >= usageMax) return false;
-    return true;
-  }).map((p) => ({
+function isPromoCodeCurrentlyAvailable_(p, now) {
+  if (p.statut !== PROMO_CODE_STATUS.ACTIVE) return false;
+  if (p.date_expiration) {
+    const exp = new Date(p.date_expiration);
+    if (!isNaN(exp.getTime()) && exp < now) return false;
+  }
+  const usageMax = Number(p.usage_max) || 1;
+  const usageCount = Number(p.usage_count) || 0;
+  if (usageCount >= usageMax) return false;
+  return true;
+}
+
+/** Forme renvoyée au site pour un code promo (jamais la ligne brute du Sheet). */
+function promoCodeToDto_(p) {
+  return {
     code: p.code,
     discountType: p.type,
     discountValue: Number(p.value),
-  }));
+  };
+}
+
+/**
+ * Codes promo actifs et disponibles pour une cliente donnée : réservés à
+ * elle (client_id correspondant) ou génériques (client_id vide), actifs, non
+ * expirés et pas encore épuisés. Utilisé par le tableau de bord /use-package
+ * (une seule cliente à la fois).
+ */
+function findActivePromoCodesForClient_(clientId) {
+  const now = new Date();
+  return readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => isPromoCodeCurrentlyAvailable_(p, now))
+    .filter((p) => !p.client_id || p.client_id === clientId)
+    .map(promoCodeToDto_);
 }
 
 /**
@@ -122,6 +137,12 @@ function adminGetClientsOverview_(passwordPlain) {
     bookingsByClient[clientId].sort((a, b) => new Date(a.start) - new Date(b.start));
   });
 
+  // Une seule lecture de Promo_Codes pour toute la vue — surtout pas
+  // findActivePromoCodesForClient_ par cliente, qui relirait l'onglet entier
+  // à chaque itération (N clientes = N lectures, lent et coûteux en quota).
+  const availablePromos = readAllRows_(TABS.PROMO_CODES)
+    .filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
+
   return readAllRows_(TABS.CLIENTS).map((c) => ({
     clientId: c.client_id,
     prenom: c.prenom,
@@ -130,7 +151,9 @@ function adminGetClientsOverview_(passwordPlain) {
     telephone: c.telephone,
     packages: packagesByClient[c.client_id] || [],
     upcomingBookings: bookingsByClient[c.client_id] || [],
-    activePromoCodes: findActivePromoCodesForClient_(c.client_id),
+    activePromoCodes: availablePromos
+      .filter((p) => !p.client_id || p.client_id === c.client_id)
+      .map(promoCodeToDto_),
   }));
 }
 

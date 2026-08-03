@@ -92,30 +92,40 @@ function promptReferralTag_() {
  * et s'applique à la saisie du paiement comme n'importe quel code promo
  * (promptAndRecordPayment_) — aucune mécanique nouvelle, tout est réutilisé.
  *
- * @returns {string} le code créé (ex. "WELCOME-4FQ7"), ou '' si désactivé.
+ * @returns {string} le code créé (ex. "WELCOME-4FQ7"), ou '' si désactivé
+ *   ou si la création du code a échoué — la création de la cliente, déjà
+ *   faite au moment de l'appel, ne doit JAMAIS être interrompue par un
+ *   problème sur le code cadeau (l'échec est tracé dans Audit_Log, le code
+ *   peut être recréé à la main via "Créer un code promo").
  */
 function grantReferralWelcomePromo_(clientId, referralTag) {
-  const settings = getSettings();
-  const value = Number(settings.referral_welcome_discount_value) || 0;
-  if (value <= 0) return '';
+  try {
+    const settings = getSettings();
+    const value = Number(settings.referral_welcome_discount_value) || 0;
+    if (value <= 0) return '';
 
-  const type = settings.referral_welcome_discount_type === PROMO_CODE_TYPE.FIXED_AMOUNT
-    ? PROMO_CODE_TYPE.FIXED_AMOUNT
-    : PROMO_CODE_TYPE.PERCENTAGE;
-  const validityDays = Number(settings.referral_welcome_validity_days) || 90;
+    const type = settings.referral_welcome_discount_type === PROMO_CODE_TYPE.FIXED_AMOUNT
+      ? PROMO_CODE_TYPE.FIXED_AMOUNT
+      : PROMO_CODE_TYPE.PERCENTAGE;
+    const validityDays = Number(settings.referral_welcome_validity_days) || 90;
 
-  const code = generateUniquePromoCode_('WELCOME');
-  createPromoCode_({
-    code: code,
-    clientId: clientId,
-    type: type,
-    value: value,
-    usageMax: 1,
-    dateExpiration: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000),
-    notesAdmin: `Remise de bienvenue automatique — cliente parrainée (${referralTag})`,
-    actor: 'system',
-  });
-  return code;
+    const code = generateUniquePromoCode_('WELCOME');
+    createPromoCode_({
+      code: code,
+      clientId: clientId,
+      type: type,
+      value: value,
+      usageMax: 1,
+      dateExpiration: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000),
+      notesAdmin: `Remise de bienvenue automatique — cliente parrainée (${referralTag})`,
+      actor: 'system',
+    });
+    return code;
+  } catch (err) {
+    writeAuditLog_('system', 'welcome_promo_failed', clientId, '', '',
+      String(err && err.message ? err.message : err));
+    return '';
+  }
 }
 
 /**
