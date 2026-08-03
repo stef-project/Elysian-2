@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { label: "About", href: "/#about" },
   { label: "Treatments", href: "/#treatments" },
   { label: "Visit", href: "/#location" },
-  { label: "Studios", href: "/kensington" },
+  { label: "Studios", href: "/studios" },
 ];
 
 export function Navbar() {
