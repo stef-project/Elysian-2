@@ -80,11 +80,11 @@ export function Facility() {
 
               <div className="border-t border-border pt-7">
                 <a
-                  href="#contact"
+                  href="#treatments"
                   data-testid="button-book-consultation"
                   className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300"
                 >
-                  Book a Consultation
+                  Book Now
                 </a>
               </div>
             </div>

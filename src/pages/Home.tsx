@@ -12,7 +12,6 @@ import { FAQ } from "../components/sections/FAQ";
 import { CorporateModal } from "../components/ui/CorporateModal";
 import { Quotes } from "../components/sections/Quotes";
 import { Facility } from "../components/sections/Facility";
-import { Enquiry } from "../components/sections/Enquiry";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { CookieConsent } from "../components/ui/CookieConsent";
 
@@ -50,10 +49,12 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6">
           <CorporateModal />
         </div>
+        {/* Volontairement pas de section "enquiry" : le parcours voulu est
+            réserver → payer, en un clic depuis le Hero/les soins. Les
+            questions passent par WhatsApp (bouton flottant + Concierge). */}
         <Quotes />
         <Facility />
         <FAQ />
-        <Enquiry />
       </main>
 
       <Footer />
