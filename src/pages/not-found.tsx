@@ -1,4 +1,22 @@
+import { useEffect } from "react";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
+
 export default function NotFound() {
+  useDocumentMeta(
+    "Page Not Found | Elysian Paris",
+    "The page you are looking for may have moved or no longer exists."
+  );
+
+  // Une URL invalide ne doit jamais s'indexer sous le titre/description de la homepage.
+  useEffect(() => {
+    const tag = document.querySelector('meta[name="robots"]');
+    const previous = tag?.getAttribute("content") ?? null;
+    tag?.setAttribute("content", "noindex, nofollow");
+    return () => {
+      if (previous !== null) tag?.setAttribute("content", previous);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground font-sans px-6">
       <div className="text-center max-w-md">
