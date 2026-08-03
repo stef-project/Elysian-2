@@ -1,4 +1,5 @@
 import { BOOKING_URL, WHATSAPP_URL } from "../../lib/booking";
+import { trackBookClick, trackWhatsappClick } from "../../lib/analytics";
 
 interface TopBarProps {
   location?: string;
@@ -15,6 +16,7 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
           <a
             href={BOOKING_URL}
             data-testid="link-topbar-book"
+            onClick={() => trackBookClick("topbar")}
             className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
           >
             Book
@@ -25,6 +27,7 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
             target="_blank"
             rel="noopener noreferrer"
             data-testid="link-topbar-concierge"
+            onClick={() => trackWhatsappClick("topbar")}
             className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
           >
             Concierge

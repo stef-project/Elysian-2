@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import logo from "../../assets/logo-dark.png";
 import { BOOKING_URL } from "../../lib/booking";
+import { trackBookClick } from "../../lib/analytics";
 
 const NAV_LINKS = [
   { label: "About", href: "/#about" },
@@ -77,6 +78,7 @@ export function Navbar() {
           <a
             href={BOOKING_URL}
             data-testid="link-book-now"
+            onClick={() => trackBookClick("navbar")}
             className="text-[11px] font-sans font-light tracking-[0.18em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-6 py-2.5 hover:bg-[#BF944A] transition-colors duration-300"
           >
             Book Now

@@ -4,6 +4,7 @@ import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { BOOKING_URL, ADDRESS } from "../lib/booking";
+import { trackBookClick } from "../lib/analytics";
 
 export default function Studios() {
   useDocumentMeta(
@@ -52,6 +53,7 @@ export default function Studios() {
             <a
               href={BOOKING_URL}
               data-testid="button-book-kensington-studios"
+              onClick={() => trackBookClick("studios_kensington")}
               className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
             >
               Book Kensington
@@ -84,6 +86,7 @@ export default function Studios() {
             <Link
               href="/book-chelsea"
               data-testid="button-book-chelsea-studios"
+              onClick={() => trackBookClick("studios_chelsea")}
               className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
             >
               Book Chelsea, Every Friday

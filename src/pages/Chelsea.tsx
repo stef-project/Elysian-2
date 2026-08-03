@@ -3,6 +3,7 @@ import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
+import { trackBookClick } from "../lib/analytics";
 
 export default function Chelsea() {
   useDocumentMeta(
@@ -40,6 +41,7 @@ export default function Chelsea() {
           <Link
             href="/book-chelsea"
             data-testid="button-book-chelsea-page"
+            onClick={() => trackBookClick("chelsea_page")}
             className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 inline-block"
           >
             Book Chelsea, Every Friday
