@@ -316,6 +316,17 @@ service déjà acheté — toujours envoyées, indépendamment de
 `Clients.consentement_marketing`. Seule une proposition de renouvellement
 (commerciale) respecte ce consentement, et jamais automatiquement.
 
+**Demande d'avis (systématisation)** : envoyée automatiquement, une seule
+fois par forfait, `Settings.review_request_days_after_first_session`
+(défaut `7`) jours après le premier rendez-vous honoré du forfait (tous
+statuts de forfait confondus). Contrairement aux communications
+transactionnelles ci-dessus, demander un avis public reste discrétionnaire
+: elle **respecte `Clients.consentement_marketing`** (voir
+`hasMarketingConsent_`, valeurs reconnues : `oui`/`yes`/`true`/`1`) et ne
+part **jamais** si `Settings.google_review_link` est vide — à renseigner
+directement dans l'onglet `Settings` une fois le lien d'avis Google
+obtenu.
+
 **Tableau de bord** (`Elysian Admin → Notifications & Tableau de bord →
 Générer le tableau de bord`) : génère l'onglet `Dashboard` avec les 12
 indicateurs (offres proposées/vendues, taux de conversion, CA brut/frais/
@@ -366,6 +377,68 @@ La Fiche_Client affiche aussi désormais les **propositions d'offre**
 envoyées à la cliente (`Package_Offers`) — ce champ affichait encore
 "Étape B — pas encore implémenté" alors que Étape B était déjà construite ;
 corrigé au passage.
+
+### Programme de parrainage (automatique)
+
+Règle fixe, configurable dans `Settings`, jamais une décision commerciale au
+cas par cas (contrairement aux alertes de renouvellement ci-dessus, qui
+restent du ressort de l'administratrice) :
+
+- À la création d'une cliente (**Ajouter une cliente** ou une offre
+  personnalisée acceptée), l'admin renseigne le **prénom + nom** de la
+  marraine (c'est l'information que la nouvelle cliente donne spontanément,
+  "recommandée par Untel·le" — pas son email). `findClientsByName_`
+  recherche la correspondance : une seule cliente trouvée → utilisée
+  directement ; plusieurs → l'admin choisit le `client_id` exact dans la
+  liste affichée (jamais de choix automatique en cas d'ambiguïté) ; aucune
+  → email de la marraine proposé en secours. Le tag `referred-by:CLIENT_ID`
+  est alors ajouté automatiquement sur `Clients.tags` — aucune nouvelle
+  table, réutilise le système de tags CRM.
+- Dès qu'une cliente parrainée confirme un premier paiement (activation de
+  forfait), le système compte les filleul(e)s de la marraine ayant déjà
+  payé. Tous les **N** filleul(e)s (`Settings.referral_milestone_count`,
+  défaut `3`), la marraine reçoit **automatiquement** un forfait offert
+  (`Settings.referral_reward_sessions` séance(s), défaut `1`) — créé par
+  `grantComplimentaryPackage_` (Payments.gs), avec sa propre ligne
+  `Payments` confirmée à 0 et une trace complète dans `Audit_Log`.
+- Dédoublonné par palier (`Reminders_Sent`, type `parrainage_palier_N`) :
+  une marraine ne reçoit jamais deux fois la récompense pour le même
+  palier, même si `checkReferralMilestones_` est réévaluée à chaque
+  nouvelle activation de forfait.
+- Un email est envoyé à la marraine pour l'informer du forfait offert — ceci
+  reste une communication transactionnelle liée à une récompense déjà
+  acquise (pas une offre commerciale), donc envoyé sans condition de
+  consentement marketing, comme les confirmations post-achat.
+
+### Codes promo (`Promo_Codes`)
+
+Sous-menu **Elysian Admin → Croissance clientèle**. Codes optionnellement
+réservés à une cliente précise (`client_id` renseigné) ou génériques
+(`client_id` vide) :
+
+- **Créer un code promo** : code, remise (`percentage` ou `fixed_amount` —
+  volontairement pas de type "séances offertes", pour ne jamais mélanger
+  remise de paiement et ajustement de forfait), **nombre d'utilisations
+  autorisées** (`usage_max`, laisser vide = 1 = usage unique), validité
+  optionnelle en jours, réservation optionnelle à une cliente.
+- Le code se saisit directement pendant la **saisie du paiement**
+  (`promptAndRecordPayment_`, seul point d'entrée de paiement du système —
+  donc disponible partout où un paiement se saisit : Enregistrer un
+  paiement, Ajouter un forfait "déjà reçu", Convertir une offre en
+  forfait). Un code invalide, expiré, épuisé ou réservé à une autre
+  cliente est simplement ignoré (message d'alerte), sans jamais bloquer la
+  saisie du paiement.
+- **Usage unique par défaut**, mais un code peut être créé **multi-usages**
+  (ex. un code personnel qu'une cliente partage à ses contacts pour les
+  faire passer de ClassPass au système direct) : `usage_max` fixe la limite,
+  chaque utilisation incrémente `usage_count`, et le code ne passe à
+  `used` (définitivement épuisé) qu'une fois la limite atteinte — jusque-là
+  il reste `active` et utilisable par d'autres clientes. `used_at` /
+  `used_by_client_id` / `used_for_package_id` ne montrent que la
+  **dernière** utilisation (aperçu rapide) ; l'historique complet de
+  chaque utilisation reste dans `Audit_Log` (action `use_promo_code`).
+- **Annuler un code promo** : passe un code `active` à `cancelled`,
+  quel que soit son usage restant.
 
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
