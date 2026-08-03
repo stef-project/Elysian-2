@@ -240,14 +240,31 @@ function adminCreatePromoCode() {
   ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)') + ` — ${usageMax} utilisation(s) autorisée(s).`);
 }
 
+/**
+ * Cœur (non interactif) de l'annulation d'un code promo — réutilisé par le
+ * menu Sheet (adminCancelPromoCode) et le portail admin web
+ * (adminPortalCancelPromoCode_, Portal.gs), comme createPromoCode_ pour la
+ * création. Lève BookingBusinessError_ (message montrable) si le code est
+ * introuvable ou n'est plus actif.
+ */
+function cancelPromoCodeByCode_(codeRaw, actor) {
+  const promo = findPromoCodeByCode_(codeRaw);
+  if (!promo) throw new BookingBusinessError_('Code introuvable.');
+  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) {
+    throw new BookingBusinessError_(`Ce code est déjà "${promo.statut}", rien à annuler.`);
+  }
+  updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.CANCELLED });
+  writeAuditLog_(actor || 'admin', 'cancel_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.CANCELLED, '');
+}
+
 function adminCancelPromoCode() {
   const ui = ui_();
   const codeRaw = ui.prompt('Code promo à annuler :').getResponseText().trim();
-  const promo = findPromoCodeByCode_(codeRaw);
-  if (!promo) { ui.alert('Code introuvable.'); return; }
-  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) { ui.alert(`Ce code est déjà "${promo.statut}", rien à annuler.`); return; }
-
-  updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.CANCELLED });
-  writeAuditLog_('admin', 'cancel_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.CANCELLED, '');
+  try {
+    cancelPromoCodeByCode_(codeRaw, 'admin');
+  } catch (err) {
+    ui.alert(err && err.message ? err.message : 'Annulation impossible.');
+    return;
+  }
   ui.alert('Code promo annulé.');
 }

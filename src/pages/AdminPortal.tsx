@@ -4,6 +4,7 @@ import {
   isPackageBookingConfigured,
   adminGetClientsOverview,
   adminCreatePromoCode,
+  adminCancelPromoCode,
   PACKAGE_SERVICES,
   type AdminClientOverview,
 } from "../lib/packageBooking";
@@ -325,7 +326,14 @@ export default function AdminPortal() {
                     <div className="space-y-1 mb-2">
                       {c.packages.map((pkg) => (
                         <div key={pkg.packageName} className="flex justify-between font-sans text-sm">
-                          <span>{pkg.packageName}</span>
+                          <span>
+                            {pkg.packageName}
+                            {pkg.statut === "pending_payment" && (
+                              <span className="ml-2 text-xs uppercase tracking-widest text-[#BF944A]">
+                                awaiting payment
+                              </span>
+                            )}
+                          </span>
                           <span className="text-muted-foreground">
                             {pkg.availableSessions}/{pkg.totalSessions} sessions left
                             {pkg.dateExpiration ? ` · expires ${new Date(pkg.dateExpiration).toLocaleDateString("en-GB")}` : ""}
@@ -354,6 +362,23 @@ export default function AdminPortal() {
                       <span className="text-[#BF944A]">
                         {p.discountType === "percentage" ? `${p.discountValue}% off` : `£${p.discountValue} off`}
                       </span>
+                      <button
+                        type="button"
+                        title="Cancel this code"
+                        onClick={async () => {
+                          // Un code générique est partagé : l'annuler ici l'annule pour toutes les clientes.
+                          if (!window.confirm(`Cancel promo code ${p.code}? If it is a shared (generic) code, it will be cancelled for every client.`)) return;
+                          try {
+                            await adminCancelPromoCode(password, p.code);
+                            load(password);
+                          } catch (err) {
+                            alert(err instanceof Error ? err.message : "Something went wrong.");
+                          }
+                        }}
+                        className="text-muted-foreground hover:text-red-600 transition-colors leading-none"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
 

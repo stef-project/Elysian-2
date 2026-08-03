@@ -109,14 +109,18 @@ function findActivePromoCodesForClient_(clientId) {
 function adminGetClientsOverview_(passwordPlain) {
   authenticateAdmin_(passwordPlain);
 
+  // Forfaits actifs ET en attente de paiement — les pending_payment sont
+  // affichés avec leur statut pour permettre la relance, sans jamais être
+  // réservables (findEligiblePackages_/confirmPackageBooking exigent ACTIVE).
   const packagesByClient = {};
   readAllRows_(TABS.PACKAGES).forEach((pkg) => {
-    if (pkg.statut !== PACKAGE_STATUS.ACTIVE) return;
+    if ([PACKAGE_STATUS.ACTIVE, PACKAGE_STATUS.PENDING_PAYMENT].indexOf(pkg.statut) === -1) return;
     (packagesByClient[pkg.client_id] = packagesByClient[pkg.client_id] || []).push({
       packageName: pkg.nom_forfait,
       availableSessions: Number(pkg.available_sessions),
       totalSessions: Number(pkg.total_sessions),
       dateExpiration: pkg.date_expiration || '',
+      statut: pkg.statut,
     });
   });
 
@@ -199,4 +203,20 @@ function adminPortalCreatePromoCode_(passwordPlain, params) {
   });
 
   return { code: code, clientId: clientId };
+}
+
+/**
+ * Annulation d'un code promo depuis le portail admin web — même protection
+ * que la création (mot de passe + anti brute-force), même cœur que le menu
+ * Sheet (cancelPromoCodeByCode_, PromoCodes.gs), tracée dans Audit_Log
+ * (acteur "admin_portal"). ⚠️ Un code générique annulé ici l'est pour
+ * toutes les clientes — le frontend demande confirmation avant l'appel.
+ */
+function adminPortalCancelPromoCode_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const code = String((params && params.code) || '').trim();
+  if (!code) throw new BookingBusinessError_('Code manquant.');
+  cancelPromoCodeByCode_(code, 'admin_portal');
+  return { code: code.toUpperCase() };
 }

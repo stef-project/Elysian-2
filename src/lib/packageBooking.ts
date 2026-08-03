@@ -171,6 +171,9 @@ export type AdminClientOverview = {
     availableSessions: number;
     totalSessions: number;
     dateExpiration: string;
+    // "active" ou "pending_payment" — un forfait en attente de paiement est
+    // affiché (utile pour relancer) mais n'est jamais réservable côté GAS.
+    statut: string;
   }[];
   // Rendez-vous à venir de la cliente : réservations forfait confirmées
   // (leur événement Google Calendar existe déjà — le portail n'est qu'une
@@ -198,6 +201,11 @@ export const adminCreatePromoCode = (
     note?: string;
   }
 ) => callWebApp<{ code: string; clientId: string }>("admin-create-promo-code", { adminPassword, params });
+
+// Annule un code promo actif depuis le portail admin. ⚠️ Un code générique
+// annulé ici l'est pour toutes les clientes — demander confirmation avant.
+export const adminCancelPromoCode = (adminPassword: string, code: string) =>
+  callWebApp<{ code: string }>("admin-cancel-promo-code", { adminPassword, params: { code } });
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.

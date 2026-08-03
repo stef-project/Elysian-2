@@ -72,10 +72,16 @@ function doPost(e) {
         break;
 
       case 'admin-create-promo-code':
-        // Seule écriture du portail admin : créer un code promo, généralement
+        // Écriture du portail admin : créer un code promo, généralement
         // réservé à une cliente précise. Même mot de passe + anti brute-force
         // que la vue d'ensemble ; même cœur de création que le menu Sheet.
         data = adminPortalCreatePromoCode_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-cancel-promo-code':
+        // Écriture du portail admin : annuler un code promo actif. Mêmes
+        // protections ; même cœur d'annulation que le menu Sheet.
+        data = adminPortalCancelPromoCode_(body.adminPassword, body.params);
         break;
 
       default:

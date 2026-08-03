@@ -157,6 +157,10 @@ const HEADERS = {
     'ca_brut', 'ca_frais', 'ca_net', 'forfaits_actifs', 'seances_dues',
     'forfaits_proches_expiration', 'clientes_classpass', 'classpass_vers_direct',
     'taux_conversion_classpass',
+    // Ajouts parrainage & promo — en fin de liste, jamais de réordonnancement
+    // (syncSheetHeaderRow_, Dashboard.gs, met à jour la ligne d'en-têtes des
+    // classeurs déjà initialisés).
+    'clientes_parrainees', 'filleules_converties', 'promo_codes_actifs', 'promo_utilisations',
   ],
 
   // --- CRM ---
@@ -336,6 +340,7 @@ const SETTINGS_DEFAULTS = {
   referral_welcome_discount_type: 'percentage',  // remise de bienvenue de la filleule : 'percentage' ou 'fixed_amount'
   referral_welcome_discount_value: 10,           // valeur de la remise (10 = -10% par défaut) ; 0 = désactivé
   referral_welcome_validity_days: 90,            // durée de validité du code de bienvenue de la filleule
+  referral_welcome_send_email: 'oui',            // email automatique du code de bienvenue à la filleule ('non' pour le communiquer soi-même)
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
@@ -2542,10 +2547,16 @@ function doPost(e) {
         break;
 
       case 'admin-create-promo-code':
-        // Seule écriture du portail admin : créer un code promo, généralement
+        // Écriture du portail admin : créer un code promo, généralement
         // réservé à une cliente précise. Même mot de passe + anti brute-force
         // que la vue d'ensemble ; même cœur de création que le menu Sheet.
         data = adminPortalCreatePromoCode_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-cancel-promo-code':
+        // Écriture du portail admin : annuler un code promo actif. Mêmes
+        // protections ; même cœur d'annulation que le menu Sheet.
+        data = adminPortalCancelPromoCode_(body.adminPassword, body.params);
         break;
 
       default:
@@ -3951,6 +3962,7 @@ function adminGenerateDashboard() {
   sheet.autoResizeColumn(2);
   ss.setActiveSheet(sheet);
 
+  syncSheetHeaderRow_(TABS.DASHBOARD_HISTORY);
   appendRow_(TABS.DASHBOARD_HISTORY, snapshot);
 
   ui.alert(`Tableau de bord généré dans l'onglet "${TABS.DASHBOARD}" (historique enregistré dans "${TABS.DASHBOARD_HISTORY}").`);
@@ -3965,6 +3977,8 @@ function buildDashboardReport_() {
   const packages = readAllRows_(TABS.PACKAGES);
   const payments = readAllRows_(TABS.PAYMENTS);
   const bookings = readAllRows_(TABS.BOOKINGS);
+  const clients = readAllRows_(TABS.CLIENTS);
+  const promoCodes = readAllRows_(TABS.PROMO_CODES);
   const settings = getSettings();
   const now = new Date();
 
@@ -4058,6 +4072,33 @@ function buildDashboardReport_() {
     : 0;
   line('Taux de conversion ClassPass → forfait', `${classpassConversionRate.toFixed(1)}%`);
 
+  // --- Parrainage & codes promo ---
+  section('Parrainage & codes promo');
+  const referredClients = clients.filter((c) =>
+    parseTags_(c.tags).some((t) => t.indexOf(REFERRAL_TAG_PREFIX) === 0)
+  );
+  line('Clientes parrainées (tag referred-by)', referredClients.length);
+  line('  → client_id concernés', referredClients.map((c) => c.client_id).join(', ') || '(aucun)');
+
+  // Même définition de "convertie" que checkReferralMilestones_ (CRM.gs) :
+  // au moins un paiement RÉEL confirmé — un forfait offert ne compte pas.
+  const convertedReferred = referredClients.filter((c) =>
+    payments.some((p) =>
+      p.client_id === c.client_id &&
+      p.statut_paiement === PAYMENT_STATUS.CONFIRME &&
+      p.moyen_paiement !== PAYMENT_METHOD.COMPLIMENTARY
+    )
+  );
+  line('Filleules converties (≥ 1 paiement réel confirmé)', convertedReferred.length);
+  line('  → client_id concernés', convertedReferred.map((c) => c.client_id).join(', ') || '(aucun)');
+
+  const availablePromoCodes = promoCodes.filter((p) => isPromoCodeCurrentlyAvailable_(p, now));
+  line('Codes promo utilisables (actifs, non expirés, quota restant)', availablePromoCodes.length);
+  line('  → codes concernés', availablePromoCodes.map((p) => p.code).join(', ') || '(aucun)');
+
+  const promoUsages = promoCodes.reduce((sum, p) => sum + (Number(p.usage_count) || 0), 0);
+  line('Utilisations de codes promo (total, tous canaux)', promoUsages);
+
   const snapshot = {
     generated_at: now,
     offres_proposees: offersTotal,
@@ -4072,9 +4113,31 @@ function buildDashboardReport_() {
     clientes_classpass: classpassClientIds.length,
     classpass_vers_direct: classpassToDirect.length,
     taux_conversion_classpass: Number(classpassConversionRate.toFixed(1)),
+    clientes_parrainees: referredClients.length,
+    filleules_converties: convertedReferred.length,
+    promo_codes_actifs: availablePromoCodes.length,
+    promo_utilisations: promoUsages,
   };
 
   return { rows, snapshot };
+}
+
+/**
+ * Réécrit la ligne d'en-têtes d'un onglet si elle ne correspond plus à
+ * HEADERS (colonnes ajoutées dans une version ultérieure du code, toujours
+ * en fin de liste) — les données existantes ne sont jamais touchées, seule
+ * la ligne 1 est réécrite. Sans ça, les nouvelles colonnes d'un classeur
+ * déjà initialisé se rempliraient sans titre.
+ */
+function syncSheetHeaderRow_(tabName) {
+  const sh = sheet_(tabName);
+  if (!sh) return;
+  const headers = HEADERS[tabName];
+  const current = sh.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (headers.some((h, i) => current[i] !== h)) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -4203,6 +4266,43 @@ function grantReferralWelcomePromo_(clientId, referralTag) {
       notesAdmin: `Remise de bienvenue automatique — cliente parrainée (${referralTag})`,
       actor: 'system',
     });
+
+    // Email automatique du code à la filleule — désactivable via
+    // Settings.referral_welcome_send_email = 'non' (pour le communiquer
+    // soi-même). Lié à l'enregistrement du parrainage à la création du
+    // compte, comme l'email de récompense de la marraine — pas soumis au
+    // consentement marketing (jamais renseigné à cet instant de toute
+    // façon). Un échec d'envoi ne remet jamais en cause le code déjà créé.
+    if (['non', 'no', 'false', '0'].indexOf(String(settings.referral_welcome_send_email).trim().toLowerCase()) === -1) {
+      try {
+        const client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
+        if (client && client.email) {
+          const discountLabel = type === PROMO_CODE_TYPE.PERCENTAGE ? `${value}%` : `${value} GBP`;
+          MailApp.sendEmail(
+            client.email,
+            'Bienvenue chez Elysian Paris — votre remise de bienvenue',
+            [
+              `Bonjour ${client.prenom || ''},`,
+              '',
+              'Bienvenue ! Comme vous nous avez rejoints sur recommandation, voici votre code de bienvenue personnel :',
+              '',
+              `    ${code}`,
+              '',
+              `Il vous donne droit à ${discountLabel} de remise sur votre premier achat, valable ${validityDays} jours (usage unique).`,
+              'Communiquez-le simplement au moment du paiement.',
+              '',
+              'À très bientôt,',
+              'Elysian Paris',
+            ].join('\n')
+          );
+          writeAuditLog_('system', 'send_welcome_promo_email', clientId, '', code, '');
+        }
+      } catch (emailErr) {
+        writeAuditLog_('system', 'welcome_promo_email_failed', clientId, '', code,
+          String(emailErr && emailErr.message ? emailErr.message : emailErr));
+      }
+    }
+
     return code;
   } catch (err) {
     writeAuditLog_('system', 'welcome_promo_failed', clientId, '', '',
@@ -4686,15 +4786,32 @@ function adminCreatePromoCode() {
   ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)') + ` — ${usageMax} utilisation(s) autorisée(s).`);
 }
 
+/**
+ * Cœur (non interactif) de l'annulation d'un code promo — réutilisé par le
+ * menu Sheet (adminCancelPromoCode) et le portail admin web
+ * (adminPortalCancelPromoCode_, Portal.gs), comme createPromoCode_ pour la
+ * création. Lève BookingBusinessError_ (message montrable) si le code est
+ * introuvable ou n'est plus actif.
+ */
+function cancelPromoCodeByCode_(codeRaw, actor) {
+  const promo = findPromoCodeByCode_(codeRaw);
+  if (!promo) throw new BookingBusinessError_('Code introuvable.');
+  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) {
+    throw new BookingBusinessError_(`Ce code est déjà "${promo.statut}", rien à annuler.`);
+  }
+  updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.CANCELLED });
+  writeAuditLog_(actor || 'admin', 'cancel_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.CANCELLED, '');
+}
+
 function adminCancelPromoCode() {
   const ui = ui_();
   const codeRaw = ui.prompt('Code promo à annuler :').getResponseText().trim();
-  const promo = findPromoCodeByCode_(codeRaw);
-  if (!promo) { ui.alert('Code introuvable.'); return; }
-  if (promo.statut !== PROMO_CODE_STATUS.ACTIVE) { ui.alert(`Ce code est déjà "${promo.statut}", rien à annuler.`); return; }
-
-  updateRow_(TABS.PROMO_CODES, promo.rowNumber, { statut: PROMO_CODE_STATUS.CANCELLED });
-  writeAuditLog_('admin', 'cancel_promo_code', promo.promo_code_id, PROMO_CODE_STATUS.ACTIVE, PROMO_CODE_STATUS.CANCELLED, '');
+  try {
+    cancelPromoCodeByCode_(codeRaw, 'admin');
+  } catch (err) {
+    ui.alert(err && err.message ? err.message : 'Annulation impossible.');
+    return;
+  }
   ui.alert('Code promo annulé.');
 }
 
@@ -5017,14 +5134,18 @@ function findActivePromoCodesForClient_(clientId) {
 function adminGetClientsOverview_(passwordPlain) {
   authenticateAdmin_(passwordPlain);
 
+  // Forfaits actifs ET en attente de paiement — les pending_payment sont
+  // affichés avec leur statut pour permettre la relance, sans jamais être
+  // réservables (findEligiblePackages_/confirmPackageBooking exigent ACTIVE).
   const packagesByClient = {};
   readAllRows_(TABS.PACKAGES).forEach((pkg) => {
-    if (pkg.statut !== PACKAGE_STATUS.ACTIVE) return;
+    if ([PACKAGE_STATUS.ACTIVE, PACKAGE_STATUS.PENDING_PAYMENT].indexOf(pkg.statut) === -1) return;
     (packagesByClient[pkg.client_id] = packagesByClient[pkg.client_id] || []).push({
       packageName: pkg.nom_forfait,
       availableSessions: Number(pkg.available_sessions),
       totalSessions: Number(pkg.total_sessions),
       dateExpiration: pkg.date_expiration || '',
+      statut: pkg.statut,
     });
   });
 
@@ -5107,4 +5228,20 @@ function adminPortalCreatePromoCode_(passwordPlain, params) {
   });
 
   return { code: code, clientId: clientId };
+}
+
+/**
+ * Annulation d'un code promo depuis le portail admin web — même protection
+ * que la création (mot de passe + anti brute-force), même cœur que le menu
+ * Sheet (cancelPromoCodeByCode_, PromoCodes.gs), tracée dans Audit_Log
+ * (acteur "admin_portal"). ⚠️ Un code générique annulé ici l'est pour
+ * toutes les clientes — le frontend demande confirmation avant l'appel.
+ */
+function adminPortalCancelPromoCode_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const code = String((params && params.code) || '').trim();
+  if (!code) throw new BookingBusinessError_('Code manquant.');
+  cancelPromoCodeByCode_(code, 'admin_portal');
+  return { code: code.toUpperCase() };
 }

@@ -123,6 +123,10 @@ const HEADERS = {
     'ca_brut', 'ca_frais', 'ca_net', 'forfaits_actifs', 'seances_dues',
     'forfaits_proches_expiration', 'clientes_classpass', 'classpass_vers_direct',
     'taux_conversion_classpass',
+    // Ajouts parrainage & promo — en fin de liste, jamais de réordonnancement
+    // (syncSheetHeaderRow_, Dashboard.gs, met à jour la ligne d'en-têtes des
+    // classeurs déjà initialisés).
+    'clientes_parrainees', 'filleules_converties', 'promo_codes_actifs', 'promo_utilisations',
   ],
 
   // --- CRM ---
@@ -302,6 +306,7 @@ const SETTINGS_DEFAULTS = {
   referral_welcome_discount_type: 'percentage',  // remise de bienvenue de la filleule : 'percentage' ou 'fixed_amount'
   referral_welcome_discount_value: 10,           // valeur de la remise (10 = -10% par défaut) ; 0 = désactivé
   referral_welcome_validity_days: 90,            // durée de validité du code de bienvenue de la filleule
+  referral_welcome_send_email: 'oui',            // email automatique du code de bienvenue à la filleule ('non' pour le communiquer soi-même)
   review_request_days_after_first_session: 7,    // délai avant la demande d'avis
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
