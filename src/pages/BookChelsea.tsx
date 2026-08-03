@@ -160,15 +160,6 @@ export default function BookChelsea() {
             {errorMsg && (
               <p className="font-sans text-xs text-red-600">{errorMsg}</p>
             )}
-
-            {/* Tarif affiché */}
-            <div className="border-t border-[#E8E0D6] pt-4">
-              <div className="flex justify-between items-baseline">
-                <span className="font-sans text-xs text-muted-foreground uppercase tracking-[0.1em]">
-                  Session price
-                </span>
-                <span className="font-serif text-xl text-[#1A1A1A]">£{FULL_PRICE}</span>
-              </div>
               <div className="flex justify-between items-baseline mt-1">
                 <span className="font-sans text-xs text-muted-foreground uppercase tracking-[0.1em]">
                   Deposit (taken online)
@@ -189,11 +180,6 @@ export default function BookChelsea() {
                 ? "Validate code & book"
                 : "Book my Friday slot"}
             </button>
-
-            <p className="font-sans text-[10px] text-muted-foreground/70 text-center leading-relaxed">
-              A £{DEPOSIT} deposit is required to confirm your appointment.
-              The remaining balance is payable at the studio.
-            </p>
           </form>
         )}
 

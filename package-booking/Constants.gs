@@ -138,8 +138,9 @@ const HEADERS = {
 
   // Table maître des codes promo — statut, limites d'usage.
   [TABS.PROMO_CODES]: [
-    'code', 'type', 'value', 'statut', 'usage_max', 'usage_count',
-    'client_id', 'notes', 'created_at',
+    'promo_code_id', 'code', 'client_id', 'type', 'value', 'statut',
+    'date_creation', 'date_expiration', 'used_at', 'used_by_client',
+    'used_for_pack', 'notes_admin', 'usage_max', 'usage_count',
   ],
 
   // Trace de chaque utilisation d'un code promo par un email client.
