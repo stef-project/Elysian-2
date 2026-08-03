@@ -152,6 +152,14 @@ export const validatePromoCode = (email: string, promoCode: string, serviceId: s
 //  fois, avec le même anti brute-force que le reste du site.
 // ─────────────────────────────────────────────────────────────────────────
 
+export type AdminUpcomingBooking = {
+  serviceId: string;
+  start: string;
+  end: string;
+  source: string;
+  status: string;
+};
+
 export type AdminClientOverview = {
   clientId: string;
   prenom: string;
@@ -164,11 +172,32 @@ export type AdminClientOverview = {
     totalSessions: number;
     dateExpiration: string;
   }[];
+  // Rendez-vous à venir de la cliente : réservations forfait confirmées
+  // (leur événement Google Calendar existe déjà — le portail n'est qu'une
+  // vue) + réservations externes saisies manuellement (ClassPass/WhatsApp).
+  upcomingBookings: AdminUpcomingBooking[];
   activePromoCodes: ActivePromoCode[];
 };
 
 export const adminGetClientsOverview = (adminPassword: string) =>
   callWebApp<AdminClientOverview[]>("admin-clients-overview", { adminPassword });
+
+// Seule écriture du portail admin : créer un code promo, généralement réservé
+// à une cliente précise (clientEmail vide = code générique). Le code créé
+// apparaît aussitôt sur le tableau de bord /use-package de la cliente et
+// s'applique à la saisie du paiement côté Sheet.
+export const adminCreatePromoCode = (
+  adminPassword: string,
+  params: {
+    clientEmail?: string;
+    code?: string;
+    discountType: "percentage" | "fixed_amount";
+    discountValue: number;
+    usageMax?: number;
+    validityDays?: number;
+    note?: string;
+  }
+) => callWebApp<{ code: string; clientId: string }>("admin-create-promo-code", { adminPassword, params });
 
 // Identifiants stables des soins, utilisés aussi dans la colonne
 // "soins_inclus" du Google Sheet — garder synchronisé avec Services.tsx.

@@ -89,7 +89,17 @@ function adminAddClient() {
     tags: referralTag,
   });
   writeAuditLog_('admin', 'add_client', clientId, '', email, referralTag ? `Parrainage : ${referralTag}` : '');
-  ui.alert(`Cliente ajoutée : ${clientId}` + (referralTag ? ' (parrainage enregistré)' : ''));
+
+  // Cliente parrainée : remise de bienvenue automatique (CRM.gs) — code promo
+  // personnel, visible sur son tableau de bord /use-package et applicable à
+  // la saisie du paiement. '' si le programme est désactivé dans Settings.
+  const welcomeCode = referralTag ? grantReferralWelcomePromo_(clientId, referralTag) : '';
+
+  ui.alert(
+    `Cliente ajoutée : ${clientId}` +
+    (referralTag ? ' (parrainage enregistré)' : '') +
+    (welcomeCode ? `\n\nCode de bienvenue créé automatiquement : ${welcomeCode} — communique-le à la cliente, il s'applique à son premier paiement.` : '')
+  );
 }
 
 /**

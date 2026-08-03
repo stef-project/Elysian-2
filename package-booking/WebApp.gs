@@ -66,9 +66,16 @@ function doPost(e) {
         break;
 
       case 'admin-clients-overview':
-        // Portail admin en lecture seule : chaque cliente, ses forfaits actifs
-        // et ses codes promo applicables. Mot de passe vérifié à chaque appel.
+        // Portail admin : chaque cliente, ses forfaits actifs, ses rendez-vous
+        // à venir et ses codes promo applicables. Mot de passe vérifié à chaque appel.
         data = adminGetClientsOverview_(body.adminPassword);
+        break;
+
+      case 'admin-create-promo-code':
+        // Seule écriture du portail admin : créer un code promo, généralement
+        // réservé à une cliente précise. Même mot de passe + anti brute-force
+        // que la vue d'ensemble ; même cœur de création que le menu Sheet.
+        data = adminPortalCreatePromoCode_(body.adminPassword, body.params);
         break;
 
       default:

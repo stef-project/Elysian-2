@@ -32,6 +32,78 @@ function findPromoCodeByCode_(codeRaw) {
 }
 
 /**
+ * Génère un code promo lisible et unique (ex. "WELCOME-4FQ7"), en excluant
+ * les caractères ambigus (0/O, 1/I/L). Vérifie l'unicité contre l'onglet
+ * Promo_Codes — jamais deux codes identiques, même générés le même jour.
+ */
+function generateUniquePromoCode_(prefix) {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let suffix = '';
+    for (let i = 0; i < 4; i++) {
+      suffix += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    }
+    const code = `${String(prefix || 'PROMO').toUpperCase()}-${suffix}`;
+    if (!findPromoCodeByCode_(code)) return code;
+  }
+  throw new Error('Impossible de générer un code promo unique après 20 tentatives.');
+}
+
+/**
+ * Cœur (non interactif) de la création d'un code promo — seule fonction qui
+ * écrit dans Promo_Codes. Réutilisée par le menu Sheet (adminCreatePromoCode),
+ * le portail admin web (adminPortalCreatePromoCode_, Portal.gs) et la remise
+ * de bienvenue automatique des clientes parrainées (grantReferralWelcomePromo_,
+ * CRM.gs) — la validation et l'écriture ne sont jamais dupliquées.
+ *
+ * Lève BookingBusinessError_ (message montrable) en cas de paramètre invalide.
+ *
+ * @param {{code: string, clientId: string, type: string, value: number,
+ *          usageMax: number, dateExpiration: (Date|string), notesAdmin: string,
+ *          actor: string}} params
+ * @returns {string} promo_code_id créé
+ */
+function createPromoCode_(params) {
+  const code = String(params.code || '').trim().toUpperCase();
+  if (!code) throw new BookingBusinessError_('Code promo vide.');
+  if (findPromoCodeByCode_(code)) throw new BookingBusinessError_('Ce code existe déjà.');
+
+  if (Object.values(PROMO_CODE_TYPE).indexOf(params.type) === -1) {
+    throw new BookingBusinessError_('Type de remise invalide.');
+  }
+  const value = Number(params.value);
+  if (isNaN(value) || value <= 0) throw new BookingBusinessError_('Valeur de remise invalide.');
+  if (params.type === PROMO_CODE_TYPE.PERCENTAGE && value > 100) {
+    throw new BookingBusinessError_('Un pourcentage de remise ne peut pas dépasser 100.');
+  }
+  const usageMax = Number(params.usageMax) || 1;
+  if (usageMax < 1) throw new BookingBusinessError_('Nombre d\'utilisations invalide.');
+
+  const promoCodeId = genId_('PROMO');
+  appendRow_(TABS.PROMO_CODES, {
+    promo_code_id: promoCodeId,
+    code: code,
+    client_id: params.clientId || '',
+    type: params.type,
+    value: value,
+    statut: PROMO_CODE_STATUS.ACTIVE,
+    date_creation: new Date(),
+    date_expiration: params.dateExpiration || '',
+    used_at: '',
+    used_by_client_id: '',
+    used_for_package_id: '',
+    notes_admin: params.notesAdmin || '',
+    usage_max: usageMax,
+    usage_count: 0,
+  });
+  writeAuditLog_(
+    params.actor || 'admin', 'create_promo_code', promoCodeId, '', code,
+    `${params.clientId ? `Réservé à ${params.clientId}` : 'Générique'}, usage_max=${usageMax}`
+  );
+  return promoCodeId;
+}
+
+/**
  * Valide un code promo pour une cliente donnée. Renvoie la ligne du code si
  * valide, ou null avec un message d'alerte si invalide — ne bloque jamais
  * la saisie du paiement en cours, un code invalide est simplement ignoré.
@@ -138,24 +210,21 @@ function adminCreatePromoCode() {
 
   const notesAdmin = ui.prompt('Note interne (optionnel) :').getResponseText().trim();
 
-  const promoCodeId = genId_('PROMO');
-  appendRow_(TABS.PROMO_CODES, {
-    promo_code_id: promoCodeId,
-    code: codeRaw,
-    client_id: clientId,
-    type: typeRaw,
-    value: value,
-    statut: PROMO_CODE_STATUS.ACTIVE,
-    date_creation: new Date(),
-    date_expiration: dateExpiration,
-    used_at: '',
-    used_by_client_id: '',
-    used_for_package_id: '',
-    notes_admin: notesAdmin,
-    usage_max: usageMax,
-    usage_count: 0,
-  });
-  writeAuditLog_('admin', 'create_promo_code', promoCodeId, '', codeRaw, `${clientId ? `Réservé à ${clientId}` : 'Générique'}, usage_max=${usageMax}`);
+  try {
+    createPromoCode_({
+      code: codeRaw,
+      clientId: clientId,
+      type: typeRaw,
+      value: value,
+      usageMax: usageMax,
+      dateExpiration: dateExpiration,
+      notesAdmin: notesAdmin,
+      actor: 'admin',
+    });
+  } catch (err) {
+    ui.alert(err && err.message ? err.message : 'Création du code impossible.');
+    return;
+  }
   ui.alert(`Code promo créé : ${codeRaw}` + (clientId ? ` (réservé à ${clientId})` : ' (générique)') + ` — ${usageMax} utilisation(s) autorisée(s).`);
 }
 

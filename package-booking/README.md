@@ -409,6 +409,18 @@ restent du ressort de l'administratrice) :
   reste une communication transactionnelle liée à une récompense déjà
   acquise (pas une offre commerciale), donc envoyé sans condition de
   consentement marketing, comme les confirmations post-achat.
+- **Remise de bienvenue de la filleule** : dès que le parrainage est
+  enregistré à la création de la cliente, un code promo personnel (ex.
+  `WELCOME-4FQ7`) est créé **automatiquement** pour elle
+  (`grantReferralWelcomePromo_`, CRM.gs) : réservé à elle, usage unique,
+  remise et validité configurables dans `Settings`
+  (`referral_welcome_discount_type`, défaut `percentage` ;
+  `referral_welcome_discount_value`, défaut `10` — mettre `0` pour
+  désactiver le programme ; `referral_welcome_validity_days`, défaut `90`).
+  Le code est affiché à l'admin au moment de la création (à communiquer à
+  la cliente), apparaît sur le tableau de bord `/use-package` de la cliente,
+  et s'applique à la saisie de son premier paiement comme n'importe quel
+  code promo — aucune mécanique nouvelle, tout réutilise `Promo_Codes`.
 
 ### Codes promo (`Promo_Codes`)
 
@@ -466,15 +478,37 @@ utilise **Libérer une réclamation abandonnée** (menu Croissance clientèle,
 
 ### Portail web (`/admin`, `Portal.gs`)
 
-Une alternative web au Sheet + menu Elysian Admin, en lecture seule :
+Une alternative web au Sheet + menu Elysian Admin :
 
 - **Côté cliente** (`/use-package`, déjà existant) : le tableau de bord
   affiché après vérification email + code montre désormais aussi les codes
   promo actifs applicables à cette cliente (réservés à elle ou génériques),
   en plus du solde de forfait et des prochains rendez-vous.
-- **Côté admin** (`/admin`, nouvelle page) : vue d'ensemble de toutes les
-  clientes, leurs forfaits actifs et les codes promo qui leur sont
-  applicables. Recherche par nom/email, aucune écriture possible.
+- **Côté admin** (`/admin`) : vue d'ensemble de toutes les clientes, leurs
+  forfaits actifs, **leurs rendez-vous à venir** et les codes promo qui leur
+  sont applicables, plus une section **« Upcoming appointments »** globale
+  (tous les rendez-vous futurs, toutes clientes confondues, triés par date).
+  Recherche par nom/email.
+
+**Rendez-vous et Google Calendar — comment ça s'articule** : chaque
+réservation forfait confirmée crée TOUJOURS son événement dans le Google
+Calendar dédié (`Settings.calendar_id`) au moment de la confirmation — la
+synchronisation calendrier existe donc déjà, sans rien activer de plus. Le
+portail `/admin` n'est qu'une **vue supplémentaire** sur les mêmes données
+(onglet `Bookings` du Sheet), jamais une source concurrente : ce qu'on y
+voit correspond aux événements déjà présents dans le calendrier, plus les
+réservations externes saisies manuellement (ClassPass / WhatsApp,
+`external_manual` — déclaratives, sans événement Calendar).
+
+**Seule écriture du portail** (tout le reste reste en lecture seule) :
+**créer un code promo directement sur le compte d'une cliente** (bouton
+« + Add promo code » sur sa fiche — remise `%` ou `£`, validité optionnelle,
+usage unique). L'appel (`admin-create-promo-code`, `adminPortalCreatePromoCode_`)
+est protégé par le même mot de passe + anti brute-force que la vue
+d'ensemble, réutilise exactement le même cœur de création/validation que le
+menu Sheet (`createPromoCode_`, PromoCodes.gs), et trace chaque création
+dans `Audit_Log` (acteur `admin_portal`). Le code apparaît immédiatement
+sur le tableau de bord `/use-package` de la cliente.
 
 Authentification volontairement simple (un seul compte, pas de rôles) : un
 mot de passe unique, jamais stocké en clair (hash HMAC, `Security.gs`),
