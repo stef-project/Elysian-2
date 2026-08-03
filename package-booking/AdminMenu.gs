@@ -55,7 +55,8 @@ function onOpen() {
       .addItem('Rechercher des clientes', 'adminSearchClients'))
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Croissance clientèle')
       .addItem('Créer un code promo', 'adminCreatePromoCode')
-      .addItem('Annuler un code promo', 'adminCancelPromoCode'))
+      .addItem('Annuler un code promo', 'adminCancelPromoCode')
+      .addItem('Libérer une réclamation abandonnée', 'adminReleasePromoClaim'))
     .addToUi();
 }
 
