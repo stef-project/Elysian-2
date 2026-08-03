@@ -8,6 +8,7 @@ import {
   adminAddClient,
   adminAddPackage,
   PACKAGE_SERVICES,
+  PAYMENT_METHODS,
   type AdminClientOverview,
 } from "../lib/packageBooking";
 
@@ -244,6 +245,8 @@ function AddPackageForm({
   const [totalSessions, setTotalSessions] = useState("");
   const [availableSessions, setAvailableSessions] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("other");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -282,6 +285,8 @@ function AddPackageForm({
         totalSessions: total,
         availableSessions: availableSessions === "" ? "" : parseInt(availableSessions, 10),
         expirationDate: expirationDate || undefined,
+        amountPaid: amountPaid === "" ? "" : parseFloat(amountPaid),
+        paymentMethod,
       });
       setOpen(false);
       setPackageName("");
@@ -289,6 +294,8 @@ function AddPackageForm({
       setTotalSessions("");
       setAvailableSessions("");
       setExpirationDate("");
+      setAmountPaid("");
+      setPaymentMethod("other");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -319,6 +326,32 @@ function AddPackageForm({
           <span className="text-muted-foreground">Expiry date (optional)</span>
           <input type="date" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} className={inputClass} />
         </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Amount paid £ (optional)</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={amountPaid}
+            onChange={(e) => setAmountPaid(e.target.value)}
+            placeholder="tracked outside if empty"
+            className={`w-40 ${inputClass}`}
+          />
+        </label>
+        {amountPaid !== "" && (
+          <label className="flex flex-col gap-1">
+            <span className="text-muted-foreground">Payment method</span>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className={inputClass}
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         <span className="w-full text-muted-foreground">Included services</span>
@@ -342,7 +375,9 @@ function AddPackageForm({
         </button>
       </div>
       <p className="text-muted-foreground/70">
-        The package is active immediately — the client can book with it right away (calendar synced). No payment is recorded here.
+        The package is active immediately — the client can book with it right away (calendar synced).
+        If you enter the amount paid, it is recorded as a confirmed payment (dashboard revenue stays accurate);
+        leave it empty if the payment is tracked outside the system.
       </p>
       {error && <p className="text-red-600">{error}</p>}
     </form>
@@ -379,6 +414,10 @@ export default function AdminPortal() {
       sessionStorage.setItem(PASSWORD_STORAGE_KEY, pwd);
     } catch (err) {
       sessionStorage.removeItem(PASSWORD_STORAGE_KEY);
+      // Retour à l'écran de connexion : garder l'ancienne liste affichée
+      // masquerait l'erreur (montrée uniquement sur cet écran) et laisserait
+      // des données périmées sans signal, l'auto-refresh étant stoppé.
+      setClients(null);
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setLoading(false);
