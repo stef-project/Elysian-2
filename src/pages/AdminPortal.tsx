@@ -89,7 +89,7 @@ function PromoCodeForm({
   if (createdCode) {
     return (
       <p className="font-sans text-xs mt-2">
-        Code created: <span className="tracking-widest font-medium">{createdCode}</span> — it now
+        Code created: <span className="tracking-widest font-medium">{createdCode}</span>, it now
         shows on this client's account.
       </p>
     );
@@ -375,7 +375,7 @@ function AddPackageForm({
         </button>
       </div>
       <p className="text-muted-foreground/70">
-        The package is active immediately — the client can book with it right away (calendar synced).
+        The package is active immediately, the client can book with it right away (calendar synced).
         If you enter the amount paid, it is recorded as a confirmed payment (dashboard revenue stays accurate);
         leave it empty if the payment is tracked outside the system.
       </p>
