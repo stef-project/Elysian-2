@@ -105,8 +105,8 @@
         {
           "@type": "OpeningHoursSpecification",
           "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-          "opens": "09:00",
-          "closes": "19:00"
+          "opens": "00:00",
+          "closes": "23:59"
         }
       ],
       "availableService": [
@@ -143,8 +143,26 @@
         },
         {
           "@type": "Offer",
+          "itemOffered": { "@type": "Service", "name": "Maderotherapy" },
+          "price": "80.00",
+          "priceCurrency": "GBP"
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": { "@type": "Service", "name": "Post-Op Care" },
+          "price": "80.00",
+          "priceCurrency": "GBP"
+        },
+        {
+          "@type": "Offer",
           "itemOffered": { "@type": "Service", "name": "Prenatal & Postnatal Massage" },
           "price": "80.00",
+          "priceCurrency": "GBP"
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": { "@type": "Service", "name": "Cavitation Fusion" },
+          "price": "150.00",
           "priceCurrency": "GBP"
         }
       ]

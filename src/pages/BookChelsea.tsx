@@ -40,6 +40,18 @@ export default function BookChelsea() {
     "Book your Lymphatic Drainage session at Elysian Paris Chelsea. Every Friday on the King's Road."
   );
 
+  // Page de réservation transactionnelle (email, code promo) : jamais
+  // indexée, même si l'URL fuite — même principe que /use-package, /admin
+  // et /offer/:offerId.
+  useEffect(() => {
+    const tag = document.querySelector('meta[name="robots"]');
+    const previous = tag?.getAttribute("content") ?? null;
+    tag?.setAttribute("content", "noindex, nofollow");
+    return () => {
+      if (previous !== null) tag?.setAttribute("content", previous);
+    };
+  }, []);
+
   const [, setLocation] = useLocation();
 
   // Pré-remplissage du code si passé en ?code= dans l'URL (lien Vivi)
