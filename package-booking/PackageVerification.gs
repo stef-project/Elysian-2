@@ -167,3 +167,22 @@ function verifyCodeAndIssueToken(email, codePlain) {
     availableSessions: Number(chosenPackage.available_sessions),
   };
 }
+
+/**
+ * Invalide immédiatement un jeton de session ("Log out of this device",
+ * /use-package) — sans ça, "se déconnecter" n'était qu'une action locale
+ * (le jeton retiré du localStorage du navigateur), le jeton lui-même restant
+ * valable via l'API jusqu'à sa date d'expiration naturelle (jusqu'à 90 jours)
+ * si jamais quelqu'un d'autre l'avait récupéré avant la déconnexion. Ne
+ * supprime jamais la ligne (traçabilité, même principe que le reste du
+ * système) — ramène juste expires_at dans le passé.
+ */
+function revokeSessionToken_(sessionTokenPlain) {
+  if (!sessionTokenPlain) return {};
+  const tokenHash = hashWithPepper_(String(sessionTokenPlain));
+  const tokenRow = findRowBy_(TABS.SESSION_TOKENS, 'token_hash', tokenHash);
+  if (tokenRow) {
+    updateRow_(TABS.SESSION_TOKENS, tokenRow.rowNumber, { expires_at: new Date(0) });
+  }
+  return {};
+}

@@ -102,6 +102,12 @@ export const getClientDashboard = (sessionToken: string) =>
     eligibleServices: string[];
   }>("get-client-dashboard", { sessionToken });
 
+// "Log out of this device" (/use-package) : invalide le jeton côté serveur en
+// plus de le retirer du localStorage — sinon "se déconnecter" ne protégeait
+// rien de plus que ce navigateur, le jeton restant utilisable ailleurs.
+export const revokeSession = (sessionToken: string) =>
+  callWebApp<Record<string, never>>("revoke-session", { sessionToken });
+
 export const confirmBooking = (
   sessionToken: string,
   bookingRequestId: string,

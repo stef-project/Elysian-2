@@ -45,6 +45,12 @@ function doPost(e) {
         data = handleGetClientDashboard_(body.sessionToken);
         break;
 
+      case 'revoke-session':
+        // "Log out of this device" (/use-package) : invalide le jeton côté
+        // serveur, pas seulement dans le localStorage du navigateur.
+        data = revokeSessionToken_(body.sessionToken);
+        break;
+
       case 'confirm-booking':
         data = confirmPackageBooking(
           body.sessionToken, body.bookingRequestId, body.serviceId, body.startIso, body.endIso
