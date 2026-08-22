@@ -9,6 +9,7 @@ import Studios from "@/pages/Studios";
 import Kensington from "@/pages/Kensington";
 import Chelsea from "@/pages/Chelsea";
 import UsePackage from "@/pages/UsePackage";
+import ClaimPackage from "@/pages/ClaimPackage";
 import PackageOffer from "@/pages/PackageOffer";
 import BookChelsea from "@/pages/BookChelsea";
 import AdminPortal from "@/pages/AdminPortal";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/chelsea" component={Chelsea} />
       <Route path="/book-chelsea" component={BookChelsea} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
+      {PACKAGE_BOOKING_ENABLED && <Route path="/claim-package" component={ClaimPackage} />}
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
       {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package/success" component={BuyPackageSuccess} />}
       {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package" component={BuyPackage} />}

@@ -115,6 +115,29 @@ function doPost(e) {
         data = confirmCheckoutSession_(body.sessionId);
         break;
 
+      case 'submit-package-claim':
+        // /claim-package : cliente avec un forfait mais sans email connu du
+        // système (vente historique). Crée une demande "en attente" à valider
+        // depuis le portail admin.
+        data = submitPackageClaim_(body.email, body.prenom, body.nom, body.telephone, body.message);
+        break;
+
+      case 'admin-list-package-claims':
+        // Portail admin : demandes de forfait en attente de validation.
+        data = adminPortalListPackageClaims_(body.adminPassword);
+        break;
+
+      case 'admin-approve-package-claim':
+        // Portail admin : valide une demande — crée la cliente si besoin et
+        // son forfait (même cœur que "Ajouter un forfait").
+        data = adminPortalApprovePackageClaim_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-reject-package-claim':
+        // Portail admin : rejette une demande (email non reconnu, doublon...).
+        data = adminPortalRejectPackageClaim_(body.adminPassword, body.params);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }

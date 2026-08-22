@@ -34,6 +34,8 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
+  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  PACKAGE_CLAIMS: 'Package_Claims',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -156,6 +158,17 @@ const HEADERS = {
     'discount_type', 'discount_value',
     'claimed_at', 'booking_status',
   ],
+
+  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+
+  // Une cliente qui a un forfait mais dont l'email n'est pas encore dans
+  // Clients (vente historique, jamais collecté) soumet ici sa demande ;
+  // l'administratrice la valide depuis le portail admin, ce qui crée la
+  // cliente (si besoin) et son forfait — voir PackageClaims.gs.
+  [TABS.PACKAGE_CLAIMS]: [
+    'claim_id', 'email', 'prenom', 'nom', 'telephone', 'message',
+    'statut', 'created_at', 'resolved_at', 'package_id_resultant', 'notes_admin',
+  ],
 };
 
 // NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client'), TABS.DASHBOARD ('Dashboard')
@@ -241,6 +254,13 @@ const PAYMENT_STATUS = {
 const PAYMENT_ENTRY_MODE = {
   MANUEL: 'manuel',
   AUTOMATIQUE: 'automatique',
+};
+
+// Statuts possibles d'une demande de forfait (Package_Claims.statut).
+const PACKAGE_CLAIM_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
 };
 
 // Statuts possibles d'une offre de forfait (Package_Offers.statut).
