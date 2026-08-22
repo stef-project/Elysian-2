@@ -26,49 +26,48 @@ function computeAvailableSlots(durationMinutes) {
   const workdays = getWorkdaysArray(settings);
 
   const now = new Date();
-  const rangeStart = new Date(now.getTime());
   const rangeEnd = new Date(now.getTime() + settings.lookahead_days * 24 * 60 * 60 * 1000);
 
-  // On récupère tous les événements existants une seule fois (perf + cohérence).
-  const existingEvents = calendar.getEvents(rangeStart, rangeEnd);
+  // On récupère tous les événements existants une seule fois (perf + cohérence)
+  // — c'est CE calendrier connecté qui reste la seule source de vérité anti-
+  // chevauchement : inchangé par l'espacement des créneaux ci-dessous.
+  const existingEvents = calendar.getEvents(now, rangeEnd);
   const busyIntervals = existingEvents.map((e) => ({
     start: new Date(e.getStartTime().getTime() - bufferMs),
     end: new Date(e.getEndTime().getTime() + bufferMs),
   }));
 
   const slots = [];
-  const cursor = new Date(rangeStart);
-  cursor.setMinutes(0, 0, 0);
-  // On avance d'heure en heure, en ne gardant que les créneaux qui tombent
-  // dans les horaires d'ouverture d'un jour travaillé.
-  while (cursor < rangeEnd) {
-    const isoWeekday = ((cursor.getDay() + 6) % 7) + 1; // JS: 0=dimanche -> ISO: 7=dimanche
-    const hour = cursor.getHours();
+  // Créneaux espacés selon la durée RÉELLE du soin (et non un pas fixe de 30
+  // min) : pour un soin de 90 min, ça donne 9h00, 10h30, 12h00... — le rythme
+  // qu'une seule praticienne peut réellement tenir, au lieu d'options quasi
+  // identiques toutes les 30 min qui ne feraient que se chevaucher entre elles.
+  // Chaque jour recommence à workday_start_hour (jamais un décalage continu
+  // depuis "maintenant") pour que les mêmes horaires reviennent chaque jour,
+  // quelle que soit l'heure à laquelle la page est consultée.
+  const dayCursor = new Date(now);
+  dayCursor.setHours(0, 0, 0, 0);
+  while (dayCursor < rangeEnd) {
+    const isoWeekday = ((dayCursor.getDay() + 6) % 7) + 1; // JS: 0=dimanche -> ISO: 7=dimanche
+    if (workdays.indexOf(isoWeekday) !== -1) {
+      const dayClose = new Date(dayCursor);
+      dayClose.setHours(settings.workday_end_hour, 0, 0, 0);
 
-    if (
-      workdays.indexOf(isoWeekday) !== -1 &&
-      hour >= settings.workday_start_hour &&
-      hour < settings.workday_end_hour &&
-      cursor > now
-    ) {
-      const slotStart = new Date(cursor);
-      const slotEnd = new Date(cursor.getTime() + durationMs);
+      let slotStart = new Date(dayCursor);
+      slotStart.setHours(settings.workday_start_hour, 0, 0, 0);
 
-      // Le créneau doit se terminer avant la fermeture.
-      const closingTime = new Date(cursor);
-      closingTime.setHours(settings.workday_end_hour, 0, 0, 0);
-
-      if (slotEnd <= closingTime) {
-        const overlaps = busyIntervals.some(
-          (b) => slotStart < b.end && slotEnd > b.start
-        );
-        if (!overlaps) {
-          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
+      while (slotStart.getTime() + durationMs <= dayClose.getTime()) {
+        const slotEnd = new Date(slotStart.getTime() + durationMs);
+        if (slotStart > now) {
+          const overlaps = busyIntervals.some((b) => slotStart < b.end && slotEnd > b.start);
+          if (!overlaps) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
+          }
         }
+        slotStart = new Date(slotStart.getTime() + durationMs);
       }
     }
-
-    cursor.setMinutes(cursor.getMinutes() + 30); // granularité des créneaux proposés : 30 min
+    dayCursor.setDate(dayCursor.getDate() + 1);
   }
 
   return slots;
