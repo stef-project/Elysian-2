@@ -12,6 +12,7 @@ import {
   getAvailableSlots,
   getClientDashboard,
   confirmBooking,
+  revokeSession,
   submitPackageClaim,
   generateBookingRequestId,
   ApiBusinessError,
@@ -209,9 +210,13 @@ export default function UsePackage() {
   };
 
   const logOut = () => {
+    const token = sessionToken;
     localStorage.removeItem(PACKAGE_SESSION_STORAGE_KEY);
     setSessionToken("");
     setStep("email");
+    // Révocation côté serveur en tâche de fond : la déconnexion locale ne
+    // doit jamais attendre après, ni échouer si le jeton était déjà expiré.
+    if (token) revokeSession(token).catch(() => {});
   };
 
   if (!isPackageBookingConfigured()) {
