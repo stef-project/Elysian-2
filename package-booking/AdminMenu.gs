@@ -59,7 +59,8 @@ function onOpen() {
       .addItem('Annuler un code promo', 'adminCancelPromoCode')
       .addItem('Libérer une réclamation abandonnée', 'adminReleasePromoClaim'))
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Portail web')
-      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword'))
+      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword')
+      .addItem('Définir la clé secrète Stripe', 'adminSetStripeSecretKey'))
     .addToUi();
 }
 

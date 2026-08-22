@@ -97,6 +97,24 @@ function doPost(e) {
         data = adminPortalAddPackage_(body.adminPassword, body.params);
         break;
 
+      case 'list-public-packages':
+        // Achat en ligne : catalogue des forfaits publiés (visibilite=public,
+        // statut=actif), lecture seule, sans authentification.
+        data = listPublicPackageTemplates_();
+        break;
+
+      case 'create-checkout-session':
+        // Achat en ligne : ouvre une session Stripe Checkout pour le forfait
+        // choisi. Prix recalculé côté serveur, jamais fourni par le client.
+        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom);
+        break;
+
+      case 'confirm-checkout-session':
+        // Achat en ligne : appelée au retour de Stripe (success_url). Vérifie
+        // directement auprès de Stripe avant de créer le forfait — idempotent.
+        data = confirmCheckoutSession_(body.sessionId);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }

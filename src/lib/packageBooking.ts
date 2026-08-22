@@ -282,3 +282,29 @@ export const PACKAGE_SERVICES: { id: string; label: string; durationMinutes: num
   { id: "cavitation", label: "Cavitation Fusion", durationMinutes: 90 },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Achat en ligne d'un forfait publié (Stripe Checkout) — page /buy-package.
+//  Le prix affiché est toujours celui du catalogue (prix_public,
+//  Package_Templates) : jamais recalculé côté client, jamais envoyé au
+//  serveur — seul templateId l'est, le serveur retrouve le prix lui-même.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type PublicPackageTemplate = {
+  templateId: string;
+  nom: string;
+  description: string;
+  soinsInclus: string[];
+  nombreSeances: number;
+  prixPublic: number;
+  dureeValiditeJours: number | null;
+};
+
+export const listPublicPackages = () =>
+  callWebApp<PublicPackageTemplate[]>("list-public-packages", {});
+
+export const createCheckoutSession = (templateId: string, email: string, prenom: string, nom: string) =>
+  callWebApp<{ checkoutUrl: string }>("create-checkout-session", { templateId, email, prenom, nom });
+
+export const confirmCheckoutSession = (sessionId: string) =>
+  callWebApp<{ packageName: string; totalSessions: number }>("confirm-checkout-session", { sessionId });
+

@@ -12,6 +12,8 @@ import UsePackage from "@/pages/UsePackage";
 import PackageOffer from "@/pages/PackageOffer";
 import BookChelsea from "@/pages/BookChelsea";
 import AdminPortal from "@/pages/AdminPortal";
+import BuyPackage from "@/pages/BuyPackage";
+import BuyPackageSuccess from "@/pages/BuyPackageSuccess";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +27,12 @@ const PACKAGE_BOOKING_ENABLED = import.meta.env.VITE_PACKAGE_BOOKING_ENABLED ===
 // VITE_PACKAGE_BOOKING_ENABLED. Activer via VITE_PACKAGE_OFFER_ENABLED=true.
 const PACKAGE_OFFER_ENABLED = import.meta.env.VITE_PACKAGE_OFFER_ENABLED === "true";
 
+// Feature flag séparé pour /buy-package (achat en ligne d'un forfait publié,
+// Stripe Checkout) : reste désactivée (404) tant que non testée et qu'aucun
+// modèle de forfait n'est marqué visibilite=public côté Sheet. Activer via
+// VITE_PACKAGE_PURCHASE_ENABLED=true.
+const PACKAGE_PURCHASE_ENABLED = import.meta.env.VITE_PACKAGE_PURCHASE_ENABLED === "true";
+
 function Router() {
   return (
     <Switch>
@@ -35,6 +43,8 @@ function Router() {
       <Route path="/book-chelsea" component={BookChelsea} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
+      {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package/success" component={BuyPackageSuccess} />}
+      {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package" component={BuyPackage} />}
       <Route path="/admin" component={AdminPortal} />
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
