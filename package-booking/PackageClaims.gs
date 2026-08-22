@@ -122,29 +122,45 @@ function adminPortalApprovePackageClaim_(passwordPlain, params) {
   authenticateAdmin_(passwordPlain);
 
   const claimId = String((params && params.claimId) || '').trim();
-  const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
-  if (!claim) throw new BookingBusinessError_('Demande introuvable.');
-  if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
-    throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+
+  // Toute la validation + création tient dans UN SEUL verrou (y compris
+  // l'appel à createActivePackageWithPayment_, qui acquiert son propre verrou
+  // en interne — sans risque d'interblocage : Apps Script sérialise les
+  // EXÉCUTIONS concurrentes, jamais des appels imbriqués au sein d'une même
+  // exécution). Sans ce verrou englobant, un double-clic ou un retry réseau
+  // pourrait retrouver deux fois la même demande encore "pending" et créer
+  // deux clientes/forfaits pour une seule demande.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
   }
+  try {
+    const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
+    if (!claim) throw new BookingBusinessError_('Demande introuvable.');
+    if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
+      throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+    }
 
-  const client = findOrCreateClientFromClaim_(claim);
-  const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
+    const client = findOrCreateClientFromClaim_(claim);
+    const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
 
-  // Contrairement à "Ajouter un forfait" (adminPortalAddPackage_, où l'admin
-  // est déjà en contact direct avec la cliente et n'a donc pas besoin de cet
-  // email), ici la cliente a soumis sa demande elle-même et n'a aucun autre
-  // moyen de savoir que son forfait est prêt — l'email est donc indispensable.
-  sendPostPurchaseConfirmation_(result.packageId);
+    // Contrairement à "Ajouter un forfait" (adminPortalAddPackage_, où
+    // l'admin est déjà en contact direct avec la cliente et n'a donc pas
+    // besoin de cet email), ici la cliente a soumis sa demande elle-même et
+    // n'a aucun autre moyen de savoir que son forfait est prêt.
+    sendPostPurchaseConfirmation_(result.packageId);
 
-  updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
-    statut: PACKAGE_CLAIM_STATUS.APPROVED,
-    resolved_at: new Date(),
-    package_id_resultant: result.packageId,
-  });
-  writeAuditLog_('admin_portal', 'approve_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.APPROVED, `Forfait ${result.packageId} créé pour ${client.client_id}`);
+    updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
+      statut: PACKAGE_CLAIM_STATUS.APPROVED,
+      resolved_at: new Date(),
+      package_id_resultant: result.packageId,
+    });
+    writeAuditLog_('admin_portal', 'approve_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.APPROVED, `Forfait ${result.packageId} créé pour ${client.client_id}`);
 
-  return { packageId: result.packageId, clientId: client.client_id };
+    return { packageId: result.packageId, clientId: client.client_id };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** Trouve la cliente par email, ou la crée à partir des infos de la demande. */

@@ -5898,6 +5898,16 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
       package_template_id: template.package_template_id,
       prenom: String(prenom || '').trim(),
       nom: String(nom || '').trim(),
+      // Cliché du forfait au moment du paiement — jamais relu depuis
+      // Package_Templates à la confirmation, pour que la cliente reçoive
+      // exactement ce qu'elle a vu et payé même si le modèle est ensuite
+      // modifié ou désactivé avant qu'elle ne revienne sur le site (le prix
+      // Stripe est déjà figé dans la session ; sans ce cliché, seul le
+      // MONTANT était protégé contre cette dérive, pas le contenu).
+      snapshot_nom: template.nom,
+      snapshot_soins_inclus: template.soins_inclus,
+      snapshot_nombre_seances: String(template.nombre_seances),
+      snapshot_duree_validite_jours: template.duree_validite_jours ? String(template.duree_validite_jours) : '',
     },
   });
 
@@ -5915,52 +5925,47 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
 function confirmCheckoutSession_(sessionId) {
   if (!sessionId) throw new BookingBusinessError_('Session de paiement manquante.');
 
-  const existingPayment = findRowBy_(TABS.PAYMENTS, 'reference_transaction', sessionId);
-  if (existingPayment) {
-    const existingPkg = findPackageById_(existingPayment.package_id);
-    return {
-      packageName: existingPkg ? existingPkg.nom_forfait : '',
-      totalSessions: existingPkg ? Number(existingPkg.total_sessions) : 0,
-    };
-  }
-
-  const session = stripeRequest_('get', `/checkout/sessions/${encodeURIComponent(sessionId)}`, null);
-  if (session.payment_status !== 'paid') {
-    throw new BookingBusinessError_('Ce paiement n\'a pas encore abouti.');
-  }
-
-  const templateId = session.metadata && session.metadata.package_template_id;
-  const template = templateId ? findPackageTemplateById_(templateId) : null;
-  if (!template) {
-    // Ne devrait jamais arriver (le template existait à la création de la
-    // session) — mais on reste défensif plutôt que de créer un forfait
-    // sans contenu défini.
-    throw new Error('Modèle de forfait introuvable pour cette session Stripe.');
-  }
-
-  // Revérification du montant réellement facturé par Stripe contre le prix
-  // actuel du modèle — défense en profondeur, même si le montant a déjà été
-  // fixé par le serveur (jamais par la cliente) à la création de la session.
-  const expectedPence = Math.round(Number(template.prix_public) * 100);
-  if (Number(session.amount_total) !== expectedPence) {
-    writeAuditLog_('system', 'stripe_amount_mismatch', sessionId, String(expectedPence), String(session.amount_total), '');
-  }
-
-  const email = String((session.customer_details && session.customer_details.email) || session.customer_email || '').trim().toLowerCase();
-  const prenom = (session.metadata && session.metadata.prenom) || '';
-  const nom = (session.metadata && session.metadata.nom) || '';
-
-  // Recherche + création cliente sous verrou — même principe que
-  // adminPortalAddClient_ (Portal.gs) : sans lui, un double appel (page de
-  // succès rechargée pendant que la première requête tourne encore)
-  // pourrait créer deux clientes avant que la première écriture n'aboutisse.
+  // Tout tient dans UN SEUL verrou, y compris la revérification d'idempotence
+  // : la vérifier seulement AVANT le verrou ne suffit pas — deux appels
+  // presque simultanés (page de succès rechargée pendant que le premier
+  // tourne encore) passeraient tous les deux ce test avant qu'aucune ligne
+  // Payments n'existe, et créeraient chacun un forfait en double.
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
     throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
   }
-  let client;
   try {
-    client = findClientByEmail_(email);
+    const existingPayment = findRowBy_(TABS.PAYMENTS, 'reference_transaction', sessionId);
+    if (existingPayment) {
+      const existingPkg = findPackageById_(existingPayment.package_id);
+      return {
+        packageName: existingPkg ? existingPkg.nom_forfait : '',
+        totalSessions: existingPkg ? Number(existingPkg.total_sessions) : 0,
+      };
+    }
+
+    const session = stripeRequest_('get', `/checkout/sessions/${encodeURIComponent(sessionId)}`, null);
+    if (session.payment_status !== 'paid') {
+      throw new BookingBusinessError_('Ce paiement n\'a pas encore abouti.');
+    }
+
+    // Contenu du forfait lu depuis le CLICHÉ posé à la création de la session
+    // (jamais depuis Package_Templates, qui a pu changer entre-temps — voir
+    // createCheckoutSession_).
+    const meta = session.metadata || {};
+    const templateId = meta.package_template_id;
+    if (!templateId || !meta.snapshot_nom) {
+      // Ne devrait jamais arriver (le cliché est toujours posé à la création
+      // de la session) — mais on reste défensif plutôt que de créer un
+      // forfait sans contenu défini.
+      throw new Error('Détails du forfait introuvables pour cette session Stripe.');
+    }
+
+    const email = String((session.customer_details && session.customer_details.email) || session.customer_email || '').trim().toLowerCase();
+    const prenom = meta.prenom || '';
+    const nom = meta.nom || '';
+
+    let client = findClientByEmail_(email);
     if (!client) {
       const clientId = genId_('CLI');
       appendRow_(TABS.CLIENTS, {
@@ -5977,17 +5982,18 @@ function confirmCheckoutSession_(sessionId) {
       client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
     }
 
+    const nombreSeances = Number(meta.snapshot_nombre_seances);
     const packageId = genId_('PKG');
-    const dateExpiration = template.duree_validite_jours
-      ? new Date(Date.now() + Number(template.duree_validite_jours) * 24 * 60 * 60 * 1000)
+    const dateExpiration = meta.snapshot_duree_validite_jours
+      ? new Date(Date.now() + Number(meta.snapshot_duree_validite_jours) * 24 * 60 * 60 * 1000)
       : '';
     appendRow_(TABS.PACKAGES, {
       package_id: packageId,
       client_id: client.client_id,
-      nom_forfait: template.nom,
-      soins_inclus: template.soins_inclus,
-      total_sessions: Number(template.nombre_seances),
-      available_sessions: Number(template.nombre_seances),
+      nom_forfait: meta.snapshot_nom,
+      soins_inclus: meta.snapshot_soins_inclus || '',
+      total_sessions: nombreSeances,
+      available_sessions: nombreSeances,
       reserved_sessions: 0,
       used_sessions: 0,
       date_achat: new Date(),
@@ -5995,7 +6001,7 @@ function confirmCheckoutSession_(sessionId) {
       moyen_paiement: PAYMENT_METHOD.STRIPE,
       statut: PACKAGE_STATUS.PENDING_PAYMENT,
       notes_admin: 'Achat en ligne via Stripe Checkout',
-      package_template_id: template.package_template_id,
+      package_template_id: templateId,
     });
 
     const paymentId = genId_('PAY');
@@ -6024,7 +6030,7 @@ function confirmCheckoutSession_(sessionId) {
     // ne jamais dupliquer ces effets de bord (Payments.gs).
     activatePackageIfPending_(packageId, paymentId);
 
-    return { packageName: template.nom, totalSessions: Number(template.nombre_seances) };
+    return { packageName: meta.snapshot_nom, totalSessions: nombreSeances };
   } finally {
     lock.releaseLock();
   }
@@ -6158,29 +6164,45 @@ function adminPortalApprovePackageClaim_(passwordPlain, params) {
   authenticateAdmin_(passwordPlain);
 
   const claimId = String((params && params.claimId) || '').trim();
-  const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
-  if (!claim) throw new BookingBusinessError_('Demande introuvable.');
-  if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
-    throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+
+  // Toute la validation + création tient dans UN SEUL verrou (y compris
+  // l'appel à createActivePackageWithPayment_, qui acquiert son propre verrou
+  // en interne — sans risque d'interblocage : Apps Script sérialise les
+  // EXÉCUTIONS concurrentes, jamais des appels imbriqués au sein d'une même
+  // exécution). Sans ce verrou englobant, un double-clic ou un retry réseau
+  // pourrait retrouver deux fois la même demande encore "pending" et créer
+  // deux clientes/forfaits pour une seule demande.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
   }
+  try {
+    const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
+    if (!claim) throw new BookingBusinessError_('Demande introuvable.');
+    if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
+      throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+    }
 
-  const client = findOrCreateClientFromClaim_(claim);
-  const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
+    const client = findOrCreateClientFromClaim_(claim);
+    const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
 
-  // Contrairement à "Ajouter un forfait" (adminPortalAddPackage_, où l'admin
-  // est déjà en contact direct avec la cliente et n'a donc pas besoin de cet
-  // email), ici la cliente a soumis sa demande elle-même et n'a aucun autre
-  // moyen de savoir que son forfait est prêt — l'email est donc indispensable.
-  sendPostPurchaseConfirmation_(result.packageId);
+    // Contrairement à "Ajouter un forfait" (adminPortalAddPackage_, où
+    // l'admin est déjà en contact direct avec la cliente et n'a donc pas
+    // besoin de cet email), ici la cliente a soumis sa demande elle-même et
+    // n'a aucun autre moyen de savoir que son forfait est prêt.
+    sendPostPurchaseConfirmation_(result.packageId);
 
-  updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
-    statut: PACKAGE_CLAIM_STATUS.APPROVED,
-    resolved_at: new Date(),
-    package_id_resultant: result.packageId,
-  });
-  writeAuditLog_('admin_portal', 'approve_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.APPROVED, `Forfait ${result.packageId} créé pour ${client.client_id}`);
+    updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
+      statut: PACKAGE_CLAIM_STATUS.APPROVED,
+      resolved_at: new Date(),
+      package_id_resultant: result.packageId,
+    });
+    writeAuditLog_('admin_portal', 'approve_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.APPROVED, `Forfait ${result.packageId} créé pour ${client.client_id}`);
 
-  return { packageId: result.packageId, clientId: client.client_id };
+    return { packageId: result.packageId, clientId: client.client_id };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** Trouve la cliente par email, ou la crée à partir des infos de la demande. */
