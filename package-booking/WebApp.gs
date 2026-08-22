@@ -116,7 +116,7 @@ function doPost(e) {
         break;
 
       case 'submit-package-claim':
-        // /claim-package : cliente avec un forfait mais sans email connu du
+        // "Register my package" (/use-package) : cliente avec un forfait mais sans email connu du
         // système (vente historique). Crée une demande "en attente" à valider
         // depuis le portail admin.
         data = submitPackageClaim_(body.email, body.prenom, body.nom, body.telephone, body.message);
@@ -206,6 +206,10 @@ function handleGetClientDashboard_(sessionTokenPlain) {
     availableSessions: pkg ? Number(pkg.available_sessions) : 0,
     upcomingBookings: upcomingBookings,
     activePromoCodes: findActivePromoCodesForClient_(tokenRow.client_id),
+    // Nécessaire pour reprendre une réservation après une reconnexion
+    // silencieuse (jeton retrouvé côté navigateur, /use-package) sans repasser
+    // par verifyCodeAndIssueToken, qui est la seule autre source de ce champ.
+    eligibleServices: pkg ? String(pkg.soins_inclus || '').split(',').map((s) => s.trim()) : [],
   };
 }
 

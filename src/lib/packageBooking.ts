@@ -99,6 +99,7 @@ export const getClientDashboard = (sessionToken: string) =>
     availableSessions: number;
     upcomingBookings: { serviceId: string; start: string; end: string }[];
     activePromoCodes: ActivePromoCode[];
+    eligibleServices: string[];
   }>("get-client-dashboard", { sessionToken });
 
 export const confirmBooking = (
@@ -309,10 +310,11 @@ export const confirmCheckoutSession = (sessionId: string) =>
   callWebApp<{ packageName: string; totalSessions: number }>("confirm-checkout-session", { sessionId });
 
 // ─────────────────────────────────────────────────────────────────────────
-//  Demande de forfait sans email connu (/claim-package). Pour une cliente
-//  dont le forfait a été vendu avant ce système (email jamais collecté) :
-//  /use-package ne peut lui envoyer aucun code tant que l'admin n'a pas
-//  validé sa demande depuis le portail (voir AdminPortal.tsx).
+//  Demande de forfait sans email connu (onglet "Register my package" de
+//  /use-package, UsePackage.tsx). Pour une cliente dont le forfait a été
+//  vendu avant ce système (email jamais collecté) : /use-package ne peut lui
+//  envoyer aucun code tant que l'admin n'a pas validé sa demande depuis le
+//  portail (voir AdminPortal.tsx).
 // ─────────────────────────────────────────────────────────────────────────
 
 export const submitPackageClaim = (

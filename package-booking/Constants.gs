@@ -34,7 +34,7 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
-  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
   PACKAGE_CLAIMS: 'Package_Claims',
 };
 
@@ -159,7 +159,7 @@ const HEADERS = {
     'claimed_at', 'booking_status',
   ],
 
-  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
 
   // Une cliente qui a un forfait mais dont l'email n'est pas encore dans
   // Clients (vente historique, jamais collecté) soumet ici sa demande ;

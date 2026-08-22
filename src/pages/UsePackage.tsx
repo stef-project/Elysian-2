@@ -12,13 +12,25 @@ import {
   getAvailableSlots,
   getClientDashboard,
   confirmBooking,
+  submitPackageClaim,
   generateBookingRequestId,
   ApiBusinessError,
   PACKAGE_SERVICES,
   type ActivePromoCode,
 } from "../lib/packageBooking";
 
-type Step = "email" | "code" | "dashboard" | "service" | "slots" | "confirmed";
+type Step =
+  | "loading" | "email" | "code" | "dashboard" | "service" | "slots" | "confirmed"
+  | "register" | "register-submitted";
+
+// Le jeton de session est volontairement gardé sur cet appareil (localStorage,
+// pas sessionStorage) pour ~90 jours (session_token_validity_minutes, onglet
+// Settings) : une cliente ne retape son email/code qu'une seule fois par
+// appareil, pas à chaque visite — sinon trop d'étapes, elle nous écrit
+// directement sur WhatsApp au lieu de se servir elle-même. Compromis assumé :
+// un peu moins strict qu'un code à chaque fois, mais ce jeton ne débloque
+// qu'une réservation avec un forfait déjà payé, jamais un paiement.
+const PACKAGE_SESSION_STORAGE_KEY = "elysian_package_session_token";
 
 export default function UsePackage() {
   const [step, setStep] = useState<Step>("email");
@@ -40,6 +52,13 @@ export default function UsePackage() {
   const [activePromoCodes, setActivePromoCodes] = useState<ActivePromoCode[]>([]);
   const [bookingRequestId, setBookingRequestId] = useState(generateBookingRequestId());
 
+  // Formulaire "Register my package" — même page, même email partagé avec
+  // l'onglet "I have a package" pour ne pas le retaper en changeant d'onglet.
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [message, setMessage] = useState("");
+
   // Page de vérification d'identité : jamais indexée, même si l'URL fuite.
   useEffect(() => {
     const tag = document.querySelector('meta[name="robots"]');
@@ -48,6 +67,31 @@ export default function UsePackage() {
     return () => {
       if (previous !== null) tag?.setAttribute("content", previous);
     };
+  }, []);
+
+  // Reconnexion silencieuse : un jeton déjà enregistré sur cet appareil saute
+  // directement au tableau de bord, sans redemander email + code.
+  useEffect(() => {
+    const stored = localStorage.getItem(PACKAGE_SESSION_STORAGE_KEY);
+    if (!stored) return;
+    setStep("loading");
+    (async () => {
+      try {
+        const dashboard = await getClientDashboard(stored);
+        setSessionToken(stored);
+        setPackageName(dashboard.packageName);
+        setAvailableSessions(dashboard.availableSessions);
+        setUpcomingBookings(dashboard.upcomingBookings);
+        setActivePromoCodes(dashboard.activePromoCodes);
+        setEligibleServices(dashboard.eligibleServices);
+        setStep("dashboard");
+      } catch {
+        // Jeton expiré/invalide (appareil différent, 90 jours écoulés...) :
+        // on l'oublie et on repart d'un email neuf, sans jamais bloquer la page.
+        localStorage.removeItem(PACKAGE_SESSION_STORAGE_KEY);
+        setStep("email");
+      }
+    })();
   }, []);
 
   const serviceLabel = (id: string) => PACKAGE_SERVICES.find((s) => s.id === id)?.label ?? id;
@@ -83,6 +127,7 @@ export default function UsePackage() {
       setEligibleServices(res.eligibleServices);
       setPackageName(res.packageName);
       setAvailableSessions(res.availableSessions);
+      localStorage.setItem(PACKAGE_SESSION_STORAGE_KEY, res.sessionToken);
 
       try {
         const dashboard = await getClientDashboard(res.sessionToken);
@@ -149,6 +194,26 @@ export default function UsePackage() {
     }
   };
 
+  const handleSubmitClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await submitPackageClaim(email.trim(), prenom.trim(), nom.trim(), telephone.trim(), message.trim());
+      setStep("register-submitted");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logOut = () => {
+    localStorage.removeItem(PACKAGE_SESSION_STORAGE_KEY);
+    setSessionToken("");
+    setStep("email");
+  };
+
   if (!isPackageBookingConfigured()) {
     return (
       <div className="min-h-screen bg-background text-foreground font-sans">
@@ -179,6 +244,11 @@ export default function UsePackage() {
     );
   }
 
+  // Les deux portes d'entrée ("j'ai déjà un forfait" / "je l'enregistre")
+  // vivent sur la même page, dans le même onglet — une cliente premium ne
+  // devrait jamais avoir à deviner sur quelle page cliquer.
+  const showEntryTabs = step === "email" || step === "register";
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <TopBar />
@@ -187,16 +257,45 @@ export default function UsePackage() {
       <main className="max-w-xl mx-auto px-6 py-28 md:py-36">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4">
-            Existing Package
+            My Package
           </p>
           <h1 className="font-serif text-3xl md:text-4xl text-[#1A1A1A] font-light mb-10">
-            Book a session with your package
+            {step === "register" || step === "register-submitted"
+              ? "Register your package"
+              : "Book a session with your package"}
           </h1>
+
+          {showEntryTabs && (
+            <div className="flex border-b border-border mb-8">
+              <button
+                type="button"
+                onClick={() => { setError(""); setStep("email"); }}
+                className={`flex-1 font-sans text-xs tracking-[0.15em] uppercase py-3 border-b-2 -mb-px transition-colors ${
+                  step === "email" ? "border-primary text-[#1A1A1A]" : "border-transparent text-muted-foreground hover:text-primary"
+                }`}
+              >
+                I have a package
+              </button>
+              <button
+                type="button"
+                onClick={() => { setError(""); setStep("register"); }}
+                className={`flex-1 font-sans text-xs tracking-[0.15em] uppercase py-3 border-b-2 -mb-px transition-colors ${
+                  step === "register" ? "border-primary text-[#1A1A1A]" : "border-transparent text-muted-foreground hover:text-primary"
+                }`}
+              >
+                Register my package
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-sm text-red-700">
               {error}
             </div>
+          )}
+
+          {step === "loading" && (
+            <p className="font-sans text-sm text-muted-foreground font-light">Loading your account…</p>
           )}
 
           {step === "email" && (
@@ -220,6 +319,70 @@ export default function UsePackage() {
                 {loading ? "Sending…" : "Send verification code"}
               </button>
             </form>
+          )}
+
+          {step === "register" && (
+            <form onSubmit={handleSubmitClaim} className="space-y-6">
+              <p className="font-sans text-sm text-muted-foreground font-light">
+                If you purchased a package with us before and don't have an email on file yet,
+                tell us a little about it and we'll activate your account within 24 hours.
+              </p>
+              <input
+                type="text"
+                required
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                placeholder="First name"
+                className="w-full bg-transparent border-b border-border py-3 focus:outline-none focus:border-primary transition-colors font-sans text-sm"
+              />
+              <input
+                type="text"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                placeholder="Last name (optional)"
+                className="w-full bg-transparent border-b border-border py-3 focus:outline-none focus:border-primary transition-colors font-sans text-sm"
+              />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-transparent border-b border-border py-3 focus:outline-none focus:border-primary transition-colors font-sans text-sm"
+              />
+              <input
+                type="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                placeholder="Phone (optional)"
+                className="w-full bg-transparent border-b border-border py-3 focus:outline-none focus:border-primary transition-colors font-sans text-sm"
+              />
+              <textarea
+                rows={3}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="About your package, e.g. 5-session lymphatic drainage, purchased in July (optional)"
+                className="w-full bg-transparent border-b border-border py-3 focus:outline-none focus:border-primary transition-colors font-sans text-sm resize-none"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+              >
+                {loading ? "Sending…" : "Send request"}
+              </button>
+            </form>
+          )}
+
+          {step === "register-submitted" && (
+            <div className="py-6">
+              <div className="w-8 h-[1px] bg-primary mb-8" />
+              <p className="font-serif text-2xl text-[#1A1A1A] font-light mb-4">Thank you.</p>
+              <p className="font-sans text-sm text-muted-foreground font-light">
+                We've received your request and will activate your package within 24 hours.
+                Come back to this page and use "I have a package" once you hear from us.
+              </p>
+            </div>
           )}
 
           {step === "code" && (
@@ -250,12 +413,13 @@ export default function UsePackage() {
               >
                 Didn't get it, or code not working? Request a new code
               </button>
-              <a
-                href={`/claim-package?email=${encodeURIComponent(email)}`}
+              <button
+                type="button"
+                onClick={() => { setError(""); setStep("register"); }}
                 className="block w-full text-center font-sans text-xs text-muted-foreground hover:text-primary transition-colors underline"
               >
-                Never received anything? Let us know about your package
-              </a>
+                Never received anything? Register your package instead
+              </button>
             </form>
           )}
 
@@ -324,6 +488,13 @@ export default function UsePackage() {
                 className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
               >
                 {loading ? "Loading…" : "Book a session"}
+              </button>
+
+              <button
+                onClick={logOut}
+                className="w-full font-sans text-[10px] text-muted-foreground hover:text-primary transition-colors underline text-center"
+              >
+                Not you? Log out of this device
               </button>
             </div>
           )}
