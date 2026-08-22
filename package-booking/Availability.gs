@@ -8,6 +8,19 @@
  */
 
 /**
+ * Pose une heure (éventuellement fractionnaire, ex. 10.5 = 10h30) sur une
+ * Date déjà positionnée sur le bon jour — permet à workday_start_hour /
+ * workday_end_hour (Settings) d'exprimer une demi-heure sans ajouter de
+ * colonne séparée pour les minutes.
+ */
+function setFractionalHour_(date, fractionalHour) {
+  const hours = Math.floor(fractionalHour);
+  const minutes = Math.round((fractionalHour - hours) * 60);
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
+
+/**
  * Renvoie un tableau de créneaux libres { start, end } (objets Date) pour un
  * soin de durée donnée, sur la fenêtre configurée (lookahead_days), en
  * respectant horaires d'ouverture, jours travaillés et battement.
@@ -50,11 +63,8 @@ function computeAvailableSlots(durationMinutes) {
   while (dayCursor < rangeEnd) {
     const isoWeekday = ((dayCursor.getDay() + 6) % 7) + 1; // JS: 0=dimanche -> ISO: 7=dimanche
     if (workdays.indexOf(isoWeekday) !== -1) {
-      const dayClose = new Date(dayCursor);
-      dayClose.setHours(settings.workday_end_hour, 0, 0, 0);
-
-      let slotStart = new Date(dayCursor);
-      slotStart.setHours(settings.workday_start_hour, 0, 0, 0);
+      const dayClose = setFractionalHour_(new Date(dayCursor), Number(settings.workday_end_hour));
+      let slotStart = setFractionalHour_(new Date(dayCursor), Number(settings.workday_start_hour));
 
       while (slotStart.getTime() + durationMs <= dayClose.getTime()) {
         const slotEnd = new Date(slotStart.getTime() + durationMs);
