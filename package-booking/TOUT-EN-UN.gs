@@ -68,7 +68,7 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
-  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
   PACKAGE_CLAIMS: 'Package_Claims',
 };
 
@@ -193,7 +193,7 @@ const HEADERS = {
     'claimed_at', 'booking_status',
   ],
 
-  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
 
   // Une cliente qui a un forfait mais dont l'email n'est pas encore dans
   // Clients (vente historique, jamais collecté) soumet ici sa demande ;
@@ -2705,7 +2705,7 @@ function doPost(e) {
         break;
 
       case 'submit-package-claim':
-        // /claim-package : cliente avec un forfait mais sans email connu du
+        // "Register my package" (/use-package) : cliente avec un forfait mais sans email connu du
         // système (vente historique). Crée une demande "en attente" à valider
         // depuis le portail admin.
         data = submitPackageClaim_(body.email, body.prenom, body.nom, body.telephone, body.message);
@@ -2795,6 +2795,10 @@ function handleGetClientDashboard_(sessionTokenPlain) {
     availableSessions: pkg ? Number(pkg.available_sessions) : 0,
     upcomingBookings: upcomingBookings,
     activePromoCodes: findActivePromoCodesForClient_(tokenRow.client_id),
+    // Nécessaire pour reprendre une réservation après une reconnexion
+    // silencieuse (jeton retrouvé côté navigateur, /use-package) sans repasser
+    // par verifyCodeAndIssueToken, qui est la seule autre source de ce champ.
+    eligibleServices: pkg ? String(pkg.soins_inclus || '').split(',').map((s) => s.trim()) : [],
   };
 }
 
@@ -6030,7 +6034,7 @@ function confirmCheckoutSession_(sessionId) {
  *  mise en place de ce système (vente en personne, ClassPass, etc.) sans que
  *  leur email n'ait jamais été collecté. Pour elles, /use-package ne peut
  *  envoyer aucun code (requestVerificationCode, PackageVerification.gs, ne
- *  trouve aucune cliente pour cet email) — /claim-package est la porte de
+ *  trouve aucune cliente pour cet email) — l'onglet "Register my package" de /use-package est la porte de
  *  sortie : la cliente indique son email (+ prénom/nom/téléphone/message),
  *  ça crée une demande "en attente" que l'administratrice valide depuis le
  *  portail admin, ce qui crée la cliente (si besoin) ET son forfait en un

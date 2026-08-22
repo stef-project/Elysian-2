@@ -388,7 +388,7 @@ function AddPackageForm({
   );
 }
 
-// Traitement d'une demande de forfait (/claim-package) : approuver crée la
+// Traitement d'une demande de forfait ("Register my package", /use-package) : approuver crée la
 // cliente si besoin + son forfait (mêmes champs que AddPackageForm), ou
 // rejeter avec un motif optionnel. Repliée par défaut, une demande à la fois.
 function PackageClaimCard({

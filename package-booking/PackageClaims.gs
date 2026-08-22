@@ -7,7 +7,7 @@
  *  mise en place de ce système (vente en personne, ClassPass, etc.) sans que
  *  leur email n'ait jamais été collecté. Pour elles, /use-package ne peut
  *  envoyer aucun code (requestVerificationCode, PackageVerification.gs, ne
- *  trouve aucune cliente pour cet email) — /claim-package est la porte de
+ *  trouve aucune cliente pour cet email) — l'onglet "Register my package" de /use-package est la porte de
  *  sortie : la cliente indique son email (+ prénom/nom/téléphone/message),
  *  ça crée une demande "en attente" que l'administratrice valide depuis le
  *  portail admin, ce qui crée la cliente (si besoin) ET son forfait en un
