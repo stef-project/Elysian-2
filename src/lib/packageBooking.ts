@@ -282,3 +282,74 @@ export const PACKAGE_SERVICES: { id: string; label: string; durationMinutes: num
   { id: "cavitation", label: "Cavitation Fusion", durationMinutes: 90 },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Achat en ligne d'un forfait publié (Stripe Checkout) — page /buy-package.
+//  Le prix affiché est toujours celui du catalogue (prix_public,
+//  Package_Templates) : jamais recalculé côté client, jamais envoyé au
+//  serveur — seul templateId l'est, le serveur retrouve le prix lui-même.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type PublicPackageTemplate = {
+  templateId: string;
+  nom: string;
+  description: string;
+  soinsInclus: string[];
+  nombreSeances: number;
+  prixPublic: number;
+  dureeValiditeJours: number | null;
+};
+
+export const listPublicPackages = () =>
+  callWebApp<PublicPackageTemplate[]>("list-public-packages", {});
+
+export const createCheckoutSession = (templateId: string, email: string, prenom: string, nom: string) =>
+  callWebApp<{ checkoutUrl: string }>("create-checkout-session", { templateId, email, prenom, nom });
+
+export const confirmCheckoutSession = (sessionId: string) =>
+  callWebApp<{ packageName: string; totalSessions: number }>("confirm-checkout-session", { sessionId });
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Demande de forfait sans email connu (/claim-package). Pour une cliente
+//  dont le forfait a été vendu avant ce système (email jamais collecté) :
+//  /use-package ne peut lui envoyer aucun code tant que l'admin n'a pas
+//  validé sa demande depuis le portail (voir AdminPortal.tsx).
+// ─────────────────────────────────────────────────────────────────────────
+
+export const submitPackageClaim = (
+  email: string,
+  prenom: string,
+  nom: string,
+  telephone: string,
+  message: string
+) => callWebApp<{ message: string }>("submit-package-claim", { email, prenom, nom, telephone, message });
+
+export type PackageClaim = {
+  claimId: string;
+  email: string;
+  prenom: string;
+  nom: string;
+  telephone: string;
+  message: string;
+  createdAt: string;
+};
+
+export const adminListPackageClaims = (adminPassword: string) =>
+  callWebApp<PackageClaim[]>("admin-list-package-claims", { adminPassword });
+
+export const adminApprovePackageClaim = (
+  adminPassword: string,
+  params: {
+    claimId: string;
+    packageName: string;
+    servicesIncluded: string[];
+    totalSessions: number;
+    availableSessions?: number | "";
+    expirationDate?: string;
+    amountPaid?: number | "";
+    paymentMethod?: string;
+  }
+) => callWebApp<{ packageId: string; clientId: string }>("admin-approve-package-claim", { adminPassword, params });
+
+export const adminRejectPackageClaim = (adminPassword: string, claimId: string, reason?: string) =>
+  callWebApp<{ claimId: string }>("admin-reject-package-claim", { adminPassword, params: { claimId, reason } });
+

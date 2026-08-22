@@ -324,10 +324,9 @@ function adminPortalAddClient_(passwordPlain, params) {
  * réel doit un jour être suivi, il se saisit via le menu Sheet → Paiements.
  * Aucun email automatique n'est envoyé à la cliente.
  *
- * "Séances restantes" optionnel (défaut = total) : permet d'enregistrer une
- * cliente existante dont le forfait est déjà entamé — used_sessions est posé
- * à total - restantes pour que la réconciliation (total = dispo + réservées
- * + utilisées) reste juste.
+ * Cœur de création extrait dans createActivePackageWithPayment_ (ci-dessous)
+ * — réutilisé tel quel par adminPortalApprovePackageClaim_ (PackageClaims.gs)
+ * pour ne jamais dupliquer cette logique de validation/écriture.
  */
 function adminPortalAddPackage_(passwordPlain, params) {
   authenticateAdmin_(passwordPlain);
@@ -336,6 +335,23 @@ function adminPortalAddPackage_(passwordPlain, params) {
   const client = findClientByEmail_(clientEmail);
   if (!client) throw new BookingBusinessError_('Aucune cliente avec cet email.');
 
+  return createActivePackageWithPayment_(client, params, 'admin_portal');
+}
+
+/**
+ * Cœur de création d'un forfait immédiatement actif + sa ligne Payments (voir
+ * adminPortalAddPackage_ ci-dessus pour le détail du comportement). Prend un
+ * client déjà résolu (trouvé OU créé par l'appelant) — ne fait lui-même
+ * aucune recherche/création de cliente, pour rester réutilisable aussi bien
+ * depuis le portail (cliente déjà existante, email obligatoire) que depuis
+ * l'approbation d'une demande de forfait (cliente parfois créée à la volée).
+ *
+ * "Séances restantes" optionnel (défaut = total) : permet d'enregistrer une
+ * cliente existante dont le forfait est déjà entamé — used_sessions est posé
+ * à total - restantes pour que la réconciliation (total = dispo + réservées
+ * + utilisées) reste juste.
+ */
+function createActivePackageWithPayment_(client, params, actor) {
   const packageName = String((params && params.packageName) || '').trim();
   if (!packageName) throw new BookingBusinessError_('Nom du forfait manquant.');
 
@@ -442,9 +458,9 @@ function adminPortalAddPackage_(passwordPlain, params) {
       mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
     });
 
-    writeAuditLog_('admin_portal', 'add_package', packageId, '',
+    writeAuditLog_(actor, 'add_package', packageId, '',
       `${totalSessions} séances (dispo ${availableSessions}) — actif`,
-      `Cliente ${client.client_id} — créé via portail admin, ` +
+      `Cliente ${client.client_id} — créé via ${actor}, ` +
       (amountPaid !== null ? `paiement ${montantBrut} GBP (${paymentMethod})` : 'paiement hors système') +
       ` (${paymentId})`);
 

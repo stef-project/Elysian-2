@@ -1,3 +1,7 @@
+// Même flag que App.tsx (VITE_PACKAGE_PURCHASE_ENABLED) : ce lien ne doit
+// jamais être visible tant que la route /buy-package est elle-même désactivée.
+const PACKAGE_PURCHASE_ENABLED = import.meta.env.VITE_PACKAGE_PURCHASE_ENABLED === "true";
+
 export function Footer() {
   return (
     <footer className="bg-[#1A1A1A] py-16">
@@ -72,6 +76,7 @@ export function Footer() {
                 // vente de forfaits sur le site, uniquement ce point d'entrée
                 // discret (aussi lié dans leurs emails de confirmation/rappel).
                 { label: "Book with your package", href: "/use-package" },
+                ...(PACKAGE_PURCHASE_ENABLED ? [{ label: "Buy a Package", href: "/buy-package" }] : []),
               ].map((l) => (
                 <li key={l.label}>
                   <a

@@ -7,9 +7,13 @@ import {
   adminCancelPromoCode,
   adminAddClient,
   adminAddPackage,
+  adminListPackageClaims,
+  adminApprovePackageClaim,
+  adminRejectPackageClaim,
   PACKAGE_SERVICES,
   PAYMENT_METHODS,
   type AdminClientOverview,
+  type PackageClaim,
 } from "../lib/packageBooking";
 
 const PASSWORD_STORAGE_KEY = "elysian_admin_portal_password";
@@ -384,6 +388,176 @@ function AddPackageForm({
   );
 }
 
+// Traitement d'une demande de forfait (/claim-package) : approuver crée la
+// cliente si besoin + son forfait (mêmes champs que AddPackageForm), ou
+// rejeter avec un motif optionnel. Repliée par défaut, une demande à la fois.
+function PackageClaimCard({
+  claim,
+  password,
+  onResolved,
+}: {
+  claim: PackageClaim;
+  password: string;
+  onResolved: () => void;
+}) {
+  const [approving, setApproving] = useState(false);
+  const [packageName, setPackageName] = useState("");
+  const [services, setServices] = useState<string[]>([]);
+  const [totalSessions, setTotalSessions] = useState("");
+  const [availableSessions, setAvailableSessions] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("other");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggleService = (id: string) =>
+    setServices((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const handleApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const total = parseInt(totalSessions, 10);
+    if (isNaN(total) || total < 1) {
+      setError("Enter a valid total number of sessions.");
+      return;
+    }
+    if (services.length === 0) {
+      setError("Select at least one included service.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await adminApprovePackageClaim(password, {
+        claimId: claim.claimId,
+        packageName,
+        servicesIncluded: services,
+        totalSessions: total,
+        availableSessions: availableSessions === "" ? "" : parseInt(availableSessions, 10),
+        expirationDate: expirationDate || undefined,
+        amountPaid: amountPaid === "" ? "" : parseFloat(amountPaid),
+        paymentMethod,
+      });
+      onResolved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!window.confirm(`Reject this request from ${claim.prenom}?`)) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await adminRejectPackageClaim(password, claim.claimId);
+      onResolved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setSubmitting(false);
+    }
+  };
+
+  const inputClass =
+    "bg-transparent border-b border-border py-1 focus:outline-none focus:border-primary font-sans text-sm";
+
+  return (
+    <div className="border border-border p-5">
+      <div className="flex justify-between items-baseline mb-2">
+        <span className="font-serif text-lg text-[#1A1A1A]">
+          {claim.prenom} {claim.nom}
+        </span>
+        <span className="font-sans text-xs text-muted-foreground">
+          {claim.email} {claim.telephone ? `· ${claim.telephone}` : ""}
+        </span>
+      </div>
+      {claim.message && (
+        <p className="font-sans text-sm text-muted-foreground font-light mb-3">"{claim.message}"</p>
+      )}
+      <p className="font-sans text-xs text-muted-foreground/70 mb-3">
+        Requested {formatDateTime(claim.createdAt)}
+      </p>
+
+      {!approving ? (
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setApproving(true)}
+            className="font-sans text-xs tracking-[0.15em] uppercase border border-[#1A1A1A] px-4 py-2 hover:bg-[#1A1A1A] hover:text-[#F7F5F2] transition-colors"
+          >
+            Approve
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={submitting}
+            className="font-sans text-xs text-muted-foreground hover:text-red-600 transition-colors underline disabled:opacity-50"
+          >
+            Reject
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleApprove} className="space-y-3 border border-border/60 p-4 font-sans text-xs">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground">Package name</span>
+              <input required value={packageName} onChange={(e) => setPackageName(e.target.value)} placeholder="e.g. Pack 5 Drainage" className={inputClass} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground">Total sessions</span>
+              <input type="number" min="1" required value={totalSessions} onChange={(e) => setTotalSessions(e.target.value)} className={`w-24 ${inputClass}`} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground">Sessions left (default = total)</span>
+              <input type="number" min="0" value={availableSessions} onChange={(e) => setAvailableSessions(e.target.value)} className={`w-32 ${inputClass}`} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground">Expiry date (optional)</span>
+              <input type="date" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} className={inputClass} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground">Amount paid £ (optional)</span>
+              <input type="number" min="0" step="0.01" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="tracked outside if empty" className={`w-40 ${inputClass}`} />
+            </label>
+            {amountPaid !== "" && (
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">Payment method</span>
+                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={inputClass}>
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <span className="w-full text-muted-foreground">Included services</span>
+            {PACKAGE_SERVICES.map((s) => (
+              <label key={s.id} className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={services.includes(s.id)} onChange={() => toggleService(s.id)} />
+                <span>{s.label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="tracking-[0.15em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-4 py-2 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+            >
+              {submitting ? "Creating…" : "Create package & approve"}
+            </button>
+            <button type="button" onClick={() => setApproving(false)} className="text-muted-foreground hover:text-primary underline">
+              Cancel
+            </button>
+          </div>
+          {error && <p className="text-red-600">{error}</p>}
+        </form>
+      )}
+      {error && !approving && <p className="font-sans text-xs text-red-600 mt-2">{error}</p>}
+    </div>
+  );
+}
+
 export default function AdminPortal() {
   useDocumentMeta("Admin Portal | Elysian Paris", "Internal admin portal.");
 
@@ -401,6 +575,7 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clients, setClients] = useState<AdminClientOverview[] | null>(null);
+  const [claims, setClaims] = useState<PackageClaim[]>([]);
   const [search, setSearch] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -408,8 +583,12 @@ export default function AdminPortal() {
     setLoading(true);
     setError("");
     try {
-      const data = await adminGetClientsOverview(pwd);
+      const [data, claimsData] = await Promise.all([
+        adminGetClientsOverview(pwd),
+        adminListPackageClaims(pwd),
+      ]);
       setClients(data);
+      setClaims(claimsData);
       setLastUpdated(new Date());
       sessionStorage.setItem(PASSWORD_STORAGE_KEY, pwd);
     } catch (err) {
@@ -555,6 +734,27 @@ export default function AdminPortal() {
             <div className="mb-8">
               <AddClientForm password={password} onCreated={() => load(password)} />
             </div>
+
+            {claims.length > 0 && (
+              <section className="mb-10">
+                <h2 className="font-serif text-xl text-[#1A1A1A] font-light mb-4">
+                  Package requests
+                  <span className="ml-3 font-sans text-xs align-middle text-[#BF944A] uppercase tracking-widest">
+                    {claims.length} pending
+                  </span>
+                </h2>
+                <div className="space-y-4">
+                  {claims.map((c) => (
+                    <PackageClaimCard
+                      key={c.claimId}
+                      claim={c}
+                      password={password}
+                      onResolved={() => load(password)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="mb-10">
               <h2 className="font-serif text-xl text-[#1A1A1A] font-light mb-4">

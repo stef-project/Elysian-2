@@ -97,6 +97,47 @@ function doPost(e) {
         data = adminPortalAddPackage_(body.adminPassword, body.params);
         break;
 
+      case 'list-public-packages':
+        // Achat en ligne : catalogue des forfaits publiés (visibilite=public,
+        // statut=actif), lecture seule, sans authentification.
+        data = listPublicPackageTemplates_();
+        break;
+
+      case 'create-checkout-session':
+        // Achat en ligne : ouvre une session Stripe Checkout pour le forfait
+        // choisi. Prix recalculé côté serveur, jamais fourni par le client.
+        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom);
+        break;
+
+      case 'confirm-checkout-session':
+        // Achat en ligne : appelée au retour de Stripe (success_url). Vérifie
+        // directement auprès de Stripe avant de créer le forfait — idempotent.
+        data = confirmCheckoutSession_(body.sessionId);
+        break;
+
+      case 'submit-package-claim':
+        // /claim-package : cliente avec un forfait mais sans email connu du
+        // système (vente historique). Crée une demande "en attente" à valider
+        // depuis le portail admin.
+        data = submitPackageClaim_(body.email, body.prenom, body.nom, body.telephone, body.message);
+        break;
+
+      case 'admin-list-package-claims':
+        // Portail admin : demandes de forfait en attente de validation.
+        data = adminPortalListPackageClaims_(body.adminPassword);
+        break;
+
+      case 'admin-approve-package-claim':
+        // Portail admin : valide une demande — crée la cliente si besoin et
+        // son forfait (même cœur que "Ajouter un forfait").
+        data = adminPortalApprovePackageClaim_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-reject-package-claim':
+        // Portail admin : rejette une demande (email non reconnu, doublon...).
+        data = adminPortalRejectPackageClaim_(body.adminPassword, body.params);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }

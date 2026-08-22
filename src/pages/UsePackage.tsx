@@ -250,6 +250,12 @@ export default function UsePackage() {
               >
                 Didn't get it, or code not working? Request a new code
               </button>
+              <a
+                href={`/claim-package?email=${encodeURIComponent(email)}`}
+                className="block w-full text-center font-sans text-xs text-muted-foreground hover:text-primary transition-colors underline"
+              >
+                Never received anything? Let us know about your package
+              </a>
             </form>
           )}
 

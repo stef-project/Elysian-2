@@ -573,6 +573,50 @@ bloque aussi l'admin légitime pendant `lockout_duration_minutes` — un déni
 de service auto-infligé possible, mais sans accès aux données, et préférable
 à l'absence de protection contre le brute-force.
 
+### Achat en ligne d'un forfait publié (Stripe Checkout, `/buy-package`)
+
+**Configurer la clé Stripe** : menu Elysian Admin → **Portail web → Définir
+la clé secrète Stripe**, coller la clé `sk_live_...` (ou `sk_test_...` pour
+tester) depuis le tableau de bord Stripe. Jamais affichée en clair après
+saisie, jamais dans Git ni dans le Sheet (`PropertiesService`, comme le
+mot de passe admin).
+
+**Publier un forfait** : un modèle du catalogue n'apparaît sur `/buy-package`
+que si `visibilite = public` **et** `statut = actif` (menu **Catalogue de
+forfaits → Ajouter/Modifier un modèle de forfait**). Les modèles `private`
+(programme premium proposé uniquement via « Proposer un forfait ») ne sont
+jamais exposés par cette route.
+
+**Flow** : la cliente choisit un forfait publié, saisit prénom + email, est
+redirigée vers une page de paiement hébergée par Stripe (`checkout.session`,
+aucune donnée de carte ne transite par ce serveur), puis revient sur
+`/buy-package/success?session_id=...`, qui appelle `confirmCheckoutSession_`
+avant de créer quoi que ce soit.
+
+⚠️ **Confirmation par redirection, pas par webhook entrant** : les Web Apps
+Apps Script n'exposent pas les en-têtes HTTP d'une requête entrante
+(`doPost(e)` ne donne accès ni à `Stripe-Signature` ni à aucun en-tête
+personnalisé), ce qui rend la vérification de signature de webhook Stripe
+standard impossible ici. À la place, `confirmCheckoutSession_` interroge
+l'API Stripe **directement** (avec la clé secrète) pour vérifier que le
+paiement a réellement abouti avant de créer le forfait — aucune confiance
+accordée à la redirection elle-même, et idempotent (un même `session_id` ne
+crée jamais deux forfaits). Compromis assumé : si la cliente ferme l'onglet
+juste après avoir payé mais avant la redirection de retour, le forfait n'est
+pas créé automatiquement — le paiement reste visible dans le tableau de bord
+Stripe, et l'administratrice peut créer le forfait manuellement (portail
+admin ou menu Sheet). Pas de webhook de secours pour l'instant.
+
+Le prix est **toujours** recalculé côté serveur à partir de
+`Package_Templates.prix_public` à la création de la session, et revérifié
+face au montant réellement payé (`amount_total` Stripe) à la confirmation —
+jamais un montant fourni par le client.
+
+Route `/buy-package` (+ `/buy-package/success`) gardée derrière son propre
+feature flag `VITE_PACKAGE_PURCHASE_ENABLED=false` par défaut, indépendant
+des autres flags — à activer sur Vercel uniquement une fois la clé Stripe
+configurée et au moins un modèle publié testé.
+
 ### Activer le déclencheur quotidien de notifications
 Éditeur Apps Script → icône ⏰ **Déclencheurs** → **Ajouter un déclencheur** :
 - Fonction : `runDailyNotifications`
@@ -595,14 +639,20 @@ de service auto-infligé possible, mais sans accès aux données, et préférabl
 | `adminCreatePackageOffer` | Génère une offre + lien à durée de vie limitée |
 | `runDailyNotifications` | Rappels solde/expiration + alertes renouvellement (à brancher sur un déclencheur) |
 | `adminGenerateDashboard` | Génère le tableau de bord (12 indicateurs) |
+| `adminSetStripeSecretKey` | Enregistre la clé secrète Stripe (menu « Portail web ») |
+| `listPublicPackageTemplates_` | Catalogue des forfaits publiés, appelé par `/buy-package` |
+| `createCheckoutSession_` | Ouvre une session Stripe Checkout pour un forfait publié |
+| `confirmCheckoutSession_` | Vérifie le paiement auprès de Stripe et crée le forfait (idempotent) |
 
 ## Ce que ce système NE fait PAS (hors scope, par choix)
 
 - Pas de self-service cliente pour annuler/reporter (admin uniquement).
 - Pas de données médicales stockées.
 - Ne touche à aucun des 6 Appointment Schedules payants existants.
-- Pas de confirmation automatique de paiement (aucune API de paiement
-  intégrée dans ce dépôt).
+- Pas de confirmation automatique de paiement pour les moyens saisis
+  manuellement (Revolut, virement, espèces, ClassPass...) — seul l'achat en
+  ligne d'un forfait publié (`/buy-package`, Stripe Checkout) est confirmé
+  automatiquement.
 - Pas de synchronisation ClassPass automatique (saisie manuelle uniquement).
 - Pas encore de "Proposer un forfait", de rappels automatiques, ni de
   tableau de bord (Étapes B et C, à venir).

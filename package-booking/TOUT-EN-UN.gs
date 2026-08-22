@@ -68,6 +68,8 @@ const TABS = {
   // --- CRM ---
   CLIENT_NOTES: 'Client_Notes',
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
+  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+  PACKAGE_CLAIMS: 'Package_Claims',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -190,6 +192,17 @@ const HEADERS = {
     'discount_type', 'discount_value',
     'claimed_at', 'booking_status',
   ],
+
+  // --- Demandes de forfait (client sans email connu, /claim-package) ---
+
+  // Une cliente qui a un forfait mais dont l'email n'est pas encore dans
+  // Clients (vente historique, jamais collecté) soumet ici sa demande ;
+  // l'administratrice la valide depuis le portail admin, ce qui crée la
+  // cliente (si besoin) et son forfait — voir PackageClaims.gs.
+  [TABS.PACKAGE_CLAIMS]: [
+    'claim_id', 'email', 'prenom', 'nom', 'telephone', 'message',
+    'statut', 'created_at', 'resolved_at', 'package_id_resultant', 'notes_admin',
+  ],
 };
 
 // NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client'), TABS.DASHBOARD ('Dashboard')
@@ -275,6 +288,13 @@ const PAYMENT_STATUS = {
 const PAYMENT_ENTRY_MODE = {
   MANUEL: 'manuel',
   AUTOMATIQUE: 'automatique',
+};
+
+// Statuts possibles d'une demande de forfait (Package_Claims.statut).
+const PACKAGE_CLAIM_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
 };
 
 // Statuts possibles d'une offre de forfait (Package_Offers.statut).
@@ -1716,7 +1736,8 @@ function onOpen() {
       .addItem('Annuler un code promo', 'adminCancelPromoCode')
       .addItem('Libérer une réclamation abandonnée', 'adminReleasePromoClaim'))
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Portail web')
-      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword'))
+      .addItem('Définir le mot de passe du portail admin', 'adminSetPortalPassword')
+      .addItem('Définir la clé secrète Stripe', 'adminSetStripeSecretKey'))
     .addToUi();
 }
 
@@ -2665,6 +2686,47 @@ function doPost(e) {
         data = adminPortalAddPackage_(body.adminPassword, body.params);
         break;
 
+      case 'list-public-packages':
+        // Achat en ligne : catalogue des forfaits publiés (visibilite=public,
+        // statut=actif), lecture seule, sans authentification.
+        data = listPublicPackageTemplates_();
+        break;
+
+      case 'create-checkout-session':
+        // Achat en ligne : ouvre une session Stripe Checkout pour le forfait
+        // choisi. Prix recalculé côté serveur, jamais fourni par le client.
+        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom);
+        break;
+
+      case 'confirm-checkout-session':
+        // Achat en ligne : appelée au retour de Stripe (success_url). Vérifie
+        // directement auprès de Stripe avant de créer le forfait — idempotent.
+        data = confirmCheckoutSession_(body.sessionId);
+        break;
+
+      case 'submit-package-claim':
+        // /claim-package : cliente avec un forfait mais sans email connu du
+        // système (vente historique). Crée une demande "en attente" à valider
+        // depuis le portail admin.
+        data = submitPackageClaim_(body.email, body.prenom, body.nom, body.telephone, body.message);
+        break;
+
+      case 'admin-list-package-claims':
+        // Portail admin : demandes de forfait en attente de validation.
+        data = adminPortalListPackageClaims_(body.adminPassword);
+        break;
+
+      case 'admin-approve-package-claim':
+        // Portail admin : valide une demande — crée la cliente si besoin et
+        // son forfait (même cœur que "Ajouter un forfait").
+        data = adminPortalApprovePackageClaim_(body.adminPassword, body.params);
+        break;
+
+      case 'admin-reject-package-claim':
+        // Portail admin : rejette une demande (email non reconnu, doublon...).
+        data = adminPortalRejectPackageClaim_(body.adminPassword, body.params);
+        break;
+
       default:
         return jsonResponse_({ success: false, error: 'Action inconnue.' });
     }
@@ -2903,13 +2965,14 @@ function adminSetPackageTemplateStatus() {
  *  PAYMENTS.gs — Saisie des paiements, calcul brut/frais/net (Phase 2, Étape A).
  * ============================================================================
  *
- *  Aucune intégration API de paiement n'existe dans ce dépôt (Stripe reste
- *  configuré dans Google Workspace, en dehors de ce projet — voir README
- *  principal). La "confirmation automatique du paiement" mentionnée dans le
- *  cadrage n'est donc PAS implémentée ici : il n'existe aucune passerelle
- *  réelle à interroger depuis Apps Script pour Revolut/virement/ClassPass.
- *  Toute confirmation est donc manuelle, faite par l'administratrice — ce
- *  fichier ne prétend jamais le contraire.
+ *  Aucune intégration API de paiement n'existe ici pour Revolut/virement/
+ *  ClassPass (Stripe reste, pour CES moyens-là, configuré dans Google
+ *  Workspace/Calendar, en dehors de ce projet — voir README principal) : la
+ *  confirmation de ces paiements-là reste manuelle, faite par
+ *  l'administratrice. La seule confirmation automatique de ce dépôt est
+ *  celle de l'achat en ligne d'un forfait publié via Stripe Checkout
+ *  (Stripe.gs, confirmCheckoutSession_), qui écrit ici exactement comme
+ *  n'importe quel autre paiement (mode_saisie=automatique).
  *
  *  Un forfait créé via adminAddPackage (AdminMenu.gs) démarre au statut
  *  PENDING_PAYMENT et n'est PAS réservable (findEligiblePackages_ et
@@ -5455,10 +5518,9 @@ function adminPortalAddClient_(passwordPlain, params) {
  * réel doit un jour être suivi, il se saisit via le menu Sheet → Paiements.
  * Aucun email automatique n'est envoyé à la cliente.
  *
- * "Séances restantes" optionnel (défaut = total) : permet d'enregistrer une
- * cliente existante dont le forfait est déjà entamé — used_sessions est posé
- * à total - restantes pour que la réconciliation (total = dispo + réservées
- * + utilisées) reste juste.
+ * Cœur de création extrait dans createActivePackageWithPayment_ (ci-dessous)
+ * — réutilisé tel quel par adminPortalApprovePackageClaim_ (PackageClaims.gs)
+ * pour ne jamais dupliquer cette logique de validation/écriture.
  */
 function adminPortalAddPackage_(passwordPlain, params) {
   authenticateAdmin_(passwordPlain);
@@ -5467,6 +5529,23 @@ function adminPortalAddPackage_(passwordPlain, params) {
   const client = findClientByEmail_(clientEmail);
   if (!client) throw new BookingBusinessError_('Aucune cliente avec cet email.');
 
+  return createActivePackageWithPayment_(client, params, 'admin_portal');
+}
+
+/**
+ * Cœur de création d'un forfait immédiatement actif + sa ligne Payments (voir
+ * adminPortalAddPackage_ ci-dessus pour le détail du comportement). Prend un
+ * client déjà résolu (trouvé OU créé par l'appelant) — ne fait lui-même
+ * aucune recherche/création de cliente, pour rester réutilisable aussi bien
+ * depuis le portail (cliente déjà existante, email obligatoire) que depuis
+ * l'approbation d'une demande de forfait (cliente parfois créée à la volée).
+ *
+ * "Séances restantes" optionnel (défaut = total) : permet d'enregistrer une
+ * cliente existante dont le forfait est déjà entamé — used_sessions est posé
+ * à total - restantes pour que la réconciliation (total = dispo + réservées
+ * + utilisées) reste juste.
+ */
+function createActivePackageWithPayment_(client, params, actor) {
   const packageName = String((params && params.packageName) || '').trim();
   if (!packageName) throw new BookingBusinessError_('Nom du forfait manquant.');
 
@@ -5573,9 +5652,9 @@ function adminPortalAddPackage_(passwordPlain, params) {
       mode_saisie: PAYMENT_ENTRY_MODE.MANUEL,
     });
 
-    writeAuditLog_('admin_portal', 'add_package', packageId, '',
+    writeAuditLog_(actor, 'add_package', packageId, '',
       `${totalSessions} séances (dispo ${availableSessions}) — actif`,
-      `Cliente ${client.client_id} — créé via portail admin, ` +
+      `Cliente ${client.client_id} — créé via ${actor}, ` +
       (amountPaid !== null ? `paiement ${montantBrut} GBP (${paymentMethod})` : 'paiement hors système') +
       ` (${paymentId})`);
 
@@ -5583,4 +5662,547 @@ function adminPortalAddPackage_(passwordPlain, params) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 22 — Stripe.gs (achat en ligne d'un forfait publié, Stripe Checkout)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  STRIPE.gs — Achat en ligne d'un forfait publié (Stripe Checkout).
+ * ============================================================================
+ *
+ *  Flow : la cliente choisit un modèle de forfait PUBLIC et actif
+ *  (Package_Templates, PackageTemplates.gs), saisit son email, est redirigée
+ *  vers une page de paiement hébergée par Stripe (aucune donnée de carte ne
+ *  transite jamais par ce serveur), puis revient sur une page de confirmation
+ *  qui vérifie le paiement directement auprès de Stripe avant de créer quoi
+ *  que ce soit.
+ *
+ *  ⚠️ Confirmation par REDIRECTION, pas par webhook entrant : les Web Apps
+ *  Apps Script n'exposent pas les en-têtes HTTP arbitraires d'une requête
+ *  entrante (doPost(e) ne donne accès ni à Stripe-Signature ni à aucun autre
+ *  en-tête personnalisé), ce qui rend la vérification de signature de
+ *  webhook Stripe telle que documentée impossible à implémenter ici de façon
+ *  fiable. À la place : la page de succès Stripe redirige la cliente vers le
+ *  site avec l'identifiant de session, et confirmCheckoutSession_ interroge
+ *  l'API Stripe DIRECTEMENT (avec la clé secrète, jamais exposée côté
+ *  client) pour vérifier que le paiement a réellement abouti avant de créer
+ *  le forfait — aucune confiance accordée à la redirection elle-même.
+ *
+ *  Compromis assumé : si la cliente ferme l'onglet juste après avoir payé
+ *  mais avant la redirection de retour (perte réseau, fermeture manuelle),
+ *  le forfait n'est jamais créé automatiquement. Le paiement reste visible
+ *  dans le tableau de bord Stripe ; l'administratrice peut alors créer le
+ *  forfait manuellement via le portail admin (/admin) ou le menu Sheet, avec
+ *  le vrai montant. Pas de webhook de secours pour l'instant — à ajouter
+ *  plus tard si ce cas s'avère fréquent en pratique.
+ *
+ *  Prix TOUJOURS recalculé côté serveur à partir de Package_Templates au
+ *  moment de la création de la session ET revérifié à la confirmation —
+ *  jamais un montant fourni par le client.
+ */
+
+const STRIPE_API_BASE = 'https://api.stripe.com/v1';
+
+/** Renvoie la clé secrète Stripe, ou lève une erreur claire si jamais configurée. */
+function getStripeSecretKey_() {
+  const key = PropertiesService.getScriptProperties().getProperty('STRIPE_SECRET_KEY');
+  if (!key) {
+    throw new Error('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
+  }
+  return key;
+}
+
+/** Définit (ou change) la clé secrète Stripe — jamais affichée en clair après saisie, jamais dans Git/le Sheet. */
+function adminSetStripeSecretKey() {
+  const ui = ui_();
+  const response = ui.prompt('Clé secrète Stripe (sk_live_... ou sk_test_...) :');
+  const key = response.getResponseText().trim();
+  if (!key || key.indexOf('sk_') !== 0) {
+    ui.alert('Clé invalide (doit commencer par "sk_") — inchangée.');
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty('STRIPE_SECRET_KEY', key);
+  writeAuditLog_('admin', 'set_stripe_secret_key', 'stripe', '', key.indexOf('sk_live_') === 0 ? 'live' : 'test', '');
+  ui.alert(`Clé Stripe enregistrée (mode ${key.indexOf('sk_live_') === 0 ? 'LIVE — paiements réels' : 'test'}).`);
+}
+
+/**
+ * Aplatit un objet imbriqué en paires clé/valeur au format attendu par
+ * l'API REST de Stripe (application/x-www-form-urlencoded avec notation à
+ * crochets, ex. line_items[0][price_data][unit_amount]=12000). L'API Stripe
+ * n'accepte pas de corps JSON en requête, contrairement à ses réponses.
+ */
+function flattenForStripe_(obj, prefix) {
+  const pairs = [];
+  Object.keys(obj).forEach((key) => {
+    const value = obj[key];
+    const paramKey = prefix ? `${prefix}[${key}]` : key;
+    if (value === undefined || value === null || value === '') return;
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => {
+        if (typeof item === 'object') {
+          pairs.push(...flattenForStripe_(item, `${paramKey}[${i}]`));
+        } else {
+          pairs.push([`${paramKey}[${i}]`, String(item)]);
+        }
+      });
+    } else if (typeof value === 'object') {
+      pairs.push(...flattenForStripe_(value, paramKey));
+    } else {
+      pairs.push([paramKey, String(value)]);
+    }
+  });
+  return pairs;
+}
+
+/**
+ * Appel générique à l'API REST Stripe. Lève une erreur avec le message
+ * Stripe si la requête échoue (jamais affichée telle quelle à la cliente —
+ * seul WebApp.gs décide de ce qui est montrable, via BookingBusinessError_).
+ */
+function stripeRequest_(method, path, params) {
+  const pairs = params ? flattenForStripe_(params, '') : [];
+  const payload = pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+  const url = method === 'get' && payload ? `${STRIPE_API_BASE}${path}?${payload}` : `${STRIPE_API_BASE}${path}`;
+
+  const options = {
+    method: method,
+    headers: { Authorization: 'Bearer ' + getStripeSecretKey_() },
+    muteHttpExceptions: true,
+  };
+  if (method !== 'get') {
+    options.contentType = 'application/x-www-form-urlencoded';
+    options.payload = payload;
+  }
+
+  const response = UrlFetchApp.fetch(url, options);
+  const status = response.getResponseCode();
+  const body = JSON.parse(response.getContentText());
+
+  if (status >= 400) {
+    const message = body && body.error && body.error.message ? body.error.message : `Erreur Stripe (${status}).`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+/**
+ * Modèles de forfait publiables tels qu'exposés publiquement — jamais les
+ * modèles "private"/premium (proposés uniquement par l'administratrice via
+ * "Proposer un forfait"), jamais notes_internes.
+ */
+function listPublicPackageTemplates_() {
+  return readAllRows_(TABS.PACKAGE_TEMPLATES)
+    .filter((t) => t.statut === PACKAGE_TEMPLATE_STATUS.ACTIVE && t.visibilite === PACKAGE_TEMPLATE_VISIBILITY.PUBLIC)
+    .sort((a, b) => Number(a.ordre_affichage || 0) - Number(b.ordre_affichage || 0))
+    .map((t) => ({
+      templateId: t.package_template_id,
+      nom: t.nom,
+      description: t.description,
+      soinsInclus: String(t.soins_inclus || '').split(',').map((s) => s.trim()).filter(Boolean),
+      nombreSeances: Number(t.nombre_seances),
+      prixPublic: Number(t.prix_public),
+      dureeValiditeJours: t.duree_validite_jours ? Number(t.duree_validite_jours) : null,
+    }));
+}
+
+/**
+ * Anti-abus dédié à la création de session de paiement (endpoint public,
+ * sans OTP) — pas pour bloquer un brute-force de mot de passe (il n'y en a
+ * pas ici) mais pour éviter qu'un script ne spamme la création de sessions
+ * Stripe (quota API, bruit dans le tableau de bord Stripe). Même principe
+ * que enforceCodeRequestRateLimit_ (Security.gs), clé dédiée par email.
+ */
+function enforceCheckoutRateLimit_(email) {
+  const props = PropertiesService.getScriptProperties();
+  const key = 'checkout_count::' + String(email).toLowerCase();
+  const windowKey = 'checkout_window::' + String(email).toLowerCase();
+  const windowStart = props.getProperty(windowKey);
+  const now = Date.now();
+
+  if (!windowStart || now - Number(windowStart) > 60 * 60 * 1000) {
+    props.setProperty(windowKey, String(now));
+    props.setProperty(key, '1');
+    return;
+  }
+  const count = parseInt(props.getProperty(key) || '0', 10) + 1;
+  if (count > 10) {
+    throw new RateLimitError_('Trop de tentatives. Réessaie plus tard ou contacte-nous directement.');
+  }
+  props.setProperty(key, String(count));
+}
+
+/**
+ * Crée une session Stripe Checkout pour un modèle de forfait public. Le
+ * prix est TOUJOURS recalculé ici à partir de Package_Templates — jamais
+ * fourni par le client.
+ *
+ * @returns {{checkoutUrl: string}}
+ */
+function createCheckoutSession_(templateId, email, prenom, nom) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
+    throw new BookingBusinessError_('Adresse email invalide.');
+  }
+  if (!String(prenom || '').trim()) {
+    throw new BookingBusinessError_('Prénom manquant.');
+  }
+  enforceCheckoutRateLimit_(normalizedEmail);
+
+  const template = findPackageTemplateById_(templateId);
+  if (!template || template.statut !== PACKAGE_TEMPLATE_STATUS.ACTIVE || template.visibilite !== PACKAGE_TEMPLATE_VISIBILITY.PUBLIC) {
+    throw new BookingBusinessError_('Ce forfait n\'est plus disponible à l\'achat en ligne.');
+  }
+
+  const price = Number(template.prix_public);
+  if (isNaN(price) || price <= 0) {
+    throw new BookingBusinessError_('Ce forfait n\'a pas de prix valide — contacte-nous directement.');
+  }
+  const unitAmountPence = Math.round(price * 100);
+
+  const settings = getSettings();
+  const baseUrl = String(settings.site_base_url || '').replace(/\/$/, '');
+
+  const session = stripeRequest_('post', '/checkout/sessions', {
+    mode: 'payment',
+    customer_email: normalizedEmail,
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: 'gbp',
+          unit_amount: unitAmountPence,
+          product_data: { name: template.nom },
+        },
+      },
+    ],
+    success_url: `${baseUrl}/buy-package/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/buy-package?cancelled=1`,
+    metadata: {
+      package_template_id: template.package_template_id,
+      prenom: String(prenom || '').trim(),
+      nom: String(nom || '').trim(),
+    },
+  });
+
+  return { checkoutUrl: session.url };
+}
+
+/**
+ * Confirme une session Stripe Checkout et crée le forfait correspondant.
+ * Idempotent : un même session_id ne crée jamais deux forfaits, même
+ * rappelé plusieurs fois (rechargement de la page de succès, retour
+ * arrière du navigateur).
+ *
+ * @returns {{packageName: string, totalSessions: number}}
+ */
+function confirmCheckoutSession_(sessionId) {
+  if (!sessionId) throw new BookingBusinessError_('Session de paiement manquante.');
+
+  const existingPayment = findRowBy_(TABS.PAYMENTS, 'reference_transaction', sessionId);
+  if (existingPayment) {
+    const existingPkg = findPackageById_(existingPayment.package_id);
+    return {
+      packageName: existingPkg ? existingPkg.nom_forfait : '',
+      totalSessions: existingPkg ? Number(existingPkg.total_sessions) : 0,
+    };
+  }
+
+  const session = stripeRequest_('get', `/checkout/sessions/${encodeURIComponent(sessionId)}`, null);
+  if (session.payment_status !== 'paid') {
+    throw new BookingBusinessError_('Ce paiement n\'a pas encore abouti.');
+  }
+
+  const templateId = session.metadata && session.metadata.package_template_id;
+  const template = templateId ? findPackageTemplateById_(templateId) : null;
+  if (!template) {
+    // Ne devrait jamais arriver (le template existait à la création de la
+    // session) — mais on reste défensif plutôt que de créer un forfait
+    // sans contenu défini.
+    throw new Error('Modèle de forfait introuvable pour cette session Stripe.');
+  }
+
+  // Revérification du montant réellement facturé par Stripe contre le prix
+  // actuel du modèle — défense en profondeur, même si le montant a déjà été
+  // fixé par le serveur (jamais par la cliente) à la création de la session.
+  const expectedPence = Math.round(Number(template.prix_public) * 100);
+  if (Number(session.amount_total) !== expectedPence) {
+    writeAuditLog_('system', 'stripe_amount_mismatch', sessionId, String(expectedPence), String(session.amount_total), '');
+  }
+
+  const email = String((session.customer_details && session.customer_details.email) || session.customer_email || '').trim().toLowerCase();
+  const prenom = (session.metadata && session.metadata.prenom) || '';
+  const nom = (session.metadata && session.metadata.nom) || '';
+
+  // Recherche + création cliente sous verrou — même principe que
+  // adminPortalAddClient_ (Portal.gs) : sans lui, un double appel (page de
+  // succès rechargée pendant que la première requête tourne encore)
+  // pourrait créer deux clientes avant que la première écriture n'aboutisse.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new BookingBusinessError_('Le système est occupé, réessaie dans un instant.');
+  }
+  let client;
+  try {
+    client = findClientByEmail_(email);
+    if (!client) {
+      const clientId = genId_('CLI');
+      appendRow_(TABS.CLIENTS, {
+        client_id: clientId,
+        prenom: prenom,
+        nom: nom,
+        email: email,
+        telephone: '',
+        notes_admin: '',
+        date_creation: new Date(),
+        tags: '',
+      });
+      writeAuditLog_('system', 'add_client', clientId, '', email, 'Créée via achat en ligne (Stripe)');
+      client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
+    }
+
+    const packageId = genId_('PKG');
+    const dateExpiration = template.duree_validite_jours
+      ? new Date(Date.now() + Number(template.duree_validite_jours) * 24 * 60 * 60 * 1000)
+      : '';
+    appendRow_(TABS.PACKAGES, {
+      package_id: packageId,
+      client_id: client.client_id,
+      nom_forfait: template.nom,
+      soins_inclus: template.soins_inclus,
+      total_sessions: Number(template.nombre_seances),
+      available_sessions: Number(template.nombre_seances),
+      reserved_sessions: 0,
+      used_sessions: 0,
+      date_achat: new Date(),
+      date_expiration: dateExpiration,
+      moyen_paiement: PAYMENT_METHOD.STRIPE,
+      statut: PACKAGE_STATUS.PENDING_PAYMENT,
+      notes_admin: 'Achat en ligne via Stripe Checkout',
+      package_template_id: template.package_template_id,
+    });
+
+    const paymentId = genId_('PAY');
+    const montantBrut = Number(session.amount_total) / 100;
+    const { montant_net, taux_frais } = computePaymentFinancials_(montantBrut, 0);
+    appendRow_(TABS.PAYMENTS, {
+      payment_id: paymentId,
+      client_id: client.client_id,
+      package_id: packageId,
+      montant_brut: montantBrut,
+      devise: String(session.currency || 'gbp').toUpperCase(),
+      moyen_paiement: PAYMENT_METHOD.STRIPE,
+      fournisseur_paiement: 'Stripe',
+      frais_paiement: 0,
+      montant_net: montant_net,
+      taux_frais: taux_frais,
+      date_paiement: new Date(),
+      reference_transaction: sessionId,
+      statut_paiement: PAYMENT_STATUS.CONFIRME,
+      justificatif_notes: 'Frais Stripe non calculés automatiquement — à corriger manuellement si besoin (Payments).',
+      mode_saisie: PAYMENT_ENTRY_MODE.AUTOMATIQUE,
+    });
+
+    // Active le forfait + envoie la confirmation post-achat + vérifie les
+    // paliers de parrainage — même fonction que le reste du système, pour
+    // ne jamais dupliquer ces effets de bord (Payments.gs).
+    activatePackageIfPending_(packageId, paymentId);
+
+    return { packageName: template.nom, totalSessions: Number(template.nombre_seances) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 23 — PackageClaims.gs (demande de forfait sans email connu, /claim-package)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  PACKAGECLAIMS.gs — Demande de forfait pour une cliente sans email connu.
+ * ============================================================================
+ *
+ *  Problème résolu : de nombreuses clientes ont un forfait acheté avant la
+ *  mise en place de ce système (vente en personne, ClassPass, etc.) sans que
+ *  leur email n'ait jamais été collecté. Pour elles, /use-package ne peut
+ *  envoyer aucun code (requestVerificationCode, PackageVerification.gs, ne
+ *  trouve aucune cliente pour cet email) — /claim-package est la porte de
+ *  sortie : la cliente indique son email (+ prénom/nom/téléphone/message),
+ *  ça crée une demande "en attente" que l'administratrice valide depuis le
+ *  portail admin, ce qui crée la cliente (si besoin) ET son forfait en un
+ *  seul geste — même cœur de création que "Ajouter un forfait" (Portal.gs,
+ *  createActivePackageWithPayment_), jamais dupliqué.
+ *
+ *  Réponse toujours générique (même succès qu'un email déjà en double) —
+ *  pas d'anti-énumération à proprement parler ici (contrairement au code de
+ *  vérification, la demande elle-même ne révèle rien de sensible), mais on
+ *  évite quand même de révéler si une demande existe déjà pour cet email.
+ */
+
+/**
+ * Soumission publique d'une demande de forfait. Rate-limitée par email (même
+ * principe que enforceCodeRequestRateLimit_, Security.gs) pour éviter le
+ * spam d'un endpoint public non authentifié.
+ */
+function submitPackageClaim_(email, prenom, nom, telephone, message) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
+    throw new BookingBusinessError_('Adresse email invalide.');
+  }
+  const trimmedPrenom = String(prenom || '').trim();
+  if (!trimmedPrenom) {
+    throw new BookingBusinessError_('Prénom manquant.');
+  }
+
+  enforceClaimRateLimit_(normalizedEmail);
+
+  // Une demande déjà en attente pour cet email : pas de doublon inutile dans
+  // la file de l'admin (ex. double-clic, ou la cliente retente le formulaire).
+  const existingPending = readAllRows_(TABS.PACKAGE_CLAIMS).find((c) =>
+    String(c.email).toLowerCase() === normalizedEmail && c.statut === PACKAGE_CLAIM_STATUS.PENDING
+  );
+  if (existingPending) {
+    return { message: PACKAGE_CLAIM_CONFIRMATION_MESSAGE };
+  }
+
+  appendRow_(TABS.PACKAGE_CLAIMS, {
+    claim_id: genId_('CLM'),
+    email: normalizedEmail,
+    prenom: trimmedPrenom,
+    nom: String(nom || '').trim(),
+    telephone: String(telephone || '').trim(),
+    message: String(message || '').trim().slice(0, 500),
+    statut: PACKAGE_CLAIM_STATUS.PENDING,
+    created_at: new Date(),
+    resolved_at: '',
+    package_id_resultant: '',
+    notes_admin: '',
+  });
+
+  return { message: PACKAGE_CLAIM_CONFIRMATION_MESSAGE };
+}
+
+const PACKAGE_CLAIM_CONFIRMATION_MESSAGE =
+  "Thank you — we've received your request and will activate your package within 24 hours.";
+
+/** Anti-spam dédié, même principe que enforceCheckoutRateLimit_ (Stripe.gs). */
+function enforceClaimRateLimit_(email) {
+  const props = PropertiesService.getScriptProperties();
+  const key = 'claim_count::' + String(email).toLowerCase();
+  const windowKey = 'claim_window::' + String(email).toLowerCase();
+  const windowStart = props.getProperty(windowKey);
+  const now = Date.now();
+
+  if (!windowStart || now - Number(windowStart) > 60 * 60 * 1000) {
+    props.setProperty(windowKey, String(now));
+    props.setProperty(key, '1');
+    return;
+  }
+  const count = parseInt(props.getProperty(key) || '0', 10) + 1;
+  if (count > 5) {
+    throw new RateLimitError_('Too many requests. Please message us directly instead.');
+  }
+  props.setProperty(key, String(count));
+}
+
+/**
+ * Portail admin : liste des demandes en attente, les plus anciennes en
+ * premier (traitement dans l'ordre d'arrivée). Les demandes déjà résolues
+ * (approuvées/rejetées) ne sont pas renvoyées — elles restent consultables
+ * directement dans le Sheet si besoin.
+ */
+function adminPortalListPackageClaims_(passwordPlain) {
+  authenticateAdmin_(passwordPlain);
+
+  return readAllRows_(TABS.PACKAGE_CLAIMS)
+    .filter((c) => c.statut === PACKAGE_CLAIM_STATUS.PENDING)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .map((c) => ({
+      claimId: c.claim_id,
+      email: c.email,
+      prenom: c.prenom,
+      nom: c.nom,
+      telephone: c.telephone,
+      message: c.message,
+      createdAt: c.created_at,
+    }));
+}
+
+/**
+ * Approuve une demande : crée la cliente si elle n'existe pas encore (sinon
+ * réutilise la fiche existante — une même cliente peut avoir soumis la
+ * demande alors qu'elle existait déjà pour une autre raison), puis crée le
+ * forfait avec exactement le même cœur que "Ajouter un forfait" (Portal.gs).
+ * params : mêmes champs que adminPortalAddPackage_ (packageName,
+ * servicesIncluded, totalSessions, availableSessions, expirationDate,
+ * amountPaid, paymentMethod) + claimId.
+ */
+function adminPortalApprovePackageClaim_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const claimId = String((params && params.claimId) || '').trim();
+  const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
+  if (!claim) throw new BookingBusinessError_('Demande introuvable.');
+  if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
+    throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+  }
+
+  const client = findOrCreateClientFromClaim_(claim);
+  const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
+
+  updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
+    statut: PACKAGE_CLAIM_STATUS.APPROVED,
+    resolved_at: new Date(),
+    package_id_resultant: result.packageId,
+  });
+  writeAuditLog_('admin_portal', 'approve_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.APPROVED, `Forfait ${result.packageId} créé pour ${client.client_id}`);
+
+  return { packageId: result.packageId, clientId: client.client_id };
+}
+
+/** Trouve la cliente par email, ou la crée à partir des infos de la demande. */
+function findOrCreateClientFromClaim_(claim) {
+  const email = String(claim.email).trim().toLowerCase();
+  const existing = findClientByEmail_(email);
+  if (existing) return existing;
+
+  const clientId = genId_('CLI');
+  appendRow_(TABS.CLIENTS, {
+    client_id: clientId,
+    prenom: claim.prenom,
+    nom: claim.nom,
+    email: email,
+    telephone: claim.telephone || '',
+    notes_admin: '',
+    date_creation: new Date(),
+    tags: '',
+  });
+  writeAuditLog_('admin_portal', 'add_client', clientId, '', email, `Créée via validation de demande de forfait ${claim.claim_id}`);
+  return findRowBy_(TABS.CLIENTS, 'client_id', clientId);
+}
+
+/** Rejette une demande (email non reconnu, forfait introuvable, doublon, etc.). */
+function adminPortalRejectPackageClaim_(passwordPlain, params) {
+  authenticateAdmin_(passwordPlain);
+
+  const claimId = String((params && params.claimId) || '').trim();
+  const claim = claimId ? findRowBy_(TABS.PACKAGE_CLAIMS, 'claim_id', claimId) : null;
+  if (!claim) throw new BookingBusinessError_('Demande introuvable.');
+  if (claim.statut !== PACKAGE_CLAIM_STATUS.PENDING) {
+    throw new BookingBusinessError_('Cette demande a déjà été traitée.');
+  }
+
+  const reason = String((params && params.reason) || '').trim();
+  updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
+    statut: PACKAGE_CLAIM_STATUS.REJECTED,
+    resolved_at: new Date(),
+    notes_admin: reason,
+  });
+  writeAuditLog_('admin_portal', 'reject_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.REJECTED, reason);
+
+  return { claimId: claimId };
 }

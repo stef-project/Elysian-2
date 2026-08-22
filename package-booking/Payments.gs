@@ -3,13 +3,14 @@
  *  PAYMENTS.gs — Saisie des paiements, calcul brut/frais/net (Phase 2, Étape A).
  * ============================================================================
  *
- *  Aucune intégration API de paiement n'existe dans ce dépôt (Stripe reste
- *  configuré dans Google Workspace, en dehors de ce projet — voir README
- *  principal). La "confirmation automatique du paiement" mentionnée dans le
- *  cadrage n'est donc PAS implémentée ici : il n'existe aucune passerelle
- *  réelle à interroger depuis Apps Script pour Revolut/virement/ClassPass.
- *  Toute confirmation est donc manuelle, faite par l'administratrice — ce
- *  fichier ne prétend jamais le contraire.
+ *  Aucune intégration API de paiement n'existe ici pour Revolut/virement/
+ *  ClassPass (Stripe reste, pour CES moyens-là, configuré dans Google
+ *  Workspace/Calendar, en dehors de ce projet — voir README principal) : la
+ *  confirmation de ces paiements-là reste manuelle, faite par
+ *  l'administratrice. La seule confirmation automatique de ce dépôt est
+ *  celle de l'achat en ligne d'un forfait publié via Stripe Checkout
+ *  (Stripe.gs, confirmCheckoutSession_), qui écrit ici exactement comme
+ *  n'importe quel autre paiement (mode_saisie=automatique).
  *
  *  Un forfait créé via adminAddPackage (AdminMenu.gs) démarre au statut
  *  PENDING_PAYMENT et n'est PAS réservable (findEligiblePackages_ et
