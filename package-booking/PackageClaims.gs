@@ -131,6 +131,12 @@ function adminPortalApprovePackageClaim_(passwordPlain, params) {
   const client = findOrCreateClientFromClaim_(claim);
   const result = createActivePackageWithPayment_(client, params, 'admin_portal_claim');
 
+  // Contrairement à "Ajouter un forfait" (adminPortalAddPackage_, où l'admin
+  // est déjà en contact direct avec la cliente et n'a donc pas besoin de cet
+  // email), ici la cliente a soumis sa demande elle-même et n'a aucun autre
+  // moyen de savoir que son forfait est prêt — l'email est donc indispensable.
+  sendPostPurchaseConfirmation_(result.packageId);
+
   updateRow_(TABS.PACKAGE_CLAIMS, claim.rowNumber, {
     statut: PACKAGE_CLAIM_STATUS.APPROVED,
     resolved_at: new Date(),
