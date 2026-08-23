@@ -15,6 +15,7 @@ import AdminPortal from "@/pages/AdminPortal";
 import BuyPackage from "@/pages/BuyPackage";
 import BuyPackageSuccess from "@/pages/BuyPackageSuccess";
 import HealthCheck from "@/pages/HealthCheck";
+import BookAbroad from "@/pages/BookAbroad";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/chelsea" component={Chelsea} />
       <Route path="/book-chelsea" component={BookChelsea} />
       <Route path="/health-check" component={HealthCheck} />
+      <Route path="/book-abroad" component={BookAbroad} />
       {PACKAGE_BOOKING_ENABLED && <Route path="/use-package" component={UsePackage} />}
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
       {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package/success" component={BuyPackageSuccess} />}
