@@ -53,6 +53,12 @@ export default function BuyPackage() {
   const [nom, setNom] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Stripe redirige ici (cancel_url, Stripe.gs) si la cliente quitte le
+  // paiement sans payer — sans ce message, elle retombait sur une liste de
+  // forfaits vierge sans aucune confirmation que rien ne lui avait été débité.
+  const [cameFromCancelledCheckout] = useState(
+    () => new URLSearchParams(window.location.search).get("cancelled") === "1"
+  );
 
   useEffect(() => {
     if (step !== "loading") return;
@@ -144,6 +150,12 @@ export default function BuyPackage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {cameFromCancelledCheckout && step !== "form" && (
+          <div className="mb-6 p-4 bg-[#F0EBE1] border border-[#BF944A]/40 text-sm text-[#1A1A1A]">
+            Payment was not completed — you have not been charged. Feel free to try again.
           </div>
         )}
 
