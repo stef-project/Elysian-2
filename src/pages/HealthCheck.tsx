@@ -21,10 +21,26 @@ import { TREATMENT_LABELS } from "../lib/contraindications";
 import { trackBookClick } from "../lib/analytics";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
+// "next" arrive dans l'URL (query string) — jamais fait confiance sans
+// vérification : n'importe qui peut fabriquer un lien vers CETTE page (sur
+// notre propre domaine, donc d'apparence légitime) avec un "next" pointant
+// n'importe où, et l'envoyer dans un message de phishing. Seuls les domaines
+// de calendrier réels sont acceptés ; tout le reste est traité comme absent.
+const ALLOWED_NEXT_ORIGINS = ["https://calendar.app.google", "https://calendar.google.com"];
+
+function sanitizeNextUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    return ALLOWED_NEXT_ORIGINS.some((origin) => url.href.startsWith(origin)) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 export default function HealthCheck() {
   const params = new URLSearchParams(window.location.search);
   const treatmentKey = params.get("service") ?? "";
-  const nextUrl = params.get("next") ?? "";
+  const nextUrl = sanitizeNextUrl(params.get("next") ?? "");
   const label = TREATMENT_LABELS[treatmentKey] ?? "Your Treatment";
 
   useDocumentMeta(
