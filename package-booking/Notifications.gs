@@ -182,6 +182,16 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
  * indépendamment du consentement marketing, comme la confirmation d'achat.
  */
 function runAppointmentReminders() {
+  // Vérification de la liste d'attente, indépendante du réglage
+  // reminder_hours_before_appointment ci-dessous (elle ne doit jamais être
+  // désactivée par erreur en même temps que les rappels de rendez-vous) —
+  // ne bloque jamais le reste de cette fonction si elle échoue.
+  try {
+    checkWaitlistAvailability_();
+  } catch (e) {
+    Logger.log('checkWaitlistAvailability_ a échoué : ' + e);
+  }
+
   const settings = getSettings();
   const hoursBefore = Number(settings.reminder_hours_before_appointment);
   if (!hoursBefore || hoursBefore <= 0) return 0;
@@ -210,6 +220,36 @@ function runAppointmentReminders() {
 
   Logger.log(`Rappels de rendez-vous : ${actionsCount} envoyé(s).`);
   return actionsCount;
+}
+
+/**
+ * Vérifie, pour chaque soin ayant au moins une entrée active en liste
+ * d'attente, si des créneaux existent maintenant — pas seulement au moment
+ * d'une annulation (notifyMatchingWaitlist_, appelée depuis
+ * AdminMenu.gs → cancelBooking_). Couvre aussi le cas où de la disponibilité
+ * s'est simplement libérée autrement (fenêtre glissante de lookahead_days,
+ * jour travaillé ou horaires élargis...). Appelée depuis runAppointmentReminders
+ * (même cadence horaire, aucun déclencheur supplémentaire à créer).
+ */
+function checkWaitlistAvailability_() {
+  const activeEntries = readAllRows_(TABS.WAITLIST).filter((w) => w.statut === WAITLIST_STATUS.ACTIVE);
+  const serviceIds = activeEntries
+    .map((w) => w.service_id)
+    .filter((id, i, arr) => arr.indexOf(id) === i);
+
+  serviceIds.forEach((serviceId) => {
+    const sample = activeEntries.find((w) => w.service_id === serviceId);
+    const duration = Number(sample.duration_minutes) || DEFAULT_APPOINTMENT_MINUTES;
+    let slots;
+    try {
+      slots = computeAvailableSlots(duration);
+    } catch (e) {
+      return; // calendrier introuvable/inaccessible ce tour-ci — on retentera à la prochaine heure
+    }
+    if (slots.length > 0) {
+      notifyMatchingWaitlist_(serviceId);
+    }
+  });
 }
 
 /**

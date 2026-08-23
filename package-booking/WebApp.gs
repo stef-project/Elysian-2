@@ -48,7 +48,7 @@ function doPost(e) {
       case 'join-waitlist':
         // /use-package : aucun créneau libre pour le soin choisi, la
         // cliente demande à être prévenue dès qu'un créneau se libère.
-        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId, body.durationMinutes);
         break;
 
       case 'revoke-session':

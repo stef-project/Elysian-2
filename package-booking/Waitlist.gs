@@ -15,7 +15,7 @@
  * Parcours PUBLIC (site) — appelé depuis WebApp.gs quand /use-package
  * n'affiche aucun créneau pour le soin choisi.
  */
-function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
+function joinPackageWaitlist_(sessionTokenPlain, serviceId, durationMinutes) {
   if (!sessionTokenPlain || !serviceId) {
     throw new BookingBusinessError_('Requête incomplète.');
   }
@@ -49,6 +49,11 @@ function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
     client_id: tokenRow.client_id,
     package_id: tokenRow.package_id,
     service_id: serviceId,
+    // Fourni par le site (durée réelle du soin) — nécessaire pour
+    // computeAvailableSlots lors de la vérification périodique
+    // (checkWaitlistAvailability_, Notifications.gs) ; filet de sécurité si
+    // absent/invalide (ex. ancienne version du site en cache).
+    duration_minutes: Number(durationMinutes) || DEFAULT_APPOINTMENT_MINUTES,
     statut: WAITLIST_STATUS.ACTIVE,
     created_at: new Date(),
     notified_at: '',

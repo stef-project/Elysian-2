@@ -179,7 +179,7 @@ const HEADERS = {
   // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
   // soin (annulation, voir AdminMenu.gs → cancelBooking_).
   [TABS.WAITLIST]: [
-    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'waitlist_id', 'client_id', 'package_id', 'service_id', 'duration_minutes',
     'statut', 'created_at', 'notified_at',
   ],
 };

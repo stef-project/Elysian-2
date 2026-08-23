@@ -213,7 +213,7 @@ const HEADERS = {
   // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
   // soin (annulation, voir AdminMenu.gs → cancelBooking_).
   [TABS.WAITLIST]: [
-    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'waitlist_id', 'client_id', 'package_id', 'service_id', 'duration_minutes',
     'statut', 'created_at', 'notified_at',
   ],
 };
@@ -2700,7 +2700,7 @@ function doPost(e) {
       case 'join-waitlist':
         // /use-package : aucun créneau libre pour le soin choisi, la
         // cliente demande à être prévenue dès qu'un créneau se libère.
-        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId, body.durationMinutes);
         break;
 
       case 'revoke-session':
@@ -4091,6 +4091,16 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
  * indépendamment du consentement marketing, comme la confirmation d'achat.
  */
 function runAppointmentReminders() {
+  // Vérification de la liste d'attente, indépendante du réglage
+  // reminder_hours_before_appointment ci-dessous (elle ne doit jamais être
+  // désactivée par erreur en même temps que les rappels de rendez-vous) —
+  // ne bloque jamais le reste de cette fonction si elle échoue.
+  try {
+    checkWaitlistAvailability_();
+  } catch (e) {
+    Logger.log('checkWaitlistAvailability_ a échoué : ' + e);
+  }
+
   const settings = getSettings();
   const hoursBefore = Number(settings.reminder_hours_before_appointment);
   if (!hoursBefore || hoursBefore <= 0) return 0;
@@ -4119,6 +4129,36 @@ function runAppointmentReminders() {
 
   Logger.log(`Rappels de rendez-vous : ${actionsCount} envoyé(s).`);
   return actionsCount;
+}
+
+/**
+ * Vérifie, pour chaque soin ayant au moins une entrée active en liste
+ * d'attente, si des créneaux existent maintenant — pas seulement au moment
+ * d'une annulation (notifyMatchingWaitlist_, appelée depuis
+ * AdminMenu.gs → cancelBooking_). Couvre aussi le cas où de la disponibilité
+ * s'est simplement libérée autrement (fenêtre glissante de lookahead_days,
+ * jour travaillé ou horaires élargis...). Appelée depuis runAppointmentReminders
+ * (même cadence horaire, aucun déclencheur supplémentaire à créer).
+ */
+function checkWaitlistAvailability_() {
+  const activeEntries = readAllRows_(TABS.WAITLIST).filter((w) => w.statut === WAITLIST_STATUS.ACTIVE);
+  const serviceIds = activeEntries
+    .map((w) => w.service_id)
+    .filter((id, i, arr) => arr.indexOf(id) === i);
+
+  serviceIds.forEach((serviceId) => {
+    const sample = activeEntries.find((w) => w.service_id === serviceId);
+    const duration = Number(sample.duration_minutes) || DEFAULT_APPOINTMENT_MINUTES;
+    let slots;
+    try {
+      slots = computeAvailableSlots(duration);
+    } catch (e) {
+      return; // calendrier introuvable/inaccessible ce tour-ci — on retentera à la prochaine heure
+    }
+    if (slots.length > 0) {
+      notifyMatchingWaitlist_(serviceId);
+    }
+  });
 }
 
 /**
@@ -6434,7 +6474,7 @@ function adminPortalRejectPackageClaim_(passwordPlain, params) {
  * Parcours PUBLIC (site) — appelé depuis WebApp.gs quand /use-package
  * n'affiche aucun créneau pour le soin choisi.
  */
-function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
+function joinPackageWaitlist_(sessionTokenPlain, serviceId, durationMinutes) {
   if (!sessionTokenPlain || !serviceId) {
     throw new BookingBusinessError_('Requête incomplète.');
   }
@@ -6468,6 +6508,11 @@ function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
     client_id: tokenRow.client_id,
     package_id: tokenRow.package_id,
     service_id: serviceId,
+    // Fourni par le site (durée réelle du soin) — nécessaire pour
+    // computeAvailableSlots lors de la vérification périodique
+    // (checkWaitlistAvailability_, Notifications.gs) ; filet de sécurité si
+    // absent/invalide (ex. ancienne version du site en cache).
+    duration_minutes: Number(durationMinutes) || DEFAULT_APPOINTMENT_MINUTES,
     statut: WAITLIST_STATUS.ACTIVE,
     created_at: new Date(),
     notified_at: '',

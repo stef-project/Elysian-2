@@ -86,11 +86,14 @@ export const getAvailableSlots = (sessionToken: string, serviceId: string, durat
 
 // /use-package : aucun créneau libre sur toute la fenêtre de réservation
 // pour ce soin — la cliente demande à être prévenue dès qu'un créneau se
-// libère (annulation), au lieu de repartir sans solution.
-export const joinWaitlist = (sessionToken: string, serviceId: string) =>
+// libère, au lieu de repartir sans solution. durationMinutes est stocké
+// côté serveur pour la vérification périodique de disponibilité
+// (checkWaitlistAvailability_, Notifications.gs).
+export const joinWaitlist = (sessionToken: string, serviceId: string, durationMinutes: number) =>
   callWebApp<{ status: "joined" | "already_on_waitlist" }>("join-waitlist", {
     sessionToken,
     serviceId,
+    durationMinutes,
   });
 
 export type ActivePromoCode = {
