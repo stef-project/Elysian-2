@@ -581,6 +581,15 @@ function cancelBooking_(isInstituteInitiated) {
     }
   }
 
+  // Le créneau vient de se libérer (que la séance soit restaurée ou
+  // considérée utilisée, l'événement Calendar est supprimé dans les deux
+  // cas ci-dessus) : prévenir la liste d'attente pour ce soin, si elle existe.
+  try {
+    notifyMatchingWaitlist_(booking.service_id);
+  } catch (e) {
+    // Ne bloque jamais l'annulation elle-même si l'envoi échoue.
+  }
+
   const pkg = findPackageById_(booking.package_id);
   if (outcome === 'restore') {
     updateRow_(TABS.PACKAGES, pkg.rowNumber, {

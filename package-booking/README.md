@@ -623,6 +623,21 @@ configurée et au moins un modèle publié testé.
 - Type d'événement : **Basé sur le temps** → **Minuteries jour** → une
   plage horaire (ex. 8h–9h), comme pour `runReconciliationCheck`.
 
+### Activer le rappel de rendez-vous (24h avant)
+Rappel automatique envoyé aux clientes ayant un rendez-vous forfait confirmé
+approchant (`Settings.reminder_hours_before_appointment`, 24h par défaut ;
+`0` désactive l'envoi). Contrairement aux notifications quotidiennes
+ci-dessus, ce rappel a besoin d'un déclencheur **horaire** pour rester
+proche de l'échéance annoncée dans l'email :
+- Fonction : `runAppointmentReminders_`
+- Type d'événement : **Basé sur le temps** → **Minuteries horaires** →
+  toutes les heures.
+
+Ne concerne que les rendez-vous pris via un forfait (`Bookings`, ce
+système). Les rendez-vous pris directement sur les pages de soins
+(liens `calendar.app.google`) passent par la page de réservation Google
+Agenda elle-même, hors de portée de ce script.
+
 ---
 
 ## Récapitulatif des fonctions utiles
@@ -638,6 +653,7 @@ configurée et au moins un modèle publié testé.
 | `adminViewClientProfile` | Génère la fiche cliente consolidée |
 | `adminCreatePackageOffer` | Génère une offre + lien à durée de vie limitée |
 | `runDailyNotifications` | Rappels solde/expiration + alertes renouvellement (à brancher sur un déclencheur) |
+| `runAppointmentReminders_` | Rappel de rendez-vous ~24h avant (à brancher sur un déclencheur horaire) |
 | `adminGenerateDashboard` | Génère le tableau de bord (12 indicateurs) |
 | `adminSetStripeSecretKey` | Enregistre la clé secrète Stripe (menu « Portail web ») |
 | `listPublicPackageTemplates_` | Catalogue des forfaits publiés, appelé par `/buy-package` |

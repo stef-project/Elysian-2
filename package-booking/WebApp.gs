@@ -45,6 +45,12 @@ function doPost(e) {
         data = handleGetClientDashboard_(body.sessionToken);
         break;
 
+      case 'join-waitlist':
+        // /use-package : aucun créneau libre pour le soin choisi, la
+        // cliente demande à être prévenue dès qu'un créneau se libère.
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
+        break;
+
       case 'revoke-session':
         // "Log out of this device" (/use-package) : invalide le jeton côté
         // serveur, pas seulement dans le localStorage du navigateur.
