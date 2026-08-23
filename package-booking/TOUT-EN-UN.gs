@@ -70,6 +70,8 @@ const TABS = {
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
   // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
   PACKAGE_CLAIMS: 'Package_Claims',
+  // --- Liste d'attente (aucun créneau libre pour un soin, /use-package) ---
+  WAITLIST: 'Waitlist',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -203,6 +205,17 @@ const HEADERS = {
     'claim_id', 'email', 'prenom', 'nom', 'telephone', 'message',
     'statut', 'created_at', 'resolved_at', 'package_id_resultant', 'notes_admin',
   ],
+
+  // --- Liste d'attente ---
+
+  // Aucun créneau libre sur toute la fenêtre de réservation (lookahead_days)
+  // pour un soin donné : la cliente rejoint la liste d'attente au lieu de
+  // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
+  // soin (annulation, voir AdminMenu.gs → cancelBooking_).
+  [TABS.WAITLIST]: [
+    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'statut', 'created_at', 'notified_at',
+  ],
 };
 
 // NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client'), TABS.DASHBOARD ('Dashboard')
@@ -297,6 +310,15 @@ const PACKAGE_CLAIM_STATUS = {
   REJECTED: 'rejected',
 };
 
+// Statuts possibles d'une entrée de liste d'attente (Waitlist.statut).
+// NOTIFIED : notifiée une fois qu'un créneau s'est libéré pour ce soin — pas
+// de rappel en boucle ; si toujours pas réservé, la cliente doit rejoindre
+// la liste à nouveau (comportement volontairement simple en V1).
+const WAITLIST_STATUS = {
+  ACTIVE: 'active',
+  NOTIFIED: 'notified',
+};
+
 // Statuts possibles d'une offre de forfait (Package_Offers.statut).
 // Consulter ou accepter le lien ne fait JAMAIS passer un forfait à "active" —
 // voir PackageOffers.gs. "paid" n'est atteint que via confirmation manuelle
@@ -365,6 +387,7 @@ const SETTINGS_DEFAULTS = {
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
   max_admin_login_attempts: 5,                   // anti brute-force sur le mot de passe du portail admin
+  reminder_hours_before_appointment: 24,         // rappel de rendez-vous envoyé ~X h avant le début (0 = désactivé)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -380,6 +403,9 @@ const REMINDER_TYPE = {
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
   REVIEW_REQUEST: 'demande_avis',
+  // Dédoublonné par booking_id (pas par package_id) : un même forfait peut
+  // porter plusieurs rendez-vous, chacun avec son propre rappel.
+  appointmentReminder: (bookingId) => `rappel_rdv_${bookingId}`,
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2286,6 +2312,15 @@ function cancelBooking_(isInstituteInitiated) {
     }
   }
 
+  // Le créneau vient de se libérer (que la séance soit restaurée ou
+  // considérée utilisée, l'événement Calendar est supprimé dans les deux
+  // cas ci-dessus) : prévenir la liste d'attente pour ce soin, si elle existe.
+  try {
+    notifyMatchingWaitlist_(booking.service_id);
+  } catch (e) {
+    // Ne bloque jamais l'annulation elle-même si l'envoi échoue.
+  }
+
   const pkg = findPackageById_(booking.package_id);
   if (outcome === 'restore') {
     updateRow_(TABS.PACKAGES, pkg.rowNumber, {
@@ -2660,6 +2695,12 @@ function doPost(e) {
 
       case 'get-client-dashboard':
         data = handleGetClientDashboard_(body.sessionToken);
+        break;
+
+      case 'join-waitlist':
+        // /use-package : aucun créneau libre pour le soin choisi, la
+        // cliente demande à être prévenue dès qu'un créneau se libère.
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
         break;
 
       case 'revoke-session':
@@ -4004,6 +4045,25 @@ function sendReviewRequestEmail_(client, pkg, settings) {
   MailApp.sendEmail(client.email, subject, body);
 }
 
+function sendAppointmentReminderEmail_(client, booking, settings) {
+  const subject = 'Rappel : votre rendez-vous chez Elysian Paris';
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Petit rappel de votre rendez-vous demain :`,
+    `${booking.service_id} — ${formatDateForReport_(booking.start_datetime)}`,
+    '',
+    `Notre studio : 61 Kensington Church Street, London W8 4BA.`,
+    '',
+    `Règle d'annulation : une annulation effectuée moins de ${settings.cancellation_deadline_hours}h ` +
+      `avant le rendez-vous est considérée comme une séance utilisée, sauf accord exceptionnel de notre part.`,
+    '',
+    'À très vite,',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
 function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
   const subject = `Votre forfait ${pkg.nom_forfait} expire dans ${daysBefore} jours`;
   const body = [
@@ -4017,6 +4077,86 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
     'Elysian Paris',
   ].join('\n');
   MailApp.sendEmail(client.email, subject, body);
+}
+
+/**
+ * Rappel de rendez-vous, envoyé une fois pour chaque réservation forfait
+ * confirmée dont le début tombe dans la fenêtre reminder_hours_before_appointment
+ * (24h par défaut). Dédoublonné par booking_id (REMINDER_TYPE.appointmentReminder),
+ * donc sûr à exécuter plusieurs fois sans jamais renvoyer deux fois le même
+ * rappel — contrairement à runDailyNotifications (une fois par jour suffit
+ * pour des rappels de solde/expiration), celui-ci a besoin d'un déclencheur
+ * HORAIRE pour rester proche de la fenêtre annoncée (voir README).
+ * Communication transactionnelle liée à un rendez-vous déjà pris : envoyée
+ * indépendamment du consentement marketing, comme la confirmation d'achat.
+ */
+function runAppointmentReminders_() {
+  const settings = getSettings();
+  const hoursBefore = Number(settings.reminder_hours_before_appointment);
+  if (!hoursBefore || hoursBefore <= 0) return 0;
+
+  const now = new Date();
+  let actionsCount = 0;
+
+  readAllRows_(TABS.BOOKINGS)
+    .filter((b) => b.status === BOOKING_STATUS.CONFIRMED)
+    .forEach((booking) => {
+      const start = new Date(booking.start_datetime);
+      if (isNaN(start.getTime())) return;
+      const hoursUntilStart = (start.getTime() - now.getTime()) / (60 * 60 * 1000);
+      if (hoursUntilStart <= 0 || hoursUntilStart > hoursBefore) return;
+
+      const type = REMINDER_TYPE.appointmentReminder(booking.booking_id);
+      if (hasReminderBeenSent_(booking.client_id, booking.package_id, type)) return;
+
+      const client = findRowBy_(TABS.CLIENTS, 'client_id', booking.client_id);
+      if (!client || !client.email) return;
+
+      sendAppointmentReminderEmail_(client, booking, settings);
+      recordReminderSent_(booking.client_id, booking.package_id, type);
+      actionsCount++;
+    });
+
+  Logger.log(`Rappels de rendez-vous : ${actionsCount} envoyé(s).`);
+  return actionsCount;
+}
+
+/**
+ * Notifie (une seule fois chacune) les clientes en liste d'attente pour ce
+ * soin qu'un créneau vient de se libérer. Jamais une réservation
+ * automatique : la cliente doit repasser par /use-package pour choisir et
+ * confirmer elle-même un créneau, premier arrivé premier servi. Appelée
+ * depuis AdminMenu.gs → cancelBooking_, juste après suppression de
+ * l'événement Calendar (le moment exact où le créneau redevient libre).
+ */
+function notifyMatchingWaitlist_(serviceId) {
+  const settings = getSettings();
+  const entries = readAllRows_(TABS.WAITLIST).filter((w) =>
+    w.service_id === serviceId && w.statut === WAITLIST_STATUS.ACTIVE
+  );
+
+  entries.forEach((entry) => {
+    const client = findRowBy_(TABS.CLIENTS, 'client_id', entry.client_id);
+    if (!client || !client.email) return;
+
+    const subject = 'Un créneau vient de se libérer chez Elysian Paris';
+    const body = [
+      `Bonjour ${client.prenom || ''},`,
+      '',
+      `Un créneau vient de se libérer pour le soin que vous attendiez.`,
+      `Réservez-le dès maintenant, au premier arrivé : ${settings.site_base_url}/use-package`,
+      '',
+      'Elysian Paris',
+    ].join('\n');
+    MailApp.sendEmail(client.email, subject, body);
+
+    updateRow_(TABS.WAITLIST, entry.rowNumber, {
+      statut: WAITLIST_STATUS.NOTIFIED,
+      notified_at: new Date(),
+    });
+  });
+
+  return entries.length;
 }
 
 /**
@@ -6271,4 +6411,67 @@ function adminPortalRejectPackageClaim_(passwordPlain, params) {
   writeAuditLog_('admin_portal', 'reject_package_claim', claimId, PACKAGE_CLAIM_STATUS.PENDING, PACKAGE_CLAIM_STATUS.REJECTED, reason);
 
   return { claimId: claimId };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 24 — Waitlist.gs (liste d'attente quand aucun créneau n'est libre)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  WAITLIST.gs — Liste d'attente quand aucun créneau n'est libre.
+ * ============================================================================
+ *
+ *  Rejoindre la liste d'attente n'est PAS une réservation : aucune séance
+ *  n'est déduite, aucun créneau n'est retenu. C'est juste une demande d'être
+ *  prévenue. La notification (Notifications.gs → notifyMatchingWaitlist_,
+ *  appelée depuis AdminMenu.gs → cancelBooking_ dès qu'un créneau se libère)
+ *  renvoie simplement la cliente vers /use-package pour réserver elle-même,
+ *  premier arrivée première servie — jamais d'attribution automatique.
+ */
+
+/**
+ * Parcours PUBLIC (site) — appelé depuis WebApp.gs quand /use-package
+ * n'affiche aucun créneau pour le soin choisi.
+ */
+function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
+  if (!sessionTokenPlain || !serviceId) {
+    throw new BookingBusinessError_('Requête incomplète.');
+  }
+
+  const tokenHash = hashWithPepper_(sessionTokenPlain);
+  const tokenRow = findRowBy_(TABS.SESSION_TOKENS, 'token_hash', tokenHash);
+  if (!tokenRow || new Date(tokenRow.expires_at) < new Date()) {
+    throw new BookingBusinessError_('Session invalide ou expirée, merci de recommencer la vérification.');
+  }
+
+  const pkg = findPackageById_(tokenRow.package_id);
+  if (!pkg || pkg.statut !== PACKAGE_STATUS.ACTIVE) {
+    throw new BookingBusinessError_('Ce forfait n\'est pas actif.');
+  }
+  const included = String(pkg.soins_inclus || '').split(',').map((s) => s.trim());
+  if (included.indexOf(serviceId) === -1) {
+    throw new BookingBusinessError_('Ce soin n\'est pas inclus dans ce forfait.');
+  }
+
+  // Jamais deux entrées actives pour le même (client, soin) — pas de
+  // notification en double à chaque libération de créneau.
+  const alreadyOnList = readAllRows_(TABS.WAITLIST).some((w) =>
+    w.client_id === tokenRow.client_id && w.service_id === serviceId && w.statut === WAITLIST_STATUS.ACTIVE
+  );
+  if (alreadyOnList) {
+    return { status: 'already_on_waitlist' };
+  }
+
+  appendRow_(TABS.WAITLIST, {
+    waitlist_id: genId_('WTL'),
+    client_id: tokenRow.client_id,
+    package_id: tokenRow.package_id,
+    service_id: serviceId,
+    statut: WAITLIST_STATUS.ACTIVE,
+    created_at: new Date(),
+    notified_at: '',
+  });
+  writeAuditLog_(tokenRow.client_id, 'join_waitlist', serviceId, '', WAITLIST_STATUS.ACTIVE, '');
+  return { status: 'joined' };
 }

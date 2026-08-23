@@ -36,6 +36,8 @@ const TABS = {
   CLIENT_SEARCH_RESULTS: 'Recherche_Clientes',
   // --- Demandes de forfait (client sans email connu, onglet "Register my package" de /use-package) ---
   PACKAGE_CLAIMS: 'Package_Claims',
+  // --- Liste d'attente (aucun créneau libre pour un soin, /use-package) ---
+  WAITLIST: 'Waitlist',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -169,6 +171,17 @@ const HEADERS = {
     'claim_id', 'email', 'prenom', 'nom', 'telephone', 'message',
     'statut', 'created_at', 'resolved_at', 'package_id_resultant', 'notes_admin',
   ],
+
+  // --- Liste d'attente ---
+
+  // Aucun créneau libre sur toute la fenêtre de réservation (lookahead_days)
+  // pour un soin donné : la cliente rejoint la liste d'attente au lieu de
+  // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
+  // soin (annulation, voir AdminMenu.gs → cancelBooking_).
+  [TABS.WAITLIST]: [
+    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'statut', 'created_at', 'notified_at',
+  ],
 };
 
 // NB : TABS.CLIENT_PROFILE_VIEW ('Fiche_Client'), TABS.DASHBOARD ('Dashboard')
@@ -263,6 +276,15 @@ const PACKAGE_CLAIM_STATUS = {
   REJECTED: 'rejected',
 };
 
+// Statuts possibles d'une entrée de liste d'attente (Waitlist.statut).
+// NOTIFIED : notifiée une fois qu'un créneau s'est libéré pour ce soin — pas
+// de rappel en boucle ; si toujours pas réservé, la cliente doit rejoindre
+// la liste à nouveau (comportement volontairement simple en V1).
+const WAITLIST_STATUS = {
+  ACTIVE: 'active',
+  NOTIFIED: 'notified',
+};
+
 // Statuts possibles d'une offre de forfait (Package_Offers.statut).
 // Consulter ou accepter le lien ne fait JAMAIS passer un forfait à "active" —
 // voir PackageOffers.gs. "paid" n'est atteint que via confirmation manuelle
@@ -331,6 +353,7 @@ const SETTINGS_DEFAULTS = {
   google_review_link: '',                        // vide = aucune demande d'avis envoyée (à renseigner par l'admin)
   max_promo_validation_attempts: 5,              // anti brute-force sur validate-promo (endpoint public, sans OTP)
   max_admin_login_attempts: 5,                   // anti brute-force sur le mot de passe du portail admin
+  reminder_hours_before_appointment: 24,         // rappel de rendez-vous envoyé ~X h avant le début (0 = désactivé)
 };
 
 // Durée par défaut d'un soin (minutes) si le site n'en précise pas — le site
@@ -346,4 +369,7 @@ const REMINDER_TYPE = {
   expiration: (daysBefore) => `expiration_${daysBefore}j`,
   RENEWAL_ALERT: 'alerte_renouvellement',
   REVIEW_REQUEST: 'demande_avis',
+  // Dédoublonné par booking_id (pas par package_id) : un même forfait peut
+  // porter plusieurs rendez-vous, chacun avec son propre rappel.
+  appointmentReminder: (bookingId) => `rappel_rdv_${bookingId}`,
 };

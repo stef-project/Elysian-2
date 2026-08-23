@@ -136,6 +136,25 @@ function sendReviewRequestEmail_(client, pkg, settings) {
   MailApp.sendEmail(client.email, subject, body);
 }
 
+function sendAppointmentReminderEmail_(client, booking, settings) {
+  const subject = 'Rappel : votre rendez-vous chez Elysian Paris';
+  const body = [
+    `Bonjour ${client.prenom || ''},`,
+    '',
+    `Petit rappel de votre rendez-vous demain :`,
+    `${booking.service_id} — ${formatDateForReport_(booking.start_datetime)}`,
+    '',
+    `Notre studio : 61 Kensington Church Street, London W8 4BA.`,
+    '',
+    `Règle d'annulation : une annulation effectuée moins de ${settings.cancellation_deadline_hours}h ` +
+      `avant le rendez-vous est considérée comme une séance utilisée, sauf accord exceptionnel de notre part.`,
+    '',
+    'À très vite,',
+    'Elysian Paris',
+  ].join('\n');
+  MailApp.sendEmail(client.email, subject, body);
+}
+
 function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
   const subject = `Votre forfait ${pkg.nom_forfait} expire dans ${daysBefore} jours`;
   const body = [
@@ -149,6 +168,86 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
     'Elysian Paris',
   ].join('\n');
   MailApp.sendEmail(client.email, subject, body);
+}
+
+/**
+ * Rappel de rendez-vous, envoyé une fois pour chaque réservation forfait
+ * confirmée dont le début tombe dans la fenêtre reminder_hours_before_appointment
+ * (24h par défaut). Dédoublonné par booking_id (REMINDER_TYPE.appointmentReminder),
+ * donc sûr à exécuter plusieurs fois sans jamais renvoyer deux fois le même
+ * rappel — contrairement à runDailyNotifications (une fois par jour suffit
+ * pour des rappels de solde/expiration), celui-ci a besoin d'un déclencheur
+ * HORAIRE pour rester proche de la fenêtre annoncée (voir README).
+ * Communication transactionnelle liée à un rendez-vous déjà pris : envoyée
+ * indépendamment du consentement marketing, comme la confirmation d'achat.
+ */
+function runAppointmentReminders_() {
+  const settings = getSettings();
+  const hoursBefore = Number(settings.reminder_hours_before_appointment);
+  if (!hoursBefore || hoursBefore <= 0) return 0;
+
+  const now = new Date();
+  let actionsCount = 0;
+
+  readAllRows_(TABS.BOOKINGS)
+    .filter((b) => b.status === BOOKING_STATUS.CONFIRMED)
+    .forEach((booking) => {
+      const start = new Date(booking.start_datetime);
+      if (isNaN(start.getTime())) return;
+      const hoursUntilStart = (start.getTime() - now.getTime()) / (60 * 60 * 1000);
+      if (hoursUntilStart <= 0 || hoursUntilStart > hoursBefore) return;
+
+      const type = REMINDER_TYPE.appointmentReminder(booking.booking_id);
+      if (hasReminderBeenSent_(booking.client_id, booking.package_id, type)) return;
+
+      const client = findRowBy_(TABS.CLIENTS, 'client_id', booking.client_id);
+      if (!client || !client.email) return;
+
+      sendAppointmentReminderEmail_(client, booking, settings);
+      recordReminderSent_(booking.client_id, booking.package_id, type);
+      actionsCount++;
+    });
+
+  Logger.log(`Rappels de rendez-vous : ${actionsCount} envoyé(s).`);
+  return actionsCount;
+}
+
+/**
+ * Notifie (une seule fois chacune) les clientes en liste d'attente pour ce
+ * soin qu'un créneau vient de se libérer. Jamais une réservation
+ * automatique : la cliente doit repasser par /use-package pour choisir et
+ * confirmer elle-même un créneau, premier arrivé premier servi. Appelée
+ * depuis AdminMenu.gs → cancelBooking_, juste après suppression de
+ * l'événement Calendar (le moment exact où le créneau redevient libre).
+ */
+function notifyMatchingWaitlist_(serviceId) {
+  const settings = getSettings();
+  const entries = readAllRows_(TABS.WAITLIST).filter((w) =>
+    w.service_id === serviceId && w.statut === WAITLIST_STATUS.ACTIVE
+  );
+
+  entries.forEach((entry) => {
+    const client = findRowBy_(TABS.CLIENTS, 'client_id', entry.client_id);
+    if (!client || !client.email) return;
+
+    const subject = 'Un créneau vient de se libérer chez Elysian Paris';
+    const body = [
+      `Bonjour ${client.prenom || ''},`,
+      '',
+      `Un créneau vient de se libérer pour le soin que vous attendiez.`,
+      `Réservez-le dès maintenant, au premier arrivé : ${settings.site_base_url}/use-package`,
+      '',
+      'Elysian Paris',
+    ].join('\n');
+    MailApp.sendEmail(client.email, subject, body);
+
+    updateRow_(TABS.WAITLIST, entry.rowNumber, {
+      statut: WAITLIST_STATUS.NOTIFIED,
+      notified_at: new Date(),
+    });
+  });
+
+  return entries.length;
 }
 
 /**

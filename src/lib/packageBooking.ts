@@ -84,6 +84,15 @@ export const getAvailableSlots = (sessionToken: string, serviceId: string, durat
     durationMinutes,
   });
 
+// /use-package : aucun créneau libre sur toute la fenêtre de réservation
+// pour ce soin — la cliente demande à être prévenue dès qu'un créneau se
+// libère (annulation), au lieu de repartir sans solution.
+export const joinWaitlist = (sessionToken: string, serviceId: string) =>
+  callWebApp<{ status: "joined" | "already_on_waitlist" }>("join-waitlist", {
+    sessionToken,
+    serviceId,
+  });
+
 export type ActivePromoCode = {
   code: string;
   discountType: "fixed_amount" | "percentage";

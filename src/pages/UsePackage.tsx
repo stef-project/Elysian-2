@@ -15,6 +15,7 @@ import {
   revokeSession,
   submitPackageClaim,
   generateBookingRequestId,
+  joinWaitlist,
   ApiBusinessError,
   PACKAGE_SERVICES,
   type ActivePromoCode,
@@ -56,6 +57,7 @@ export default function UsePackage() {
   const [activePromoCodes, setActivePromoCodes] = useState<ActivePromoCode[]>([]);
   const [bookingRequestId, setBookingRequestId] = useState(generateBookingRequestId());
   const [healthChecked, setHealthChecked] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
 
   // Formulaire "Register my package" — même page, même email partagé avec
   // l'onglet "I have a package" pour ne pas le retaper en changeant d'onglet.
@@ -169,6 +171,7 @@ export default function UsePackage() {
       setSlots(res.slots);
       setServiceId(service);
       setHealthChecked(false);
+      setWaitlistJoined(false);
       setStep("slots");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
@@ -194,6 +197,19 @@ export default function UsePackage() {
       if (err instanceof ApiBusinessError) {
         setBookingRequestId(generateBookingRequestId());
       }
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinWaitlist = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await joinWaitlist(sessionToken, serviceId);
+      setWaitlistJoined(true);
+    } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setLoading(false);
@@ -547,9 +563,27 @@ export default function UsePackage() {
                   Confirm the check above to see available times.
                 </p>
               ) : slots.length === 0 ? (
-                <p className="font-sans text-sm text-muted-foreground">
-                  No slots available at the moment. Please contact us on WhatsApp.
-                </p>
+                <div className="space-y-4">
+                  <p className="font-sans text-sm text-muted-foreground">
+                    No slots available at the moment.
+                  </p>
+                  {waitlistJoined ? (
+                    <p className="font-sans text-sm text-[#1A1A1A]">
+                      You're on the waitlist. We'll email you as soon as a slot opens up.
+                    </p>
+                  ) : (
+                    <button
+                      disabled={loading}
+                      onClick={handleJoinWaitlist}
+                      className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50"
+                    >
+                      {loading ? "Joining…" : "Notify me when a slot opens up"}
+                    </button>
+                  )}
+                  <p className="font-sans text-xs text-muted-foreground">
+                    Or contact us directly on WhatsApp.
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                   {slots.map((slot) => (
