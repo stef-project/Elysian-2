@@ -36,6 +36,16 @@ const testimonials = [
     name: "Grace",
     title: "London",
   },
+  {
+    quote: "I was worried it would hurt. She started gently and built up over the sessions, and asked me every few minutes if the pressure was right. After four sessions my clothes fit differently.",
+    name: "Afia",
+    title: "Maderotherapy",
+  },
+  {
+    quote: "Honestly, the results took a few sessions, not one. She told me that upfront and I respected that. No overselling.",
+    name: "Xenela",
+    title: "Maderotherapy",
+  },
 ];
 
 export function Quotes() {

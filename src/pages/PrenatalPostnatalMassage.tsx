@@ -4,6 +4,7 @@ import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { trackBookClick } from "../lib/analytics";
 import { buildHealthCheckUrl } from "../lib/contraindications";
+import { TestimonialSection } from "../components/sections/TestimonialSection";
 
 // Lien de réservation du soin « Prenatal & Postnatal Massage » (même lien que
 // Services.tsx) — jamais direct : passe par /health-check d'abord.
@@ -142,6 +143,24 @@ export default function PrenatalPostnatalMassage() {
             </div>
           </div>
         </section>
+
+        <TestimonialSection
+          eyebrow="Client Stories"
+          heading="Cared for, at every stage"
+          background="bg-[#F7F5F2]"
+          testimonials={[
+            {
+              quote: "At 28 weeks I couldn't sleep. She set me up on my side with cushions and it was the first hour of proper rest I'd had in weeks. She'd clearly worked with pregnant women before, I didn't have to explain anything.",
+              name: "P.T.",
+              detail: "prenatal",
+            },
+            {
+              quote: "I came at eight weeks after my C-section with my midwife's okay. She wouldn't touch the scar until it was fully healed and explained why. That patience is exactly why I trusted her with the rest.",
+              name: "Anastasia",
+              detail: "postnatal",
+            },
+          ]}
+        />
 
         {/* CTA */}
         <section className="py-28 bg-[#1A1A1A] text-center">
