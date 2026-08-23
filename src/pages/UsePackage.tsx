@@ -19,6 +19,8 @@ import {
   PACKAGE_SERVICES,
   type ActivePromoCode,
 } from "../lib/packageBooking";
+import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
+import { SERVICE_ID_TO_CONTRAINDICATION_KEY } from "../lib/contraindications";
 
 type Step =
   | "loading" | "email" | "code" | "dashboard" | "service" | "slots" | "confirmed"
@@ -52,6 +54,7 @@ export default function UsePackage() {
   >([]);
   const [activePromoCodes, setActivePromoCodes] = useState<ActivePromoCode[]>([]);
   const [bookingRequestId, setBookingRequestId] = useState(generateBookingRequestId());
+  const [healthChecked, setHealthChecked] = useState(false);
 
   // Formulaire "Register my package" — même page, même email partagé avec
   // l'onglet "I have a package" pour ne pas le retaper en changeant d'onglet.
@@ -164,6 +167,7 @@ export default function UsePackage() {
       const res = await getAvailableSlots(token, service, serviceDuration(service));
       setSlots(res.slots);
       setServiceId(service);
+      setHealthChecked(false);
       setStep("slots");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
@@ -523,33 +527,45 @@ export default function UsePackage() {
           )}
 
           {step === "slots" && (
-            <div className="space-y-4">
-              <p className="font-sans text-sm text-muted-foreground font-light mb-4">
+            <div className="space-y-6">
+              <p className="font-sans text-sm text-muted-foreground font-light">
                 {packageName} · {availableSessions} session{availableSessions !== 1 ? "s" : ""} remaining · {serviceLabel(serviceId)}
               </p>
-              {slots.length === 0 && (
+
+              <ContraindicationsCheck
+                treatmentKey={SERVICE_ID_TO_CONTRAINDICATION_KEY[serviceId] ?? ""}
+                checked={healthChecked}
+                onCheckedChange={setHealthChecked}
+              />
+
+              {!healthChecked ? (
+                <p className="font-sans text-sm text-muted-foreground font-light">
+                  Confirm the check above to see available times.
+                </p>
+              ) : slots.length === 0 ? (
                 <p className="font-sans text-sm text-muted-foreground">
                   No slots available at the moment. Please contact us on WhatsApp.
                 </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                  {slots.map((slot) => (
+                    <button
+                      key={slot.start}
+                      disabled={loading}
+                      onClick={() => handleConfirm(slot)}
+                      className="border border-border px-4 py-3 font-sans text-xs hover:border-primary transition-colors disabled:opacity-50"
+                    >
+                      {new Date(slot.start).toLocaleString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </button>
+                  ))}
+                </div>
               )}
-              <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                {slots.map((slot) => (
-                  <button
-                    key={slot.start}
-                    disabled={loading}
-                    onClick={() => handleConfirm(slot)}
-                    className="border border-border px-4 py-3 font-sans text-xs hover:border-primary transition-colors disabled:opacity-50"
-                  >
-                    {new Date(slot.start).toLocaleString("en-GB", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
