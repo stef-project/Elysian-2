@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { buildHealthCheckUrl } from "../../lib/contraindications";
 
 const careCategories = [
   {
@@ -31,6 +32,7 @@ const treatments = [
     subtitle: "1 Zone",
     duration: "60 min",
     price: "£120",
+    contraindicationKey: "lymphatic-drainage",
     calendarUrl: "https://calendar.app.google/Ev8ZV3UJwHgaE8uE9",
     description:
       "A targeted treatment focusing on either the legs or the abdominal area. Stimulates the lymphatic system, reduces localised swelling, and restores natural balance. Part of The Elysian Paris Method™.",
@@ -42,6 +44,7 @@ const treatments = [
     subtitle: "2 Zones",
     duration: "90 min",
     price: "£220",
+    contraindicationKey: "lymphatic-drainage",
     calendarUrl: "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ03Mt0KA7xJm4fp59G8i-8132VCCEBaNf6tAUbZ6cf-aHA0WGCe-2eHo1Aq4U4l4c-ezs2igFpq",
     description:
       "Focusing on the legs and abdominal area, including the sides of the back. Delivers immediate lightness, improved contour, and lasting wellness benefits where fluid retention most often accumulates.",
@@ -53,6 +56,7 @@ const treatments = [
     subtitle: null,
     duration: "60 min",
     price: "£80",
+    contraindicationKey: "maderotherapy",
     calendarUrl: "https://calendar.app.google/n6jfj1dXiKmJoh6D6",
     description:
       "A sculpting massage using wooden tools to stimulate circulation, contour the body, and refine skin texture. Each session delivers visible results through precision pressure and intentional movement.",
@@ -64,6 +68,7 @@ const treatments = [
     subtitle: null,
     duration: "60 min",
     price: "£80",
+    contraindicationKey: "post-op",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
       "A gentle treatment designed to support the body post-op. Specialist techniques encourage circulation, reduce swelling, and restore mobility, always respecting the pace of your recovery.",
@@ -75,6 +80,7 @@ const treatments = [
     subtitle: null,
     duration: "45 to 60 min",
     price: "£80",
+    contraindicationKey: "prenatal-postnatal",
     calendarUrl: "https://calendar.app.google/ZsAmpyZGnuiGTukW6",
     description:
       "A tailored treatment supporting mothers during and after pregnancy. Gentle techniques relieve back tension and reduce swelling before birth; postnatal sessions focus on recovery and restoring vitality.",
@@ -86,6 +92,7 @@ const treatments = [
     subtitle: null,
     duration: "90 min",
     price: "£150",
+    contraindicationKey: "cavitation",
     calendarUrl: "https://calendar.app.google/q5HJGmc1cWBL7wmq5",
     description:
       "A high-performance body contouring treatment combining advanced cavitation technology with manual lymphatic drainage. Ultrasound waves target stubborn fat non-invasively; lymphatic massage enhances results.",
@@ -227,9 +234,7 @@ export function Services() {
                               <p className="font-serif text-2xl text-[#1A1A1A] leading-none">{t.price}</p>
                             </div>
                             <a
-                              href={t.calendarUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href={buildHealthCheckUrl(t.contraindicationKey, t.calendarUrl)}
                               data-testid={`button-reserve-${i}`}
                               onClick={(e) => e.stopPropagation()}
                               className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-8 py-3 hover:bg-primary transition-colors duration-300 inline-flex items-center"

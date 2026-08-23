@@ -3,9 +3,11 @@ import { TopBar } from "../components/layout/TopBar";
 import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { trackBookClick } from "../lib/analytics";
+import { buildHealthCheckUrl } from "../lib/contraindications";
 
-// Lien de réservation du soin « Prenatal & Postnatal Massage » (même lien que Services.tsx, page dédiée SEO).
-const BOOK_URL = "https://calendar.app.google/ZsAmpyZGnuiGTukW6";
+// Lien de réservation du soin « Prenatal & Postnatal Massage » (même lien que
+// Services.tsx) — jamais direct : passe par /health-check d'abord.
+const BOOK_URL = buildHealthCheckUrl("prenatal-postnatal", "https://calendar.app.google/ZsAmpyZGnuiGTukW6");
 
 const benefits = [
   "Relieves back tension",
@@ -46,8 +48,6 @@ export default function PrenatalPostnatalMassage() {
           </a>
           <a
             href={BOOK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={() => trackBookClick("prenatal_header")}
             className="font-sans text-[11px] tracking-[0.18em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-6 py-2.5 hover:bg-[#BF944A] transition-colors duration-300"
           >
@@ -154,8 +154,6 @@ export default function PrenatalPostnatalMassage() {
             </p>
             <a
               href={BOOK_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={() => trackBookClick("prenatal_cta")}
               className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
             >

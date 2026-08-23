@@ -21,13 +21,16 @@ import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { CHELSEA_BOOKING_URL } from "../lib/booking";
 import { validatePromoCode } from "../lib/packageBooking";
 import { trackBookClick } from "../lib/analytics";
+import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
 
 // Les 3 soins réellement proposés sur le créneau Chelsea, avec leur tarif
-// respectif — ids alignés sur PACKAGE_SERVICES (packageBooking.ts).
+// respectif — ids alignés sur PACKAGE_SERVICES (packageBooking.ts). La clé
+// de contre-indications correspondante (src/lib/contraindications.ts) n'est
+// pas toujours identique à l'id du soin.
 const TREATMENTS = [
-  { id: "lymphatic-1z", label: "Lymphatic Drainage", price: 120 },
-  { id: "post-op", label: "Post-Op Care", price: 80 },
-  { id: "prenatal", label: "Prenatal & Postnatal Massage", price: 80 },
+  { id: "lymphatic-1z", label: "Lymphatic Drainage", price: 120, contraindicationKey: "lymphatic-drainage" },
+  { id: "post-op", label: "Post-Op Care", price: 80, contraindicationKey: "post-op" },
+  { id: "prenatal", label: "Prenatal & Postnatal Massage", price: 80, contraindicationKey: "prenatal-postnatal" },
 ] as const;
 
 const DEPOSIT = 50;
@@ -66,8 +69,15 @@ export default function BookChelsea() {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [healthChecked, setHealthChecked] = useState(false);
 
   const treatment = TREATMENTS.find((t) => t.id === treatmentId) ?? TREATMENTS[0];
+
+  // La case décochée si on change de soin — les contre-indications ne sont
+  // pas les mêmes d'un traitement à l'autre, mieux vaut la faire relire.
+  useEffect(() => {
+    setHealthChecked(false);
+  }, [treatmentId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -90,6 +100,10 @@ export default function BookChelsea() {
 
     if (!trimmedEmail) {
       setErrorMsg("Merci de renseigner votre adresse email.");
+      return;
+    }
+    if (!healthChecked) {
+      setErrorMsg("Please confirm the health check above before booking.");
       return;
     }
 
@@ -212,6 +226,13 @@ export default function BookChelsea() {
               />
             </div>
 
+            {/* Contre-indications */}
+            <ContraindicationsCheck
+              treatmentKey={treatment.contraindicationKey}
+              checked={healthChecked}
+              onCheckedChange={setHealthChecked}
+            />
+
             {/* Erreur */}
             {errorMsg && (
               <p className="font-sans text-xs text-red-600">{errorMsg}</p>
@@ -220,7 +241,7 @@ export default function BookChelsea() {
             {/* CTA */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !healthChecked}
               className="w-full font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-10 py-4 hover:bg-primary transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
