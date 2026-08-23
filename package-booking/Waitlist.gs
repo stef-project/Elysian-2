@@ -54,5 +54,34 @@ function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
     notified_at: '',
   });
   writeAuditLog_(tokenRow.client_id, 'join_waitlist', serviceId, '', WAITLIST_STATUS.ACTIVE, '');
+
+  // Ne bloque jamais la demande de la cliente si l'email à l'administratrice échoue.
+  try {
+    notifyAdminOfNewWaitlistEntry_(serviceId, findRowBy_(TABS.CLIENTS, 'client_id', tokenRow.client_id));
+  } catch (e) {
+    // Rien de plus à faire : l'inscription elle-même a déjà réussi ci-dessus.
+  }
+
   return { status: 'joined' };
+}
+
+/**
+ * Prévient l'administratrice (le compte propriétaire du script, celui sous
+ * lequel la Web App s'exécute — "Exécuter en tant que : Moi" au déploiement)
+ * dès qu'une cliente rejoint la liste d'attente, pour ne pas avoir à
+ * surveiller l'onglet Waitlist manuellement.
+ */
+function notifyAdminOfNewWaitlistEntry_(serviceId, client) {
+  const adminEmail = Session.getEffectiveUser().getEmail();
+  if (!adminEmail) return;
+
+  const clientLabel = client ? `${client.prenom || ''} ${client.nom || ''}`.trim() || client.email : 'Une cliente';
+  const subject = `Liste d'attente : ${clientLabel} attend un créneau (${serviceId})`;
+  const body = [
+    `${clientLabel} vient de rejoindre la liste d'attente pour : ${serviceId}.`,
+    '',
+    `Elle sera prévenue automatiquement dès qu'un rendez-vous confirmé pour ce soin sera annulé.`,
+    `Détail dans l'onglet Waitlist du Sheet.`,
+  ].join('\n');
+  MailApp.sendEmail(adminEmail, subject, body);
 }
