@@ -76,6 +76,7 @@ export function Footer() {
                 // vente de forfaits sur le site, uniquement ce point d'entrée
                 // discret (aussi lié dans leurs emails de confirmation/rappel).
                 { label: "Book with your package", href: "/use-package" },
+                { label: "Book From Abroad", href: "/book-abroad" },
                 ...(PACKAGE_PURCHASE_ENABLED ? [{ label: "Buy a Package", href: "/buy-package" }] : []),
               ].map((l) => (
                 <li key={l.label}>
