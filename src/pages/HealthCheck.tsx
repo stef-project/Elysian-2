@@ -18,7 +18,7 @@ import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
 import { TREATMENT_LABELS } from "../lib/contraindications";
-import { trackBookClick } from "../lib/analytics";
+import { trackBookClick, trackEvent } from "../lib/analytics";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 // "next" arrive dans l'URL (query string) — jamais fait confiance sans
@@ -60,6 +60,21 @@ export default function HealthCheck() {
 
   const [checked, setChecked] = useState(false);
 
+  // Sans ceci, seul le clic final ("Continue to booking") est mesuré — donc
+  // aucun moyen de savoir combien de clientes voient cette étape puis
+  // repartent sans cocher (abandon), par rapport à celles qui vont jusqu'au
+  // bout. "view" une fois au montage ; "confirmed" la première fois que la
+  // case est cochée (jamais répété si elle la coche/décoche plusieurs fois).
+  useEffect(() => {
+    trackEvent("health_check_view", { location: treatmentKey });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleCheckedChange = (value: boolean) => {
+    setChecked(value);
+    if (value) trackEvent("health_check_confirmed", { location: treatmentKey });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <TopBar />
@@ -74,7 +89,7 @@ export default function HealthCheck() {
         </h1>
 
         <div className="mb-8">
-          <ContraindicationsCheck treatmentKey={treatmentKey} checked={checked} onCheckedChange={setChecked} />
+          <ContraindicationsCheck treatmentKey={treatmentKey} checked={checked} onCheckedChange={handleCheckedChange} />
         </div>
 
         {nextUrl ? (

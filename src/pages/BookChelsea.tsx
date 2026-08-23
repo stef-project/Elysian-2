@@ -20,7 +20,7 @@ import { Footer } from "../components/layout/Footer";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { CHELSEA_BOOKING_URL } from "../lib/booking";
 import { validatePromoCode } from "../lib/packageBooking";
-import { trackBookClick } from "../lib/analytics";
+import { trackBookClick, trackEvent } from "../lib/analytics";
 import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
 
 // Les 3 soins réellement proposés sur le créneau Chelsea, avec leur tarif
@@ -230,7 +230,10 @@ export default function BookChelsea() {
             <ContraindicationsCheck
               treatmentKey={treatment.contraindicationKey}
               checked={healthChecked}
-              onCheckedChange={setHealthChecked}
+              onCheckedChange={(value) => {
+                setHealthChecked(value);
+                if (value) trackEvent("health_check_confirmed", { location: `book_chelsea_${treatment.contraindicationKey}` });
+              }}
             />
 
             {/* Erreur */}
