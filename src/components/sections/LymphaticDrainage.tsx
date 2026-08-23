@@ -1,5 +1,16 @@
 import { motion } from "framer-motion";
 
+const testimonials = [
+  {
+    quote: "I've had drainage before at other places and it was basically just a massage. This is different. You can feel the difference the same evening. My legs were lighter by the next morning.",
+    name: "Victoria",
+  },
+  {
+    quote: "I came in with a lot of water retention after long-haul flights for work. Two sessions and the heaviness was gone. I now book one every time I come back from a trip.",
+    name: "Selena & Clara",
+  },
+];
+
 const benefits = [
   {
     title: "Reduces fluid retention",
@@ -61,6 +72,25 @@ export function LymphaticDrainage() {
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="mt-16 border-t border-border pt-10 grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl"
+        >
+          {testimonials.map((t) => (
+            <div key={t.name} className="border-l-2 border-[#BF944A] pl-5">
+              <p className="font-serif text-lg text-[#1A1A1A] font-light leading-relaxed mb-3">
+                "{t.quote}"
+              </p>
+              <p className="font-sans text-xs tracking-[0.15em] uppercase text-muted-foreground">
+                {t.name}
+              </p>
+            </div>
+          ))}
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}

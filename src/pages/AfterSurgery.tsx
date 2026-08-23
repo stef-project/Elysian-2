@@ -4,6 +4,7 @@ import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { trackBookClick } from "../lib/analytics";
 import { buildHealthCheckUrl } from "../lib/contraindications";
+import { TestimonialSection } from "../components/sections/TestimonialSection";
 
 // Lien de réservation du soin « Post-Operative Care » — jamais direct : passe
 // par /health-check (contre-indications) avant le calendrier réel.
@@ -180,6 +181,23 @@ export default function AfterSurgery() {
             </div>
           </div>
         </section>
+
+        <TestimonialSection
+          eyebrow="Client Stories"
+          heading="Recovering, cared for"
+          testimonials={[
+            {
+              quote: "I had a tummy tuck in March and I was terrified of doing something wrong afterwards. My surgeon cleared me and I came here three days later. The swelling came down faster than I expected and I never once felt like I was being rushed. She checked my scar at every session.",
+              name: "Lea",
+              detail: "post-operative drainage",
+            },
+            {
+              quote: "Six sessions after my liposuction. What I appreciated most was that she knew exactly what she couldn't do: no pressure on the area, nothing risky. I felt safe, which is not something I felt anywhere else I called.",
+              name: "Anna",
+              detail: "post-operative drainage",
+            },
+          ]}
+        />
 
         {/* CTA */}
         <section className="py-28 bg-[#1A1A1A] text-center">

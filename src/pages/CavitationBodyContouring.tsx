@@ -4,6 +4,7 @@ import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { trackBookClick } from "../lib/analytics";
 import { buildHealthCheckUrl } from "../lib/contraindications";
+import { TestimonialSection } from "../components/sections/TestimonialSection";
 
 // Lien de réservation du soin « Cavitation Fusion » (même lien que
 // Services.tsx) — jamais direct : passe par /health-check d'abord.
@@ -144,6 +145,24 @@ export default function CavitationBodyContouring() {
             </div>
           </div>
         </section>
+
+        <TestimonialSection
+          eyebrow="Client Stories"
+          heading="Honest, results-focused care"
+          background="bg-[#F7F5F2]"
+          testimonials={[
+            {
+              quote: "She went through the whole health questionnaire with me before we started and actually turned down one of the areas I asked for. I've never had a clinic say no to me before. It made me trust everything else she said.",
+              name: "Haely",
+              detail: "cavitation",
+            },
+            {
+              quote: "Realistic about what it can and can't do. She told me it wasn't a substitute for the gym. Results on my lower stomach after five sessions, and I was happy because I knew what to expect.",
+              name: "Mona",
+              detail: "cavitation",
+            },
+          ]}
+        />
 
         {/* CTA */}
         <section className="py-28 bg-[#1A1A1A] text-center">
