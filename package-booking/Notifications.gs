@@ -181,7 +181,7 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
  * Communication transactionnelle liée à un rendez-vous déjà pris : envoyée
  * indépendamment du consentement marketing, comme la confirmation d'achat.
  */
-function runAppointmentReminders_() {
+function runAppointmentReminders() {
   const settings = getSettings();
   const hoursBefore = Number(settings.reminder_hours_before_appointment);
   if (!hoursBefore || hoursBefore <= 0) return 0;
