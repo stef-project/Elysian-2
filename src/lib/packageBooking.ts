@@ -373,3 +373,21 @@ export const adminApprovePackageClaim = (
 export const adminRejectPackageClaim = (adminPassword: string, claimId: string, reason?: string) =>
   callWebApp<{ claimId: string }>("admin-reject-package-claim", { adminPassword, params: { claimId, reason } });
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Demande de réservation à l'étranger (/book-abroad, BookAbroad.tsx).
+//  Fire-and-forget UNIQUEMENT : ne jamais await avant window.open(whatsapp)
+//  côté appelant, sous peine de voir le popup bloqué par le navigateur (il
+//  doit s'ouvrir de manière synchrone dans le geste de clic). Le message
+//  WhatsApp reste le canal principal ; cet appel n'est qu'une trace Sheet +
+//  email admin en plus.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const submitAbroadRequest = (params: {
+  prenom: string;
+  email: string;
+  country: string;
+  treatment: string;
+  dates: string;
+  message: string;
+}) => callWebApp<{ status: string }>("submit-abroad-request", params);
+

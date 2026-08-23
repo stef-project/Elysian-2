@@ -21,6 +21,7 @@ import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { whatsappWith } from "../lib/booking";
 import { TREATMENT_LABELS } from "../lib/contraindications";
 import { trackWhatsappClick } from "../lib/analytics";
+import { submitAbroadRequest } from "../lib/packageBooking";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 const TREATMENT_OPTIONS = Object.entries(TREATMENT_LABELS).filter(
@@ -64,7 +65,19 @@ export default function BookAbroad() {
     if (message.trim()) lines.push(``, message.trim());
 
     trackWhatsappClick("book_abroad_form");
+    // window.open doit rester synchrone dans ce geste de clic (sinon le
+    // popup est bloqué par le navigateur) — la trace Sheet + email admin
+    // part donc en tâche de fond, jamais attendue, et son échec éventuel ne
+    // doit jamais empêcher l'envoi du message WhatsApp lui-même.
     window.open(whatsappWith(lines.join("\n")), "_blank", "noopener,noreferrer");
+    submitAbroadRequest({
+      prenom,
+      email,
+      country,
+      treatment,
+      dates,
+      message,
+    }).catch(() => {});
   }
 
   return (

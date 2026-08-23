@@ -51,6 +51,12 @@ function doPost(e) {
         data = joinPackageWaitlist_(body.sessionToken, body.serviceId, body.durationMinutes);
         break;
 
+      case 'submit-abroad-request':
+        // /book-abroad : trace de la demande (Sheet) + email admin, en plus
+        // du message WhatsApp envoyé directement par la cliente.
+        data = submitAbroadRequest_(body.prenom, body.email, body.country, body.treatment, body.dates, body.message);
+        break;
+
       case 'revoke-session':
         // "Log out of this device" (/use-package) : invalide le jeton côté
         // serveur, pas seulement dans le localStorage du navigateur.
