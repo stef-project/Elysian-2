@@ -21,6 +21,7 @@ import {
 } from "../lib/packageBooking";
 import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
 import { SERVICE_ID_TO_CONTRAINDICATION_KEY } from "../lib/contraindications";
+import { trackEvent } from "../lib/analytics";
 
 type Step =
   | "loading" | "email" | "code" | "dashboard" | "service" | "slots" | "confirmed"
@@ -535,7 +536,10 @@ export default function UsePackage() {
               <ContraindicationsCheck
                 treatmentKey={SERVICE_ID_TO_CONTRAINDICATION_KEY[serviceId] ?? ""}
                 checked={healthChecked}
-                onCheckedChange={setHealthChecked}
+                onCheckedChange={(value) => {
+                  setHealthChecked(value);
+                  if (value) trackEvent("health_check_confirmed", { location: `use_package_${serviceId}` });
+                }}
               />
 
               {!healthChecked ? (
