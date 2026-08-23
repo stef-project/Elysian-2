@@ -15,7 +15,7 @@
  * Parcours PUBLIC (site) — appelé depuis WebApp.gs quand /use-package
  * n'affiche aucun créneau pour le soin choisi.
  */
-function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
+function joinPackageWaitlist_(sessionTokenPlain, serviceId, durationMinutes) {
   if (!sessionTokenPlain || !serviceId) {
     throw new BookingBusinessError_('Requête incomplète.');
   }
@@ -49,10 +49,44 @@ function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
     client_id: tokenRow.client_id,
     package_id: tokenRow.package_id,
     service_id: serviceId,
+    // Fourni par le site (durée réelle du soin) — nécessaire pour
+    // computeAvailableSlots lors de la vérification périodique
+    // (checkWaitlistAvailability_, Notifications.gs) ; filet de sécurité si
+    // absent/invalide (ex. ancienne version du site en cache).
+    duration_minutes: Number(durationMinutes) || DEFAULT_APPOINTMENT_MINUTES,
     statut: WAITLIST_STATUS.ACTIVE,
     created_at: new Date(),
     notified_at: '',
   });
   writeAuditLog_(tokenRow.client_id, 'join_waitlist', serviceId, '', WAITLIST_STATUS.ACTIVE, '');
+
+  // Ne bloque jamais la demande de la cliente si l'email à l'administratrice échoue.
+  try {
+    notifyAdminOfNewWaitlistEntry_(serviceId, findRowBy_(TABS.CLIENTS, 'client_id', tokenRow.client_id));
+  } catch (e) {
+    // Rien de plus à faire : l'inscription elle-même a déjà réussi ci-dessus.
+  }
+
   return { status: 'joined' };
+}
+
+/**
+ * Prévient l'administratrice (le compte propriétaire du script, celui sous
+ * lequel la Web App s'exécute — "Exécuter en tant que : Moi" au déploiement)
+ * dès qu'une cliente rejoint la liste d'attente, pour ne pas avoir à
+ * surveiller l'onglet Waitlist manuellement.
+ */
+function notifyAdminOfNewWaitlistEntry_(serviceId, client) {
+  const adminEmail = Session.getEffectiveUser().getEmail();
+  if (!adminEmail) return;
+
+  const clientLabel = client ? `${client.prenom || ''} ${client.nom || ''}`.trim() || client.email : 'Une cliente';
+  const subject = `Liste d'attente : ${clientLabel} attend un créneau (${serviceId})`;
+  const body = [
+    `${clientLabel} vient de rejoindre la liste d'attente pour : ${serviceId}.`,
+    '',
+    `Elle sera prévenue automatiquement dès qu'un rendez-vous confirmé pour ce soin sera annulé.`,
+    `Détail dans l'onglet Waitlist du Sheet.`,
+  ].join('\n');
+  MailApp.sendEmail(adminEmail, subject, body);
 }

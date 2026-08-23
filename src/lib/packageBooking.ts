@@ -86,11 +86,14 @@ export const getAvailableSlots = (sessionToken: string, serviceId: string, durat
 
 // /use-package : aucun créneau libre sur toute la fenêtre de réservation
 // pour ce soin — la cliente demande à être prévenue dès qu'un créneau se
-// libère (annulation), au lieu de repartir sans solution.
-export const joinWaitlist = (sessionToken: string, serviceId: string) =>
+// libère, au lieu de repartir sans solution. durationMinutes est stocké
+// côté serveur pour la vérification périodique de disponibilité
+// (checkWaitlistAvailability_, Notifications.gs).
+export const joinWaitlist = (sessionToken: string, serviceId: string, durationMinutes: number) =>
   callWebApp<{ status: "joined" | "already_on_waitlist" }>("join-waitlist", {
     sessionToken,
     serviceId,
+    durationMinutes,
   });
 
 export type ActivePromoCode = {
@@ -369,4 +372,22 @@ export const adminApprovePackageClaim = (
 
 export const adminRejectPackageClaim = (adminPassword: string, claimId: string, reason?: string) =>
   callWebApp<{ claimId: string }>("admin-reject-package-claim", { adminPassword, params: { claimId, reason } });
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Demande de réservation à l'étranger (/book-abroad, BookAbroad.tsx).
+//  Fire-and-forget UNIQUEMENT : ne jamais await avant window.open(whatsapp)
+//  côté appelant, sous peine de voir le popup bloqué par le navigateur (il
+//  doit s'ouvrir de manière synchrone dans le geste de clic). Le message
+//  WhatsApp reste le canal principal ; cet appel n'est qu'une trace Sheet +
+//  email admin en plus.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const submitAbroadRequest = (params: {
+  prenom: string;
+  email: string;
+  country: string;
+  treatment: string;
+  dates: string;
+  message: string;
+}) => callWebApp<{ status: string }>("submit-abroad-request", params);
 

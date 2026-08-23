@@ -38,6 +38,8 @@ const TABS = {
   PACKAGE_CLAIMS: 'Package_Claims',
   // --- Liste d'attente (aucun créneau libre pour un soin, /use-package) ---
   WAITLIST: 'Waitlist',
+  // --- Demandes de réservation à l'étranger (/book-abroad) ---
+  ABROAD_REQUESTS: 'Abroad_Requests',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -179,8 +181,20 @@ const HEADERS = {
   // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
   // soin (annulation, voir AdminMenu.gs → cancelBooking_).
   [TABS.WAITLIST]: [
-    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'waitlist_id', 'client_id', 'package_id', 'service_id', 'duration_minutes',
     'statut', 'created_at', 'notified_at',
+  ],
+
+  // --- Demandes de réservation à l'étranger ---
+
+  // Contrairement à Package_Claims, aucun workflow d'approbation côté code :
+  // la cliente n'a pas de forfait à activer, juste une demande à traiter
+  // manuellement (WhatsApp/email, gestion 100% humaine à l'international).
+  // 'statut' existe uniquement pour un suivi manuel dans le Sheet
+  // (ex. "traité") — jamais lu ni écrit par le code.
+  [TABS.ABROAD_REQUESTS]: [
+    'request_id', 'prenom', 'email', 'country', 'treatment', 'dates', 'message',
+    'statut', 'created_at',
   ],
 };
 

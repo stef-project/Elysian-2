@@ -72,6 +72,8 @@ const TABS = {
   PACKAGE_CLAIMS: 'Package_Claims',
   // --- Liste d'attente (aucun créneau libre pour un soin, /use-package) ---
   WAITLIST: 'Waitlist',
+  // --- Demandes de réservation à l'étranger (/book-abroad) ---
+  ABROAD_REQUESTS: 'Abroad_Requests',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -213,8 +215,20 @@ const HEADERS = {
   // repartir sans solution. Notifiée dès qu'un créneau se libère pour ce
   // soin (annulation, voir AdminMenu.gs → cancelBooking_).
   [TABS.WAITLIST]: [
-    'waitlist_id', 'client_id', 'package_id', 'service_id',
+    'waitlist_id', 'client_id', 'package_id', 'service_id', 'duration_minutes',
     'statut', 'created_at', 'notified_at',
+  ],
+
+  // --- Demandes de réservation à l'étranger ---
+
+  // Contrairement à Package_Claims, aucun workflow d'approbation côté code :
+  // la cliente n'a pas de forfait à activer, juste une demande à traiter
+  // manuellement (WhatsApp/email, gestion 100% humaine à l'international).
+  // 'statut' existe uniquement pour un suivi manuel dans le Sheet
+  // (ex. "traité") — jamais lu ni écrit par le code.
+  [TABS.ABROAD_REQUESTS]: [
+    'request_id', 'prenom', 'email', 'country', 'treatment', 'dates', 'message',
+    'statut', 'created_at',
   ],
 };
 
@@ -2700,7 +2714,13 @@ function doPost(e) {
       case 'join-waitlist':
         // /use-package : aucun créneau libre pour le soin choisi, la
         // cliente demande à être prévenue dès qu'un créneau se libère.
-        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId, body.durationMinutes);
+        break;
+
+      case 'submit-abroad-request':
+        // /book-abroad : trace de la demande (Sheet) + email admin, en plus
+        // du message WhatsApp envoyé directement par la cliente.
+        data = submitAbroadRequest_(body.prenom, body.email, body.country, body.treatment, body.dates, body.message);
         break;
 
       case 'revoke-session':
@@ -4091,6 +4111,16 @@ function sendExpirationReminderEmail_(client, pkg, daysBefore, settings) {
  * indépendamment du consentement marketing, comme la confirmation d'achat.
  */
 function runAppointmentReminders() {
+  // Vérification de la liste d'attente, indépendante du réglage
+  // reminder_hours_before_appointment ci-dessous (elle ne doit jamais être
+  // désactivée par erreur en même temps que les rappels de rendez-vous) —
+  // ne bloque jamais le reste de cette fonction si elle échoue.
+  try {
+    checkWaitlistAvailability_();
+  } catch (e) {
+    Logger.log('checkWaitlistAvailability_ a échoué : ' + e);
+  }
+
   const settings = getSettings();
   const hoursBefore = Number(settings.reminder_hours_before_appointment);
   if (!hoursBefore || hoursBefore <= 0) return 0;
@@ -4119,6 +4149,36 @@ function runAppointmentReminders() {
 
   Logger.log(`Rappels de rendez-vous : ${actionsCount} envoyé(s).`);
   return actionsCount;
+}
+
+/**
+ * Vérifie, pour chaque soin ayant au moins une entrée active en liste
+ * d'attente, si des créneaux existent maintenant — pas seulement au moment
+ * d'une annulation (notifyMatchingWaitlist_, appelée depuis
+ * AdminMenu.gs → cancelBooking_). Couvre aussi le cas où de la disponibilité
+ * s'est simplement libérée autrement (fenêtre glissante de lookahead_days,
+ * jour travaillé ou horaires élargis...). Appelée depuis runAppointmentReminders
+ * (même cadence horaire, aucun déclencheur supplémentaire à créer).
+ */
+function checkWaitlistAvailability_() {
+  const activeEntries = readAllRows_(TABS.WAITLIST).filter((w) => w.statut === WAITLIST_STATUS.ACTIVE);
+  const serviceIds = activeEntries
+    .map((w) => w.service_id)
+    .filter((id, i, arr) => arr.indexOf(id) === i);
+
+  serviceIds.forEach((serviceId) => {
+    const sample = activeEntries.find((w) => w.service_id === serviceId);
+    const duration = Number(sample.duration_minutes) || DEFAULT_APPOINTMENT_MINUTES;
+    let slots;
+    try {
+      slots = computeAvailableSlots(duration);
+    } catch (e) {
+      return; // calendrier introuvable/inaccessible ce tour-ci — on retentera à la prochaine heure
+    }
+    if (slots.length > 0) {
+      notifyMatchingWaitlist_(serviceId);
+    }
+  });
 }
 
 /**
@@ -6434,7 +6494,7 @@ function adminPortalRejectPackageClaim_(passwordPlain, params) {
  * Parcours PUBLIC (site) — appelé depuis WebApp.gs quand /use-package
  * n'affiche aucun créneau pour le soin choisi.
  */
-function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
+function joinPackageWaitlist_(sessionTokenPlain, serviceId, durationMinutes) {
   if (!sessionTokenPlain || !serviceId) {
     throw new BookingBusinessError_('Requête incomplète.');
   }
@@ -6468,10 +6528,150 @@ function joinPackageWaitlist_(sessionTokenPlain, serviceId) {
     client_id: tokenRow.client_id,
     package_id: tokenRow.package_id,
     service_id: serviceId,
+    // Fourni par le site (durée réelle du soin) — nécessaire pour
+    // computeAvailableSlots lors de la vérification périodique
+    // (checkWaitlistAvailability_, Notifications.gs) ; filet de sécurité si
+    // absent/invalide (ex. ancienne version du site en cache).
+    duration_minutes: Number(durationMinutes) || DEFAULT_APPOINTMENT_MINUTES,
     statut: WAITLIST_STATUS.ACTIVE,
     created_at: new Date(),
     notified_at: '',
   });
   writeAuditLog_(tokenRow.client_id, 'join_waitlist', serviceId, '', WAITLIST_STATUS.ACTIVE, '');
+
+  // Ne bloque jamais la demande de la cliente si l'email à l'administratrice échoue.
+  try {
+    notifyAdminOfNewWaitlistEntry_(serviceId, findRowBy_(TABS.CLIENTS, 'client_id', tokenRow.client_id));
+  } catch (e) {
+    // Rien de plus à faire : l'inscription elle-même a déjà réussi ci-dessus.
+  }
+
   return { status: 'joined' };
 }
+
+/**
+ * Prévient l'administratrice (le compte propriétaire du script, celui sous
+ * lequel la Web App s'exécute — "Exécuter en tant que : Moi" au déploiement)
+ * dès qu'une cliente rejoint la liste d'attente, pour ne pas avoir à
+ * surveiller l'onglet Waitlist manuellement.
+ */
+function notifyAdminOfNewWaitlistEntry_(serviceId, client) {
+  const adminEmail = Session.getEffectiveUser().getEmail();
+  if (!adminEmail) return;
+
+  const clientLabel = client ? `${client.prenom || ''} ${client.nom || ''}`.trim() || client.email : 'Une cliente';
+  const subject = `Liste d'attente : ${clientLabel} attend un créneau (${serviceId})`;
+  const body = [
+    `${clientLabel} vient de rejoindre la liste d'attente pour : ${serviceId}.`,
+    '',
+    `Elle sera prévenue automatiquement dès qu'un rendez-vous confirmé pour ce soin sera annulé.`,
+    `Détail dans l'onglet Waitlist du Sheet.`,
+  ].join('\n');
+  MailApp.sendEmail(adminEmail, subject, body);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SECTION 25 — AbroadRequests.gs (demandes de réservation à l'étranger, /book-abroad)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ *  ABROADREQUESTS.gs — Demandes de réservation "sur demande" (/book-abroad).
+ * ============================================================================
+ *
+ *  /book-abroad n'a ni calendrier ni compte : la cliente envoie ses
+ *  coordonnées et disponibilités, l'administratrice organise le rendez-vous
+ *  elle-même une fois sur place. Jusqu'ici, la seule trace de ces demandes
+ *  était le message WhatsApp lui-même — rien dans le Sheet, aucune alerte si
+ *  le message WhatsApp n'aboutissait pas (fenêtre bloquée, cliente qui ferme
+ *  avant l'envoi...). Ce fichier ajoute la même paire trace-Sheet + email
+ *  admin que la liste d'attente (Waitlist.gs), pour cohérence.
+ *
+ *  Appelé en tâche de fond (fire-and-forget) depuis BookAbroad.tsx, JAMAIS
+ *  attendu avant window.open(whatsapp...) — un popup ouvert hors du geste
+ *  utilisateur direct (après un await réseau) serait bloqué par le
+ *  navigateur. Une panne de ce endpoint ne doit donc jamais empêcher la
+ *  cliente d'envoyer son message WhatsApp.
+ */
+
+function submitAbroadRequest_(prenom, email, country, treatment, dates, message) {
+  const trimmedPrenom = String(prenom || '').trim();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!trimmedPrenom || !normalizedEmail || normalizedEmail.indexOf('@') === -1) {
+    throw new BookingBusinessError_('Requête incomplète.');
+  }
+
+  enforceAbroadRequestRateLimit_(normalizedEmail);
+
+  appendRow_(TABS.ABROAD_REQUESTS, {
+    request_id: genId_('ABR'),
+    prenom: trimmedPrenom,
+    email: normalizedEmail,
+    country: String(country || '').trim(),
+    treatment: String(treatment || '').trim(),
+    dates: String(dates || '').trim(),
+    message: String(message || '').trim().slice(0, 500),
+    statut: 'nouveau',
+    created_at: new Date(),
+  });
+
+  try {
+    notifyAdminOfAbroadRequest_(trimmedPrenom, normalizedEmail, country, treatment);
+  } catch (e) {
+    // Ne bloque jamais la demande elle-même : le message WhatsApp reste le
+    // canal principal, cet email n'est qu'un filet de sécurité.
+  }
+
+  return { status: 'received' };
+}
+
+/** Anti-spam dédié, même principe que enforceClaimRateLimit_ (PackageClaims.gs). */
+function enforceAbroadRequestRateLimit_(email) {
+  const props = PropertiesService.getScriptProperties();
+  const key = 'abroad_request_count::' + email;
+  const windowKey = 'abroad_request_window::' + email;
+  const windowStart = props.getProperty(windowKey);
+  const now = Date.now();
+
+  if (!windowStart || now - Number(windowStart) > 60 * 60 * 1000) {
+    props.setProperty(windowKey, String(now));
+    props.setProperty(key, '1');
+    return;
+  }
+  const count = parseInt(props.getProperty(key) || '0', 10) + 1;
+  if (count > 5) {
+    throw new RateLimitError_('Too many requests. Please message us directly instead.');
+  }
+  props.setProperty(key, String(count));
+}
+
+function notifyAdminOfAbroadRequest_(prenom, email, country, treatment) {
+  const adminEmail = Session.getEffectiveUser().getEmail();
+  if (!adminEmail) return;
+
+  const treatmentLabel = TREATMENT_LABELS_ADMIN_[treatment] || treatment || 'non précisé';
+  const subject = `Nouvelle demande à l'étranger — ${prenom} (${country || 'pays non précisé'})`;
+  const body = [
+    `${prenom} (${email}) vient de soumettre une demande de réservation depuis l'étranger.`,
+    '',
+    `Pays : ${country || 'non précisé'}`,
+    `Soin souhaité : ${treatmentLabel}`,
+    '',
+    `Elle a normalement aussi envoyé un message WhatsApp — vérifie que tu l'as bien reçu.`,
+    `Détail complet dans l'onglet Abroad_Requests du Sheet.`,
+  ].join('\n');
+  MailApp.sendEmail(adminEmail, subject, body);
+}
+
+// Miroir minimal de TREATMENT_LABELS (src/lib/contraindications.ts, côté
+// site) — uniquement pour rendre l'email admin lisible ; le site envoie déjà
+// le libellé exact dans son propre message WhatsApp, donc une valeur
+// manquante ici (nouveau soin ajouté côté site, pas encore répercuté ici)
+// n'est jamais bloquante : on retombe simplement sur la clé brute.
+const TREATMENT_LABELS_ADMIN_ = {
+  'lymphatic-drainage': 'Lymphatic Drainage',
+  'maderotherapy': 'Maderotherapy',
+  'post-op': 'Post-Op Care',
+  'prenatal-postnatal': 'Prenatal & Postnatal Massage',
+  'cavitation': 'Cavitation Fusion',
+};

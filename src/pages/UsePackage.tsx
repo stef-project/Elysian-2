@@ -207,7 +207,7 @@ export default function UsePackage() {
     setLoading(true);
     setError("");
     try {
-      await joinWaitlist(sessionToken, serviceId);
+      await joinWaitlist(sessionToken, serviceId, serviceDuration(serviceId));
       setWaitlistJoined(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");

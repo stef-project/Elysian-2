@@ -48,7 +48,13 @@ function doPost(e) {
       case 'join-waitlist':
         // /use-package : aucun créneau libre pour le soin choisi, la
         // cliente demande à être prévenue dès qu'un créneau se libère.
-        data = joinPackageWaitlist_(body.sessionToken, body.serviceId);
+        data = joinPackageWaitlist_(body.sessionToken, body.serviceId, body.durationMinutes);
+        break;
+
+      case 'submit-abroad-request':
+        // /book-abroad : trace de la demande (Sheet) + email admin, en plus
+        // du message WhatsApp envoyé directement par la cliente.
+        data = submitAbroadRequest_(body.prenom, body.email, body.country, body.treatment, body.dates, body.message);
         break;
 
       case 'revoke-session':
