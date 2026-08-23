@@ -21,6 +21,21 @@ const testimonials = [
     name: "Stella",
     title: "London",
   },
+  {
+    quote: "I feel lighter the moment the session ends. The difference is immediate, every single time.",
+    name: "Priya",
+    title: "Kensington",
+  },
+  {
+    quote: "I had never had a massage during pregnancy before. It was excellent, and I've been recommending it to every mother I know.",
+    name: "Charlotte",
+    title: "Chelsea",
+  },
+  {
+    quote: "Magic hands, truly. A treatment that makes all the difference.",
+    name: "Grace",
+    title: "London",
+  },
 ];
 
 export function Quotes() {
