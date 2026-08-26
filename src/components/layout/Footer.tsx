@@ -1,6 +1,64 @@
+import { useState } from "react";
+import { subscribeToNewsletter } from "../../lib/packageBooking";
+
 // Même flag que App.tsx (VITE_PACKAGE_PURCHASE_ENABLED) : ce lien ne doit
 // jamais être visible tant que la route /buy-package est elle-même désactivée.
 const PACKAGE_PURCHASE_ENABLED = import.meta.env.VITE_PACKAGE_PURCHASE_ENABLED === "true";
+
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      await subscribeToNewsletter(email);
+      setStatus("done");
+      setEmail("");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  if (status === "done") {
+    return (
+      <p className="font-sans text-xs text-[#F7F5F2]/60 font-light">
+        You're subscribed. Thank you.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex gap-2">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="flex-1 min-w-0 bg-transparent border border-[#F7F5F2]/20 px-4 py-2.5 font-sans text-xs text-[#F7F5F2] placeholder:text-[#F7F5F2]/30 focus:outline-none focus:border-[#BF944A] transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="font-sans text-[11px] tracking-[0.15em] uppercase bg-[#BF944A] text-[#1A1A1A] px-5 py-2.5 hover:bg-[#E2CAA2] transition-colors duration-300 disabled:opacity-50 whitespace-nowrap"
+        >
+          {status === "loading" ? "..." : "Subscribe"}
+        </button>
+      </div>
+      {status === "error" && (
+        <p className="font-sans text-[11px] text-[#F7F5F2]/40">
+          Something went wrong, please try again.
+        </p>
+      )}
+      <p className="font-sans text-[11px] text-[#F7F5F2]/30 font-light leading-relaxed">
+        Occasional news from Elysian Paris. Unsubscribe anytime.
+      </p>
+    </form>
+  );
+}
 
 export function Footer() {
   return (
@@ -37,6 +95,12 @@ export function Footer() {
                   <path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.6 2.6 0 0 1-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64a5.69 5.69 0 0 0 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3a4.36 4.36 0 0 1-3.24-1.48z"/>
                 </svg>
               </a>
+            </div>
+            <div className="mt-8 pt-8 border-t border-[#F7F5F2]/10">
+              <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#BF944A] mb-4">
+                Newsletter
+              </p>
+              <NewsletterSignup />
             </div>
           </div>
 

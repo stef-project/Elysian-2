@@ -57,6 +57,13 @@ function doPost(e) {
         data = submitAbroadRequest_(body.prenom, body.email, body.country, body.treatment, body.dates, body.message);
         break;
 
+      case 'subscribe-newsletter':
+        // Formulaire newsletter (Footer.tsx) : crée/met à jour un contact
+        // Brevo, jamais stocké côté Sheet (Brevo reste la seule source de
+        // vérité pour cette liste).
+        data = subscribeToNewsletter_(body.email, body.prenom);
+        break;
+
       case 'revoke-session':
         // "Log out of this device" (/use-package) : invalide le jeton côté
         // serveur, pas seulement dans le localStorage du navigateur.
