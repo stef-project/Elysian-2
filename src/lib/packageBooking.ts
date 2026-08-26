@@ -391,3 +391,12 @@ export const submitAbroadRequest = (params: {
   message: string;
 }) => callWebApp<{ status: string }>("submit-abroad-request", params);
 
+// ─────────────────────────────────────────────────────────────────────────
+//  Inscription newsletter (Footer.tsx) — crée/met à jour un contact Brevo.
+//  Idempotent côté serveur (updateEnabled) : une même adresse peut se
+//  réinscrire sans erreur.
+// ─────────────────────────────────────────────────────────────────────────
+
+export const subscribeToNewsletter = (email: string, prenom?: string) =>
+  callWebApp<{ status: string }>("subscribe-newsletter", { email, prenom });
+
