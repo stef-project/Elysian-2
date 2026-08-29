@@ -91,11 +91,34 @@ function subscribeToNewsletter_(email, prenom) {
   });
   const status = response.getResponseCode();
   if (status >= 300) {
-    Logger.log('Erreur Brevo (subscribeToNewsletter_) : ' + status + ' ' + response.getContentText());
+    const detail = `${status} ${response.getContentText()}`;
+    Logger.log('Erreur Brevo (subscribeToNewsletter_) : ' + detail);
+    notifyAdminOfBrevoFailure_(detail);
     throw new BookingBusinessError_('Une erreur est survenue, merci de réessayer.');
   }
 
   return { status: 'subscribed' };
+}
+
+/**
+ * Alerte l'administratrice par email dès qu'un appel à Brevo échoue —
+ * bien plus fiable à découvrir qu'un journal d'exécution Apps Script.
+ * Ne lève jamais elle-même (appelée depuis un contexte qui gère déjà
+ * l'erreur d'origine).
+ */
+function notifyAdminOfBrevoFailure_(detail) {
+  try {
+    const adminEmail = Session.getEffectiveUser().getEmail();
+    if (!adminEmail) return;
+    MailApp.sendEmail(
+      adminEmail,
+      'Erreur Brevo — inscription newsletter',
+      `Une inscription à la newsletter a échoué côté Brevo.\n\nDétail technique :\n${detail}\n\n` +
+        `Vérifie la clé API Brevo (menu Elysian Admin > Portail web > Définir la clé API Brevo).`
+    );
+  } catch (e) {
+    // Rien de plus à faire si même cet email échoue.
+  }
 }
 
 /** Anti-spam dédié, même principe que enforceClaimRateLimit_ (PackageClaims.gs). */
