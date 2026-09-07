@@ -332,6 +332,7 @@ export default function UsePackage() {
               <input
                 type="email"
                 required
+                aria-label="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -356,6 +357,7 @@ export default function UsePackage() {
               <input
                 type="text"
                 required
+                aria-label="First name"
                 value={prenom}
                 onChange={(e) => setPrenom(e.target.value)}
                 placeholder="First name"
@@ -363,6 +365,7 @@ export default function UsePackage() {
               />
               <input
                 type="text"
+                aria-label="Last name"
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
                 placeholder="Last name (optional)"
@@ -371,6 +374,7 @@ export default function UsePackage() {
               <input
                 type="email"
                 required
+                aria-label="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -378,6 +382,7 @@ export default function UsePackage() {
               />
               <input
                 type="tel"
+                aria-label="Phone number"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
                 placeholder="Phone (optional)"
@@ -385,6 +390,7 @@ export default function UsePackage() {
               />
               <textarea
                 rows={3}
+                aria-label="About your package"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="About your package, e.g. 5-session lymphatic drainage, purchased in July (optional)"
@@ -419,6 +425,7 @@ export default function UsePackage() {
                 required
                 inputMode="numeric"
                 maxLength={6}
+                aria-label="Verification code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="6-digit code"

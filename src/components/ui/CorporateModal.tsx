@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import l1Image from "../../assets/l1.webp";
 
@@ -12,6 +12,22 @@ export function CorporateModal() {
   const [id, setId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Fermeture au clavier : le clic sur le fond (backdrop) ferme déjà la
+  // modale à la souris, mais n'a pas d'équivalent clavier sans ceci.
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setName("");
+        setId("");
+        setError("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   const handleVerify = async () => {
     if (!name.trim() || !id.trim()) return;
