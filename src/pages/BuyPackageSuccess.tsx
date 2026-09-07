@@ -79,9 +79,9 @@ export default function BuyPackageSuccess() {
         {step === "success" && (
           <div>
             <div className="w-8 h-[1px] bg-primary mx-auto mb-8" />
-            <p className="font-serif text-3xl text-[#1A1A1A] font-light mb-4">
+            <h1 className="font-serif text-3xl text-[#1A1A1A] font-light mb-4">
               Payment confirmed.
-            </p>
+            </h1>
             <p className="font-sans text-sm text-muted-foreground font-light mb-2">
               {packageName} · {totalSessions} session{totalSessions !== 1 ? "s" : ""}
             </p>
@@ -100,9 +100,9 @@ export default function BuyPackageSuccess() {
 
         {step === "error" && (
           <div>
-            <p className="font-serif text-2xl text-[#1A1A1A] font-light mb-4">
+            <h1 className="font-serif text-2xl text-[#1A1A1A] font-light mb-4">
               We could not confirm your payment automatically.
-            </p>
+            </h1>
             <p className="font-sans text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 mb-8">
               {error}
             </p>

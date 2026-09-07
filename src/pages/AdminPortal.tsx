@@ -679,6 +679,7 @@ export default function AdminPortal() {
               type="password"
               required
               autoFocus
+              aria-label="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
@@ -700,6 +701,7 @@ export default function AdminPortal() {
             <div className="flex items-center justify-between mb-6 gap-4">
               <input
                 type="text"
+                aria-label="Search by name or email"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or email"
