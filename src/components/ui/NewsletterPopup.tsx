@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { subscribeToNewsletter } from "../../lib/packageBooking";
+import { trackNewsletterView, trackNewsletterDismiss, trackNewsletterSubscribe } from "../../lib/analytics";
 
 // Jamais montré pendant un parcours transactionnel en cours (réservation,
 // achat, vérification de dossier) — uniquement sur les pages de découverte.
@@ -42,7 +43,10 @@ export function NewsletterPopup() {
     }
     if (alreadySeen) return;
 
-    const timer = setTimeout(() => setVisible(true), DELAY_MS);
+    const timer = setTimeout(() => {
+      setVisible(true);
+      trackNewsletterView("popup");
+    }, DELAY_MS);
     return () => clearTimeout(timer);
   }, [location]);
 
@@ -57,6 +61,7 @@ export function NewsletterPopup() {
   function dismiss() {
     setVisible(false);
     markSeen();
+    trackNewsletterDismiss("popup");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -66,6 +71,7 @@ export function NewsletterPopup() {
       await subscribeToNewsletter(email);
       setStatus("done");
       markSeen();
+      trackNewsletterSubscribe("popup");
     } catch {
       setStatus("error");
     }
