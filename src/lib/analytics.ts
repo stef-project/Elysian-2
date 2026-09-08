@@ -16,3 +16,10 @@ export function trackEvent(name: string, params?: Record<string, string>) {
 
 export const trackBookClick = (location: string) => trackEvent("book_click", { location });
 export const trackWhatsappClick = (location: string) => trackEvent("whatsapp_click", { location });
+
+// Funnel newsletter (footer + popup de bienvenue) : sans ces événements,
+// impossible de savoir depuis GA4 si le popup convertit mieux que le
+// formulaire du footer, ou combien de visiteuses le ferment sans s'inscrire.
+export const trackNewsletterView = (location: string) => trackEvent("newsletter_view", { location });
+export const trackNewsletterDismiss = (location: string) => trackEvent("newsletter_dismiss", { location });
+export const trackNewsletterSubscribe = (location: string) => trackEvent("newsletter_subscribe", { location });

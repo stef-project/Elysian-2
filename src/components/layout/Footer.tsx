@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { subscribeToNewsletter } from "../../lib/packageBooking";
+import { trackNewsletterSubscribe } from "../../lib/analytics";
 
 // Même flag que App.tsx (VITE_PACKAGE_PURCHASE_ENABLED) : ce lien ne doit
 // jamais être visible tant que la route /buy-package est elle-même désactivée.
@@ -16,6 +17,7 @@ function NewsletterSignup() {
       await subscribeToNewsletter(email);
       setStatus("done");
       setEmail("");
+      trackNewsletterSubscribe("footer");
     } catch {
       setStatus("error");
     }
