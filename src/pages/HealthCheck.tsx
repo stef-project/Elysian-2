@@ -25,8 +25,13 @@ import { useDocumentMeta } from "../lib/useDocumentMeta";
 // vérification : n'importe qui peut fabriquer un lien vers CETTE page (sur
 // notre propre domaine, donc d'apparence légitime) avec un "next" pointant
 // n'importe où, et l'envoyer dans un message de phishing. Seuls les domaines
-// de calendrier réels sont acceptés ; tout le reste est traité comme absent.
-const ALLOWED_NEXT_ORIGINS = ["https://calendar.app.google", "https://calendar.google.com"];
+// de calendrier réels et de paiement Stripe sont acceptés ; tout le reste
+// est traité comme absent.
+const ALLOWED_NEXT_ORIGINS = [
+  "https://calendar.app.google",
+  "https://calendar.google.com",
+  "https://buy.stripe.com",
+];
 
 function sanitizeNextUrl(raw: string): string {
   try {

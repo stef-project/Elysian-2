@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { whatsappWith } from "../../lib/booking";
+import { buildHealthCheckUrl } from "../../lib/contraindications";
 import { isFlashOfferActive, FLASH_OFFER_DEADLINE } from "../../lib/flashOffer";
-import { trackEvent, trackWhatsappClick } from "../../lib/analytics";
+import { trackEvent, trackBookClick } from "../../lib/analytics";
+
+// Jamais un lien direct vers Stripe — toujours via /health-check d'abord,
+// même règle que tous les autres boutons "Book" du site.
+const CLAIM_URL = buildHealthCheckUrl(
+  "full-body-massage",
+  "https://buy.stripe.com/7sY28rcca51ug8y3z3ew800"
+);
 
 // Mêmes pages exclues que NewsletterPopup — jamais pendant un parcours
 // transactionnel en cours.
@@ -73,15 +80,6 @@ export function FlashOfferPopup() {
     trackEvent("flash_offer_dismiss");
   }
 
-  function claim() {
-    trackWhatsappClick("flash_offer_popup");
-    window.open(
-      whatsappWith("Hello! I'd like to book the 5 full-body massages offer (£500)."),
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
-
   if (!visible) return null;
 
   return (
@@ -115,15 +113,15 @@ export function FlashOfferPopup() {
           Only 5 spots available
         </p>
         <p className="font-sans text-xs text-[#F7F5F2]/60 font-light leading-relaxed mb-5">
-          Ends {DEADLINE_LABEL}. Message us on WhatsApp to book.
+          Ends {DEADLINE_LABEL}.
         </p>
-        <button
-          type="button"
-          onClick={claim}
-          className="w-full font-sans text-[11px] tracking-[0.15em] uppercase bg-[#BF944A] text-[#1A1A1A] px-5 py-3 hover:bg-[#E2CAA2] transition-colors duration-300"
+        <a
+          href={CLAIM_URL}
+          onClick={() => trackBookClick("flash_offer_popup")}
+          className="block text-center w-full font-sans text-[11px] tracking-[0.15em] uppercase bg-[#BF944A] text-[#1A1A1A] px-5 py-3 hover:bg-[#E2CAA2] transition-colors duration-300"
         >
           Claim this offer
-        </button>
+        </a>
       </div>
     </div>
   );

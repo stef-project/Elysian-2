@@ -194,4 +194,9 @@ export const TREATMENT_LABELS: Record<string, string> = {
   prenatal: "Prenatal Massage",
   postnatal: "Postnatal Massage",
   cavitation: "Cavitation Fusion",
+  // Pas d'entrée dans CONTRAINDICATIONS pour celui-ci : aucun contenu
+  // spécifique fourni par l'administratrice pour ce soin précis — /health-check
+  // retombe donc sur le seul avis général (ALL_TREATMENTS_NOTICE), jamais de
+  // contre-indications inventées.
+  "full-body-massage": "Full-Body Massage",
 };
