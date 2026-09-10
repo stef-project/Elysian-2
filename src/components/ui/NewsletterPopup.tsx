@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { subscribeToNewsletter } from "../../lib/packageBooking";
 import { trackNewsletterView, trackNewsletterDismiss, trackNewsletterSubscribe } from "../../lib/analytics";
+import { isFlashOfferActive } from "../../lib/flashOffer";
 
 // Jamais montré pendant un parcours transactionnel en cours (réservation,
 // achat, vérification de dossier) — uniquement sur les pages de découverte.
@@ -33,6 +34,9 @@ export function NewsletterPopup() {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
 
   useEffect(() => {
+    // Une seule offre affichée à la fois : l'offre flash (ponctuelle, urgente)
+    // prend le pas sur la newsletter tant qu'elle est active.
+    if (isFlashOfferActive()) return;
     if (HIDDEN_PATH_PREFIXES.some((prefix) => location.startsWith(prefix))) return;
     let alreadySeen = false;
     try {
