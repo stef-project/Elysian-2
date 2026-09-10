@@ -22,12 +22,24 @@ const HIDDEN_PATH_PREFIXES = [
 const SESSION_KEY = "elysian_flash_offer_dismissed";
 const DELAY_MS = 4000;
 
-const DEADLINE_LABEL = FLASH_OFFER_DEADLINE.toLocaleString("en-GB", {
+// "00:00 Sunday" lit à la lettre prête à confusion (on croirait que l'offre
+// couvre tout dimanche) — dans ce cas précis, on l'exprime comme "minuit
+// samedi soir" (le jour précédent), qui désigne exactement le même instant
+// sans ambiguïté.
+const deadlineParts = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
   hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
   timeZone: "Europe/London",
-});
+}).formatToParts(FLASH_OFFER_DEADLINE);
+const deadlineHour = deadlineParts.find((p) => p.type === "hour")?.value;
+const deadlineMinute = deadlineParts.find((p) => p.type === "minute")?.value;
+const deadlineWeekday = deadlineParts.find((p) => p.type === "weekday")?.value;
+const DEADLINE_LABEL =
+  deadlineHour === "00" && deadlineMinute === "00"
+    ? `${new Date(FLASH_OFFER_DEADLINE.getTime() - 60 * 1000).toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" })} at midnight`
+    : `${deadlineWeekday} at ${deadlineHour}:${deadlineMinute}`;
 
 export function FlashOfferPopup() {
   const [location] = useLocation();
@@ -96,8 +108,11 @@ export function FlashOfferPopup() {
         <p className="font-serif text-lg text-[#F7F5F2] font-light mb-1">
           5 Full-Body Massages
         </p>
-        <p className="font-serif text-2xl text-[#BF944A] font-light mb-4">
+        <p className="font-serif text-2xl text-[#BF944A] font-light mb-3">
           &pound;500
+        </p>
+        <p className="font-sans text-[11px] tracking-[0.1em] uppercase text-[#F7F5F2]/80 font-light mb-3">
+          Only 5 spots available
         </p>
         <p className="font-sans text-xs text-[#F7F5F2]/60 font-light leading-relaxed mb-5">
           Ends {DEADLINE_LABEL}. Message us on WhatsApp to book.
