@@ -69,6 +69,8 @@ const treatments = [
     duration: "60 min",
     price: "£130",
     packageNote: "Package recommended",
+    packageSummary: "10 sessions · £1200",
+    packageLink: "/buy-package",
     contraindicationKey: "post-op",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
@@ -186,8 +188,15 @@ export function Services() {
                 <div className="col-span-2 text-right md:text-left">
                   <span className="font-serif text-xl text-[#1A1A1A] px-3 py-1 border border-primary/30 bg-primary/[0.06] inline-block">{t.price}</span>
                   {"packageNote" in t && t.packageNote && (
-                    <span className="block font-sans text-[9px] tracking-[0.1em] uppercase text-primary mt-1">
-                      {t.packageNote}
+                    <span className="block mt-1">
+                      <span className="block font-sans text-[9px] tracking-[0.1em] uppercase text-primary">
+                        {t.packageNote}
+                      </span>
+                      {"packageSummary" in t && t.packageSummary && (
+                        <span className="block font-sans text-[10px] text-muted-foreground">
+                          {t.packageSummary}
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -247,6 +256,15 @@ export function Services() {
                             >
                               Reserve →
                             </a>
+                            {"packageLink" in t && t.packageLink && (
+                              <a
+                                href={t.packageLink}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-sans text-xs tracking-[0.2em] uppercase border border-primary/40 text-[#1A1A1A] px-8 py-3 hover:bg-primary/[0.08] transition-colors duration-300 inline-flex items-center"
+                              >
+                                {t.packageSummary} →
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
