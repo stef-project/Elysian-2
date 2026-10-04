@@ -1,15 +1,16 @@
 import { motion } from "framer-motion";
 
-// Nouvelle section — ne reprend rien d'existant, comble un vrai vide (aucune
-// page ne rassurait sur le déroulé d'une première visite). Construite
-// uniquement à partir de faits déjà vrais ailleurs sur le site (sur
-// rendez-vous uniquement, l'étape Assess de la Method™, les recommandations
-// personnalisées mentionnées dans les témoignages) — rien d'inventé.
+// Comble un vrai vide (aucune page ne rassurait sur le déroulé d'une
+// première visite). Construite uniquement à partir de faits déjà vrais
+// ailleurs sur le site : sur rendez-vous uniquement, l'étape Assess de la
+// Method™, les durées réelles par soin (45–90 min, Services.tsx), les
+// recommandations personnalisées mentionnées dans les témoignages — rien
+// d'inventé, aucune nouvelle politique de réservation/préparation créée.
 const steps = [
-  { n: "01", title: "Before", body: "A short message confirming your appointment, with a few questions about what you're looking to achieve." },
+  { n: "01", title: "Before", body: "A short message confirming your appointment, with a few questions about what you're looking to achieve. You don't need to arrive knowing exactly which treatment you need, that's decided together." },
   { n: "02", title: "Arrival", body: "By appointment only, one client at a time. 61 Kensington Church Street." },
-  { n: "03", title: "Assessment", body: "Every session opens with the Assess step: what your body needs today, not a repeated script." },
-  { n: "04", title: "Aftercare", body: "Simple, practical guidance so results hold after you leave." },
+  { n: "03", title: "Assessment", body: "Every session opens with the Assess step: what your body needs today, not a repeated script. Sessions typically run 45 to 90 minutes depending on the treatment." },
+  { n: "04", title: "Aftercare", body: "Simple, practical guidance so results hold after you leave. If a follow-up session is right for you, it's booked the same way as your first." },
 ];
 
 export function FirstVisit() {
