@@ -17,7 +17,9 @@ export function Philosophy() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
 
-          {/* Left: portrait image */}
+          {/* Left: portrait image. Swap-ready: a professional portrait only
+              needs to replace `clinicianImage`'s import/src, no layout
+              change required (fixed aspect-[3/4] slot, object-cover). */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -53,9 +55,12 @@ export function Philosophy() {
               <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-6">
                 The Woman Behind Elysian
               </p>
-              <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-8">
+              <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-6">
                 Stephanie <span className="italic">the hands behind<br />every session.</span>
               </h2>
+              <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-primary mb-8">
+                Personal expertise · Technical precision · Individual care · Complete discretion
+              </p>
               <div className="w-12 h-[1px] bg-primary mb-8" />
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg">
                 "I didn't want to offer one technique. I wanted to bring
@@ -71,6 +76,10 @@ export function Philosophy() {
                 {
                   label: "What Makes My Approach Different",
                   body: "Most practitioners specialise in one technique. I trained in several, manual lymphatic drainage, sculpting, contouring, and built the Elysian Paris Method™ by combining what each does best, rather than offering them as separate menu items.",
+                },
+                {
+                  label: "How Every Session Begins",
+                  body: "Every session starts with an assessment, not a script. Every body is different, so every treatment is personalised around what's actually in front of me that day, not a routine repeated on everyone who walks in.",
                 },
                 {
                   label: "What I Believe",

@@ -7,22 +7,22 @@ const steps = [
   {
     n: "01",
     title: "Assess",
-    body: "Heavy legs, bloating, fluid retention, swelling, or sculpting goals, mapped before we begin. No two sessions start from the same place.",
+    body: "Heavy legs, bloating, fluid retention, swelling, or sculpting goals, mapped before we begin. No two sessions start from the same place, so nothing is decided until we know what your body is actually showing that day.",
   },
   {
     n: "02",
     title: "Drain",
-    body: "Hands-led manual lymphatic drainage, French-trained, to clear what's holding your body back before any sculpting begins.",
+    body: "Hands-led manual lymphatic drainage, French-trained, tailored to your body in real time. It clears what's holding you back before any sculpting begins.",
   },
   {
     n: "03",
     title: "Sculpt",
-    body: "Targeted contouring technique layered onto the drainage work, the specific combination that makes the method distinctly our own.",
+    body: "Targeted contouring technique layered onto the drainage work, precision pressure and intentional movement rather than a generic massage sequence, the specific combination that makes the method distinctly our own.",
   },
   {
     n: "04",
     title: "Restore",
-    body: "Personalised aftercare and lifestyle guidance, so what you feel leaving the table still holds weeks later.",
+    body: "Personalised aftercare and lifestyle guidance, simple and practical rather than a long list, so what you feel leaving the table still holds weeks later.",
   },
 ];
 
