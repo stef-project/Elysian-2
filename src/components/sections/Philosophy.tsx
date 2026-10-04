@@ -66,12 +66,14 @@ export function Philosophy() {
               </p>
               <div className="w-12 h-[1px] bg-primary mb-8" />
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg mb-6">
-                Stephanie founded Elysian Paris in 2023, after training that
-                took her back to France again and again, including in the
-                renowned Manuela Shala method. Rather than settle on one
-                discipline, she trained across several, manual lymphatic
-                drainage, sculpting and contouring among them. Every session,
-                from first consultation to last, is hers alone to deliver.
+                Founded by Mrs Stephanie,  Elysian Paris brings together
+                specialist training in manual lymphatic drainage, sculpting
+                and contouring within a precise and personalised approach.
+                With its distinct French identity, the practice is shaped by
+                technical detail, discretion and continuity of care. Every
+                session begins with an assessment and is adapted to the
+                individual client rather than following a routine repeated
+                for everyone.
               </p>
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg">
                 "I didn't want to offer one technique. I wanted to bring
