@@ -27,10 +27,10 @@ export function Philosophy() {
           >
             <img
               src={clinicianImage}
-              alt="Elysian Paris founder preparing a treatment at the Kensington studio"
+              alt="Founder and French-trained lymphatic drainage therapist at Elysian Paris, Kensington, London"
               loading="lazy"
               decoding="async"
-              className="w-full aspect-[3/2] object-cover object-bottom"
+              className="w-full aspect-[3/4] object-cover object-top"
             />
             <div className="mt-6 flex items-center gap-4">
               <div className="w-6 h-[1px] bg-primary" />
