@@ -1,21 +1,28 @@
 import { motion } from "framer-motion";
 
-const pillars = [
+// Les 4 étapes de la Elysian Paris Method™ — un process visible, pas un
+// paragraphe d'adjectifs. Chaque ligne reprend le contenu réel déjà existant
+// (anciens "pillars"), juste réorganisée en séquence plutôt qu'en liste plate.
+const steps = [
   {
-    title: "Fully tailored",
-    body: "Every treatment is built around you. Heavy legs, bloating, fluid retention, swelling or sculpting goals are mapped before we begin.",
+    n: "01",
+    title: "Assess",
+    body: "Heavy legs, bloating, fluid retention, swelling, or sculpting goals, mapped before we begin. No two sessions start from the same place.",
   },
   {
-    title: "Visible from session one",
-    body: "A precise combination of techniques designed so that many clients see and feel a real difference from the very first session.",
+    n: "02",
+    title: "Drain",
+    body: "Hands-led manual lymphatic drainage, French-trained, to clear what's holding your body back before any sculpting begins.",
   },
   {
-    title: "Results that last",
-    body: "Hands-on treatment is paired with personalised guidance and lifestyle recommendations, so your results hold long after you leave the table.",
+    n: "03",
+    title: "Sculpt",
+    body: "Targeted contouring technique layered onto the drainage work, the specific combination that makes the method distinctly our own.",
   },
   {
-    title: "Exclusive to the UK",
-    body: "A signature, in-house method you will not find anywhere else in the country, refined over years of dedicated practice.",
+    n: "04",
+    title: "Restore",
+    body: "Personalised aftercare and lifestyle guidance, so what you feel leaving the table still holds weeks later.",
   },
 ];
 
@@ -31,7 +38,7 @@ export function Method() {
           className="max-w-3xl"
         >
           <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-[#BF944A] mb-6">
-            The only practice in the UK · Kensington, London
+            Trained in France · Kensington, London
           </p>
           <h2 className="font-serif text-4xl md:text-6xl text-[#F7F5F2] font-light leading-[1.05] mb-8">
             The Elysian Paris<br />
@@ -39,9 +46,10 @@ export function Method() {
           </h2>
           <div className="w-12 h-[1px] bg-[#BF944A] mb-8" />
           <p className="font-sans text-lg text-[#F7F5F2]/80 font-light leading-[1.9] mb-5">
-            Where body contouring meets lasting wellbeing. An in-house method
-            combining manual lymphatic drainage and body contouring for visible
-            results from the very first session. The only method of its kind in the UK.
+            Every body is different. Every Elysian treatment is personalised.
+            Not a drainage session repeated on everyone who walks in, a
+            method: assessed, drained, sculpted and restored around the body
+            in front of us.
           </p>
           <p className="font-sans text-[#F7F5F2]/55 font-light leading-[1.9]">
             Our founder trained in the renowned <span className="italic text-[#F7F5F2]/80">Manuela
@@ -51,20 +59,22 @@ export function Method() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-12 mt-20">
-          {pillars.map((p, i) => (
+          {steps.map((s, i) => (
             <motion.div
-              key={p.title}
+              key={s.title}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: i * 0.1 }}
+              className="relative"
             >
-              <p className="font-serif text-2xl text-[#BF944A] italic mb-4">
-                {String(i + 1).padStart(2, "0")}
-              </p>
-              <h3 className="font-serif text-xl text-[#F7F5F2] mb-3">{p.title}</h3>
+              {i < steps.length - 1 && (
+                <div className="hidden lg:block absolute top-4 left-full w-10 h-[1px] bg-[#F7F5F2]/15" />
+              )}
+              <p className="font-serif text-2xl text-[#BF944A] italic mb-4">{s.n}</p>
+              <h3 className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2] mb-3">{s.title}</h3>
               <p className="font-sans text-[#F7F5F2]/50 font-light leading-[1.8] text-sm">
-                {p.body}
+                {s.body}
               </p>
             </motion.div>
           ))}

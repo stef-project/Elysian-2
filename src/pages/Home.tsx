@@ -3,15 +3,19 @@ import { TopBar } from "../components/layout/TopBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
 import { Hero } from "../components/sections/Hero";
+import { Positioning } from "../components/sections/Positioning";
 import { Philosophy } from "../components/sections/Philosophy";
 import { Method } from "../components/sections/Method";
+import { WhatBringsYou } from "../components/sections/WhatBringsYou";
 import { Results } from "../components/sections/Results";
-import { LymphaticDrainage } from "../components/sections/LymphaticDrainage";
 import { Services } from "../components/sections/Services";
+import { WhyElysian } from "../components/sections/WhyElysian";
+import { FirstVisit } from "../components/sections/FirstVisit";
 import { FAQ } from "../components/sections/FAQ";
 import { CorporateModal } from "../components/ui/CorporateModal";
 import { Quotes } from "../components/sections/Quotes";
 import { Facility } from "../components/sections/Facility";
+import { FinalCTA } from "../components/sections/FinalCTA";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { CookieConsent } from "../components/ui/CookieConsent";
 
@@ -41,10 +45,9 @@ export default function Home() {
 
       <main id="main-content">
         <Hero />
-        <Philosophy />
+        <Positioning />
         <Method />
-        <Results />
-        <LymphaticDrainage />
+        <WhatBringsYou />
         <Services />
         <div className="max-w-6xl mx-auto px-6">
           <CorporateModal />
@@ -52,9 +55,14 @@ export default function Home() {
         {/* Volontairement pas de section "enquiry" : le parcours voulu est
             réserver → payer, en un clic depuis le Hero/les soins. Les
             questions passent par WhatsApp (bouton flottant + Concierge). */}
+        <WhyElysian />
+        <Results />
         <Quotes />
+        <Philosophy />
+        <FirstVisit />
         <Facility />
         <FAQ />
+        <FinalCTA />
       </main>
 
       <Footer />
