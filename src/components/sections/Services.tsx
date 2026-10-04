@@ -55,7 +55,7 @@ const treatments = [
     name: "Maderotherapy",
     subtitle: null,
     duration: "60 min",
-    price: "£90",
+    price: "£120",
     contraindicationKey: "maderotherapy",
     calendarUrl: "https://calendar.app.google/n6jfj1dXiKmJoh6D6",
     description:
@@ -67,7 +67,8 @@ const treatments = [
     name: "Post-Op Care",
     subtitle: null,
     duration: "60 min",
-    price: "£90",
+    price: "£130",
+    packageNote: "Package recommended",
     contraindicationKey: "post-op",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
@@ -184,6 +185,11 @@ export function Services() {
                 </div>
                 <div className="col-span-2 text-right md:text-left">
                   <span className="font-serif text-xl text-[#1A1A1A] px-3 py-1 border border-primary/30 bg-primary/[0.06] inline-block">{t.price}</span>
+                  {"packageNote" in t && t.packageNote && (
+                    <span className="block font-sans text-[9px] tracking-[0.1em] uppercase text-primary mt-1">
+                      {t.packageNote}
+                    </span>
+                  )}
                 </div>
                 <div className="col-span-2 md:col-span-1 flex justify-end">
                   <span className={`font-sans text-[11px] tracking-widest text-muted-foreground transition-transform duration-300 ${expanded === i ? "rotate-180" : ""}`}>
