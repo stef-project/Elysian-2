@@ -1,4 +1,5 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
+import { MotionConfig } from "framer-motion";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,14 +64,19 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-          <NewsletterPopup />
-          <FlashOfferPopup />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      {/* reducedMotion="user" : respecte prefers-reduced-motion pour toutes
+          les animations framer-motion du site (fade/slide des sections au
+          scroll, etc.) sans avoir à y toucher une par une. */}
+      <MotionConfig reducedMotion="user">
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+            <NewsletterPopup />
+            <FlashOfferPopup />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

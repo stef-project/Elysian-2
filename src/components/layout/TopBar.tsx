@@ -24,7 +24,7 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
             href={BOOKING_URL}
             data-testid="link-topbar-book"
             onClick={() => trackBookClick("topbar")}
-            className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
+            className="inline-block py-2.5 text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
           >
             Book
           </a>
@@ -33,7 +33,7 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
             <a
               href="/use-package"
               data-testid="link-topbar-my-package"
-              className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
+              className="inline-block py-2.5 text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
             >
               My Package
             </a>
@@ -44,7 +44,7 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
               rel="noopener noreferrer"
               data-testid="link-topbar-concierge"
               onClick={() => trackWhatsappClick("topbar")}
-              className="text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
+              className="inline-block py-2.5 text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
             >
               Concierge
             </a>

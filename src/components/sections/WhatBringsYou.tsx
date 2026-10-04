@@ -95,7 +95,7 @@ export function WhatBringsYou() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackEvent("signature_enquiry_click")}
-            className="shrink-0 font-sans text-[11px] tracking-[0.15em] uppercase text-primary border-b border-primary/40 hover:border-primary pb-0.5 transition-colors"
+            className="inline-block shrink-0 py-1.5 font-sans text-[11px] tracking-[0.15em] uppercase text-primary border-b border-primary/40 hover:border-primary transition-colors"
           >
             Ask us about it →
           </a>

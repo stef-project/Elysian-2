@@ -81,7 +81,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Follow Elysian Paris on Instagram"
-                className="text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300"
+                className="inline-block p-2 -m-2 text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300"
               >
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.72 3.72 0 0 1-1.38-.9 3.72 3.72 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zm0 1.44c-3.14 0-3.51.01-4.75.07-1.15.05-1.77.25-2.18.41-.55.21-.94.47-1.35.88-.41.41-.67.8-.88 1.35-.16.41-.36 1.03-.41 2.18-.06 1.24-.07 1.61-.07 4.75s.01 3.51.07 4.75c.05 1.15.25 1.77.41 2.18.21.55.47.94.88 1.35.41.41.8.67 1.35.88.41.16 1.03.36 2.18.41 1.24.06 1.61.07 4.75.07s3.51-.01 4.75-.07c1.15-.05 1.77-.25 2.18-.41.55-.21.94-.47 1.35-.88.41-.41.67-.8.88-1.35.16-.41.36-1.03.41-2.18.06-1.24.07-1.61.07-4.75s-.01-3.51-.07-4.75c-.05-1.15-.25-1.77-.41-2.18a3.6 3.6 0 0 0-.88-1.35 3.6 3.6 0 0 0-1.35-.88c-.41-.16-1.03-.36-2.18-.41-1.24-.06-1.61-.07-4.75-.07zm0 2.45a5.95 5.95 0 1 1 0 11.9 5.95 5.95 0 0 1 0-11.9zm0 1.44a4.51 4.51 0 1 0 0 9.02 4.51 4.51 0 0 0 0-9.02zm6.18-.41a1.39 1.39 0 1 1-2.78 0 1.39 1.39 0 0 1 2.78 0z"/>
@@ -92,7 +92,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Follow Elysian Paris on TikTok"
-                className="text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300"
+                className="inline-block p-2 -m-2 text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300"
               >
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
                   <path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.6 2.6 0 0 1-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64a5.69 5.69 0 0 0 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3a4.36 4.36 0 0 1-3.24-1.48z"/>
@@ -122,7 +122,7 @@ export function Footer() {
                 <li key={t.label}>
                   <a
                     href={t.href}
-                    className="font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
+                    className="inline-block py-1 font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
                   >
                     {t.label}
                   </a>
@@ -149,7 +149,7 @@ export function Footer() {
                 <li key={l.label}>
                   <a
                     href={l.href}
-                    className="font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
+                    className="inline-block py-1 font-sans text-xs text-[#F7F5F2]/50 hover:text-[#F7F5F2] transition-colors duration-300 font-light"
                   >
                     {l.label}
                   </a>
@@ -166,7 +166,7 @@ export function Footer() {
               </p>
               <a
                 href="mailto:info@elysian-institute.com"
-                className="block font-sans text-xs text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300 font-light"
+                className="inline-block py-1.5 font-sans text-xs text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300 font-light"
               >
                 info@elysian-institute.com
               </a>

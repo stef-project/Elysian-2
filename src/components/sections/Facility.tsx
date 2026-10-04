@@ -47,7 +47,7 @@ export function Facility() {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="link-view-map"
-                  className="inline-block mt-3 font-sans text-[11px] tracking-[0.15em] uppercase text-muted-foreground hover:text-primary border-b border-muted-foreground/30 hover:border-primary pb-0.5 transition-colors duration-300"
+                  className="inline-block mt-3 py-1.5 font-sans text-[11px] tracking-[0.15em] uppercase text-muted-foreground hover:text-primary border-b border-muted-foreground/30 hover:border-primary transition-colors duration-300"
                 >
                   View on map →
                 </a>
@@ -72,7 +72,7 @@ export function Facility() {
                 <a
                   href="mailto:info@elysian-institute.com"
                   data-testid="link-email"
-                  className="font-sans text-foreground font-light hover:text-primary transition-colors duration-300"
+                  className="inline-block py-1 font-sans text-foreground font-light hover:text-primary transition-colors duration-300"
                 >
                   info@elysian-institute.com
                 </a>
