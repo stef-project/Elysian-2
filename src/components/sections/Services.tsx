@@ -55,7 +55,7 @@ const treatments = [
     name: "Maderotherapy",
     subtitle: null,
     duration: "60 min",
-    price: "£80",
+    price: "£90",
     contraindicationKey: "maderotherapy",
     calendarUrl: "https://calendar.app.google/n6jfj1dXiKmJoh6D6",
     description:
@@ -67,7 +67,7 @@ const treatments = [
     name: "Post-Op Care",
     subtitle: null,
     duration: "60 min",
-    price: "£80",
+    price: "£90",
     contraindicationKey: "post-op",
     calendarUrl: "https://calendar.app.google/B9JEmHdYKT9i5AbbA",
     description:
@@ -79,7 +79,7 @@ const treatments = [
     name: "Prenatal & Postnatal Massage",
     subtitle: null,
     duration: "45 to 60 min",
-    price: "£80",
+    price: "£90",
     contraindicationKey: "prenatal-postnatal",
     calendarUrl: "https://calendar.app.google/ZsAmpyZGnuiGTukW6",
     description:

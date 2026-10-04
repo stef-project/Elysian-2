@@ -169,7 +169,7 @@ export default function PrenatalPostnatalMassage() {
               Book your Prenatal or Postnatal Massage
             </h2>
             <p className="font-sans text-[#F7F5F2]/60 font-light leading-[1.9] mb-10">
-              45 to 60 minutes, £80. Private, by appointment only, in Kensington.
+              45 to 60 minutes, £90. Private, by appointment only, in Kensington.
             </p>
             <a
               href={BOOK_URL}
