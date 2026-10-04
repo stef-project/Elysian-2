@@ -21,7 +21,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.3, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="font-serif text-4xl md:text-6xl lg:text-[80px] text-[#F7F5F2] font-light leading-[1.05] tracking-tight mb-4"
+          className="font-serif text-4xl md:text-6xl lg:text-[76px] text-[#F7F5F2] font-light leading-[1.05] tracking-tight mb-4"
         >
           Elysian Paris
         </motion.h1>
@@ -32,7 +32,7 @@ export function Hero() {
           transition={{ duration: 1, delay: 0.7 }}
           className="font-sans text-[11px] md:text-xs tracking-[0.3em] uppercase text-[#E2CAA2] mb-8"
         >
-          French Lymphatic Sculpting &amp; Body Wellness
+          The French Art of Lymphatic Sculpting
         </motion.p>
 
         <motion.p
@@ -41,9 +41,9 @@ export function Hero() {
           transition={{ duration: 1.2, delay: 0.9 }}
           className="font-sans text-base md:text-xl text-[#F7F5F2]/85 font-light max-w-2xl mx-auto leading-relaxed mb-5"
         >
-          A private body wellness experience combining French lymphatic
-          expertise, precise sculpting techniques and personalised care, so
-          you feel lighter, restored and beautifully refined.
+          A private lymphatic sculpting method, trained in France and
+          practised by hand in Kensington and Chelsea. One practitioner.
+          One method. Nothing else like it in London.
         </motion.p>
 
         <motion.p
@@ -59,26 +59,25 @@ export function Hero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1.3 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          className="flex flex-col items-center gap-5"
         >
-          {/* Accès direct aux soins en un clic — les pages studios /kensington
-              et /chelsea restent accessibles via le footer et la page Studios,
-              mais le CTA principal ne doit jamais imposer un clic intermédiaire. */}
+          {/* Un seul CTA dominant — le choix du studio (Kensington/Chelsea)
+              se fait plus loin dans le parcours, au niveau du soin choisi,
+              jamais ici en même poids que l'action principale. */}
           <a
             href={BOOKING_URL}
             data-testid="button-book-kensington"
-            onClick={() => trackBookClick("hero_kensington")}
-            className="font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
+            onClick={() => trackBookClick("hero_primary")}
+            className="font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-12 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
           >
-            Book Kensington
+            Begin Your Elysian Experience
           </a>
           <a
-            href="/book-chelsea"
-            data-testid="button-book-chelsea"
-            onClick={() => trackBookClick("hero_chelsea")}
-            className="font-sans text-xs tracking-[0.2em] uppercase text-[#F7F5F2] border border-[#F7F5F2]/40 px-10 py-4 hover:border-[#F7F5F2] hover:bg-[#F7F5F2]/10 transition-colors duration-300"
+            href="#method"
+            data-testid="button-discover-method"
+            className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2]/70 border-b border-[#F7F5F2]/30 hover:text-[#F7F5F2] hover:border-[#F7F5F2] pb-1 transition-colors duration-300"
           >
-            Book Chelsea, Every Friday
+            Discover The Method
           </a>
         </motion.div>
       </div>

@@ -51,29 +51,30 @@ export function Philosophy() {
               className="mb-12"
             >
               <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-6">
-                Welcome to Elysian Paris
+                The Woman Behind Elysian
               </p>
               <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light leading-tight mb-8">
-                Wellness is<br />
-                <span className="italic">a private art.</span>
+                Stephanie <span className="italic">the hands behind<br />every session.</span>
               </h2>
               <div className="w-12 h-[1px] bg-primary mb-8" />
               <p className="font-sans text-muted-foreground font-light leading-[1.9] max-w-lg">
-                A private Kensington clinic for manual lymphatic drainage and
-                bespoke body contouring. Every session is tailored with precision
-                and discretion. Nothing routine, everything intentional.
+                "I didn't want to offer one technique. I wanted to bring
+                together everything I'd trained in, which meant not stopping
+                at one certification, but returning to France, again and
+                again, for the long-form training it takes to actually
+                master each one, not just learn it."
               </p>
             </motion.div>
 
             <div className="space-y-0 divide-y divide-border">
               {[
                 {
-                  label: "The Elysian Paris Method™",
-                  body: "Our signature method merges manual lymphatic drainage with body contouring, the only approach of its kind in the UK.",
+                  label: "What Makes My Approach Different",
+                  body: "Most practitioners specialise in one technique. I trained in several, manual lymphatic drainage, sculpting, contouring, and built the Elysian Paris Method™ by combining what each does best, rather than offering them as separate menu items.",
                 },
                 {
-                  label: "Certified Practitioner",
-                  body: "Every treatment is delivered by a certified specialist. No shortcuts, no delegation, from first consultation to last.",
+                  label: "What I Believe",
+                  body: "Technique isn't something you finish learning, it's something you keep training in. No shortcuts, no delegation, from first consultation to last.",
                 },
                 {
                   label: "Total Discretion",

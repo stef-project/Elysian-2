@@ -34,7 +34,7 @@ export function Results() {
           className="text-center mb-14"
         >
           <p className="font-sans text-[11px] tracking-[0.25em] uppercase text-primary mb-4">
-            Real Results
+            Real Client Results
           </p>
           <h2 className="font-serif text-4xl md:text-5xl text-[#1A1A1A] font-light">
             Visible from the<br />
@@ -66,7 +66,8 @@ export function Results() {
 
       <p className="mt-12 text-center font-sans text-[11px] tracking-[0.1em] uppercase text-muted-foreground/70 max-w-2xl mx-auto px-6">
         Genuine client results, taken in-clinic · Results relate to a visible, temporary
-        reduction in fluid retention, not fat loss · Individual results may vary
+        reduction in fluid retention, not fat loss · Individual results vary, images show
+        real clients and are not a guarantee of outcome
       </p>
 
       <style>{`

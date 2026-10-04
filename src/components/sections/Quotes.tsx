@@ -1,50 +1,49 @@
 import { motion } from "framer-motion";
 
-const testimonials = [
+// Témoignages réels déjà présents sur le site, simplement regroupés par ce
+// qu'ils prouvent plutôt que listés à plat. Les témoignages Post-Op (Lea,
+// Anna) et Maternal (P.T., Anastasia) vivent aussi sur leurs pages dédiées
+// (/lymphatic-drainage-after-surgery, /prenatal-postnatal-massage-london) —
+// les reprendre ici n'invente rien, ce sont les mêmes citations.
+const categories = [
   {
-    quote: "I had tried several treatments before, but with Elysian Paris the results were immediate. I felt lighter as soon as the session was over.",
-    name: "Kim",
-    title: "London",
+    label: "Results",
+    quotes: [
+      { quote: "I had tried several treatments before, but with Elysian Paris the results were immediate. I felt lighter as soon as the session was over.", name: "Kim", detail: "London" },
+      { quote: "My legs constantly felt heavy and swollen. After every session, I notice a real difference and feel so much more comfortable.", name: "Emma", detail: "Surrey" },
+      { quote: "I came in with a lot of water retention after long-haul flights for work. Two sessions and the heaviness was gone.", name: "Selena & Clara", detail: "Lymphatic Drainage" },
+    ],
   },
   {
-    quote: "My legs constantly felt heavy and swollen. After every session, I notice a real difference and feel so much more comfortable.",
-    name: "Emma",
-    title: "Surrey",
+    label: "Expertise",
+    quotes: [
+      { quote: "She went through the whole health questionnaire with me before we started and actually turned down one of the areas I asked for. I've never had a clinic say no to me before.", name: "Haely", detail: "Cavitation" },
+      { quote: "Realistic about what it can and can't do. She told me it wasn't a substitute for the gym.", name: "Mona", detail: "Cavitation" },
+      { quote: "I was worried it would hurt. She started gently and built up over the sessions, and asked me every few minutes if the pressure was right.", name: "Afia", detail: "Maderotherapy" },
+    ],
   },
   {
-    quote: "The results are amazing, but what I appreciate most is the advice. I always leave with simple recommendations that genuinely make a difference.",
-    name: "A.",
-    title: "London",
+    label: "Experience",
+    quotes: [
+      { quote: "Magic hands, truly. A treatment that makes all the difference.", name: "Grace", detail: "London" },
+      { quote: "I have been coming regularly for over three years and simply couldn't be without it.", name: "Stella", detail: "London" },
+      { quote: "The results are amazing, but what I appreciate most is the advice. I always leave with simple recommendations that genuinely make a difference.", name: "A.", detail: "London" },
+    ],
   },
   {
-    quote: "I have been coming regularly for over three years and simply couldn't be without it. The results are consistent, and I always feel my best after each treatment.",
-    name: "Stella",
-    title: "London",
+    label: "Post-Op",
+    quotes: [
+      { quote: "I had a tummy tuck in March and I was terrified of doing something wrong afterwards. The swelling came down faster than I expected and I never once felt like I was being rushed.", name: "Lea", detail: "Post-Op" },
+      { quote: "What I appreciated most was that she knew exactly what she couldn't do: no pressure on the area, nothing risky. I felt safe.", name: "Anna", detail: "Post-Op" },
+    ],
   },
   {
-    quote: "I feel lighter the moment the session ends. The difference is immediate, every single time.",
-    name: "Priya",
-    title: "Kensington",
-  },
-  {
-    quote: "I had never had a massage during pregnancy before. It was excellent, and I've been recommending it to every mother I know.",
-    name: "Charlotte",
-    title: "Chelsea",
-  },
-  {
-    quote: "Magic hands, truly. A treatment that makes all the difference.",
-    name: "Grace",
-    title: "London",
-  },
-  {
-    quote: "I was worried it would hurt. She started gently and built up over the sessions, and asked me every few minutes if the pressure was right. After four sessions my clothes fit differently.",
-    name: "Afia",
-    title: "Maderotherapy",
-  },
-  {
-    quote: "Honestly, the results took a few sessions, not one. She told me that upfront and I respected that. No overselling.",
-    name: "Xenela",
-    title: "Maderotherapy",
+    label: "Maternal",
+    quotes: [
+      { quote: "I had never had a massage during pregnancy before. It was excellent, and I've been recommending it to every mother I know.", name: "Charlotte", detail: "Chelsea" },
+      { quote: "At 28 weeks I couldn't sleep. She set me up on my side with cushions and it was the first hour of proper rest I'd had in weeks.", name: "P.T.", detail: "Prenatal" },
+      { quote: "She wouldn't touch the scar until it was fully healed and explained why. That patience is exactly why I trusted her with the rest.", name: "Anastasia", detail: "Postnatal" },
+    ],
   },
 ];
 
@@ -68,26 +67,29 @@ export function Quotes() {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#F7F5F2]/10">
-          {testimonials.map((t, i) => (
+        <div className="space-y-14">
+          {categories.map((cat, ci) => (
             <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
+              key={cat.label}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: i * 0.2 }}
-              className="bg-[#1A1A1A] p-12"
-              data-testid={`card-testimonial-${i}`}
+              transition={{ duration: 0.7, delay: ci * 0.05 }}
             >
-              <div className="w-8 h-[1px] bg-[#BF944A] mb-8" />
-              <p className="font-serif text-2xl md:text-3xl text-[#F7F5F2]/90 font-light leading-snug mb-10">
-                "{t.quote}"
-              </p>
-              <div>
-                <p className="font-sans text-sm text-[#F7F5F2] tracking-wide">{t.name}</p>
-                <p className="font-sans text-[11px] uppercase tracking-[0.15em] text-[#F7F5F2]/40 mt-1">
-                  {t.title}
-                </p>
+              <span className="inline-block font-sans text-[10px] tracking-[0.18em] uppercase bg-[#BF944A] text-[#1A1A1A] px-3 py-1.5 mb-6">
+                {cat.label}
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {cat.quotes.map((t) => (
+                  <div key={t.name} className="border-l-2 border-[#F7F5F2]/15 pl-5">
+                    <p className="font-serif text-lg text-[#F7F5F2]/90 font-light leading-snug mb-3">
+                      "{t.quote}"
+                    </p>
+                    <p className="font-sans text-[11px] tracking-[0.1em] uppercase text-[#F7F5F2]/40">
+                      {t.name} · {t.detail}
+                    </p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           ))}
