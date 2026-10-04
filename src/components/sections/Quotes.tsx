@@ -25,6 +25,7 @@ const categories = [
       { quote: "Realistic about what it can and can't do. She told me it wasn't a substitute for the gym.", name: "Mona", detail: "Cavitation" },
     ],
     fullStoryHref: "/cavitation-body-contouring-london",
+    fullStoryLabel: "More Cavitation stories →",
   },
   {
     label: "Experience",
@@ -40,6 +41,7 @@ const categories = [
       { quote: "What I appreciated most was that she knew exactly what she couldn't do: no pressure on the area, nothing risky. I felt safe.", name: "Anna", detail: "Post-Op" },
     ],
     fullStoryHref: "/lymphatic-drainage-after-surgery",
+    fullStoryLabel: "More Post-Op stories →",
   },
   {
     label: "Maternal",
@@ -48,6 +50,7 @@ const categories = [
       { quote: "At 28 weeks I couldn't sleep. She set me up on my side with cushions and it was the first hour of proper rest I'd had in weeks.", name: "P.T.", detail: "Prenatal" },
     ],
     fullStoryHref: "/prenatal-postnatal-massage-london",
+    fullStoryLabel: "More Maternal stories →",
   },
 ];
 
@@ -89,7 +92,7 @@ export function Quotes() {
                     href={cat.fullStoryHref}
                     className="font-sans text-[10px] tracking-[0.15em] uppercase text-[#F7F5F2]/40 hover:text-[#F7F5F2]/70 border-b border-[#F7F5F2]/20 hover:border-[#F7F5F2]/50 transition-colors"
                   >
-                    Full story →
+                    {"fullStoryLabel" in cat ? cat.fullStoryLabel : "Full story →"}
                   </a>
                 )}
               </div>
