@@ -75,6 +75,12 @@ export function Results() {
           from { transform: translateX(0); }
           to { transform: translateX(calc(-50% - 0.75rem)); }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-\\[results-marquee_60s_linear_infinite\\] {
+            animation: none;
+            overflow-x: auto;
+          }
+        }
       `}</style>
     </section>
   );

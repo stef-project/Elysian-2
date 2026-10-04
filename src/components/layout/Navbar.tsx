@@ -60,7 +60,7 @@ export function Navbar() {
             aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMobileMenuOpen}
             onClick={() => setIsMobileMenuOpen((open) => !open)}
-            className="md:hidden text-foreground/70 hover:text-foreground transition-colors duration-300"
+            className="md:hidden p-2 -m-2 text-foreground/70 hover:text-foreground transition-colors duration-300"
           >
             {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>

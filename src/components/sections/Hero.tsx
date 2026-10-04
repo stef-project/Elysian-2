@@ -10,6 +10,8 @@ export function Hero() {
         <img
           src={heroImage}
           alt="Lymphatic drainage and body contouring clinic, Elysian Paris, Kensington, London"
+          fetchPriority="high"
+          decoding="async"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-[#1A1A1A]/45" />
@@ -75,7 +77,7 @@ export function Hero() {
           <a
             href="#method"
             data-testid="button-discover-method"
-            className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2]/70 border-b border-[#F7F5F2]/30 hover:text-[#F7F5F2] hover:border-[#F7F5F2] pb-1 transition-colors duration-300"
+            className="inline-block py-1.5 font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2]/70 border-b border-[#F7F5F2]/30 hover:text-[#F7F5F2] hover:border-[#F7F5F2] transition-colors duration-300"
           >
             Discover The Method
           </a>
