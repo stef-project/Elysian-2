@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { subscribeToNewsletter } from "../../lib/packageBooking";
-import { trackNewsletterSubscribe } from "../../lib/analytics";
+import { trackNewsletterSubscribe, trackWhatsappClick } from "../../lib/analytics";
+import { WHATSAPP_URL } from "../../lib/booking";
 
 // Même flag que App.tsx (VITE_PACKAGE_PURCHASE_ENABLED) : ce lien ne doit
 // jamais être visible tant que la route /buy-package est elle-même désactivée.
@@ -174,7 +175,28 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        {/* Discret, à la demande explicite : pas de tarif, pas de programme
+            détaillé, pas de nouvelle page — juste une ligne de contact pour
+            les praticiennes/organisations déjà envisagées côté admin. */}
+        <div className="pt-8 pb-2">
+          <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-[#F7F5F2]/30 mb-2">
+            Professional Training &amp; Partnerships
+          </p>
+          <p className="font-sans text-xs text-[#F7F5F2]/40 font-light leading-relaxed max-w-xl mb-2">
+            Elysian Paris works with selected practitioners, teams and organisations through tailored professional training and private partnerships. Each collaboration is considered individually.
+          </p>
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackWhatsappClick("footer_professional_enquiry")}
+            className="inline-block py-1 font-sans text-[11px] tracking-[0.15em] uppercase text-[#F7F5F2]/50 hover:text-[#BF944A] transition-colors duration-300"
+          >
+            Discuss a Professional Enquiry →
+          </a>
+        </div>
+
+        <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4 border-t border-[#F7F5F2]/10">
           <p className="font-sans text-[11px] text-[#F7F5F2]/30 tracking-widest uppercase">
             &copy; {new Date().getFullYear()} Elysian Paris. All rights reserved.
           </p>
