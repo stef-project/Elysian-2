@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { buildHealthCheckUrl } from "../../lib/contraindications";
+import { trackBookClick } from "../../lib/analytics";
 
 // Groupées par intention cliente (même logique que WhatBringsYou.tsx,
 // juste approfondie ici avec le détail complet de chaque soin) plutôt
@@ -242,7 +243,12 @@ export function Services() {
                                   <a
                                     href={buildHealthCheckUrl(t.contraindicationKey, t.calendarUrl)}
                                     data-testid={`button-reserve-${i}`}
-                                    onClick={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      trackBookClick(
+                                        `treatment_${t.contraindicationKey}${t.subtitle ? "_" + t.subtitle.toLowerCase().replace(/\s+/g, "-") : ""}`
+                                      );
+                                    }}
                                     className="font-sans text-xs tracking-[0.2em] uppercase bg-[#1A1A1A] text-[#F7F5F2] px-8 py-3 hover:bg-primary transition-colors duration-300 inline-flex items-center"
                                   >
                                     Reserve →
