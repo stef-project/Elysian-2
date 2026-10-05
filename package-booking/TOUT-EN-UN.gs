@@ -5957,7 +5957,7 @@ const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 function getStripeSecretKey_() {
   const key = PropertiesService.getScriptProperties().getProperty('STRIPE_SECRET_KEY');
   if (!key) {
-    throw new Error('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
+    throw new BookingBusinessError_('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
   }
   return key;
 }
