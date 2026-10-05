@@ -6095,6 +6095,20 @@ function enforceCheckoutRateLimit_(email) {
  * @returns {{checkoutUrl: string}}
  */
 function createCheckoutSession_(templateId, email, prenom, nom) {
+  // Filet de sécurité temporaire pour le diagnostic du paiement en ligne :
+  // capture TOUTE erreur inattendue (pas seulement celles de stripeRequest_/
+  // getStripeSecretKey_ déjà couvertes) et la montre telle quelle côté
+  // client, plutôt que de laisser le catch générique de doPost l'avaler. À
+  // retirer une fois le paiement en ligne validé en conditions réelles.
+  try {
+    return createCheckoutSessionImpl_(templateId, email, prenom, nom);
+  } catch (err) {
+    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
+    throw new BookingBusinessError_('Erreur technique (create-checkout-session) : ' + err);
+  }
+}
+
+function createCheckoutSessionImpl_(templateId, email, prenom, nom) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
     throw new BookingBusinessError_('Adresse email invalide.');
