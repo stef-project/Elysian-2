@@ -6031,7 +6031,12 @@ function stripeRequest_(method, path, params) {
 
   if (status >= 400) {
     const message = body && body.error && body.error.message ? body.error.message : `Erreur Stripe (${status}).`;
-    throw new Error(message);
+    // BookingBusinessError_ (pas Error) : le message Stripe est montrable tel
+    // quel côté client (jamais de secret dedans — juste des erreurs de
+    // configuration/validation côté développeur), contrairement au message
+    // générique renvoyé pour une erreur inattendue. Utile en particulier
+    // pendant la mise en place (clé manquante, prix invalide...).
+    throw new BookingBusinessError_(`Erreur Stripe : ${message}`);
   }
   return body;
 }
