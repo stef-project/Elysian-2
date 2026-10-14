@@ -11,6 +11,7 @@ const HIDDEN_PATH_PREFIXES = [
   "/book-chelsea",
   "/health-check",
   "/buy-package",
+  "/book-session",
   "/offer/",
   "/admin",
   "/book-abroad",

@@ -17,6 +17,8 @@ import BookChelsea from "@/pages/BookChelsea";
 import AdminPortal from "@/pages/AdminPortal";
 import BuyPackage from "@/pages/BuyPackage";
 import BuyPackageSuccess from "@/pages/BuyPackageSuccess";
+import BookSession from "@/pages/BookSession";
+import BookSessionSuccess from "@/pages/BookSessionSuccess";
 import HealthCheck from "@/pages/HealthCheck";
 import BookAbroad from "@/pages/BookAbroad";
 
@@ -38,6 +40,13 @@ const PACKAGE_OFFER_ENABLED = import.meta.env.VITE_PACKAGE_OFFER_ENABLED === "tr
 // VITE_PACKAGE_PURCHASE_ENABLED=true.
 const PACKAGE_PURCHASE_ENABLED = import.meta.env.VITE_PACKAGE_PURCHASE_ENABLED === "true";
 
+// Feature flag séparé pour /book-session (achat en ligne d'une séance unique
+// sans forfait, Stripe Checkout + tarif parrainage) : reste désactivée (404)
+// tant que l'onglet Treatment_Prices n'est pas initialisé côté Sheet (menu
+// Elysian Admin > Catalogue de forfaits > Initialiser les tarifs des soins à
+// l'unité). Activer via VITE_SINGLE_SESSION_BOOKING_ENABLED=true.
+const SINGLE_SESSION_BOOKING_ENABLED = import.meta.env.VITE_SINGLE_SESSION_BOOKING_ENABLED === "true";
+
 function Router() {
   return (
     <Switch>
@@ -52,6 +61,8 @@ function Router() {
       {PACKAGE_OFFER_ENABLED && <Route path="/offer/:offerId" component={PackageOffer} />}
       {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package/success" component={BuyPackageSuccess} />}
       {PACKAGE_PURCHASE_ENABLED && <Route path="/buy-package" component={BuyPackage} />}
+      {SINGLE_SESSION_BOOKING_ENABLED && <Route path="/book-session/success" component={BookSessionSuccess} />}
+      {SINGLE_SESSION_BOOKING_ENABLED && <Route path="/book-session" component={BookSession} />}
       <Route path="/admin" component={AdminPortal} />
       <Route path="/privacy" component={Legal} />
       <Route path="/terms" component={Legal} />
