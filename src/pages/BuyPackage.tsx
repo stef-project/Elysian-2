@@ -51,6 +51,7 @@ export default function BuyPackage() {
   const [email, setEmail] = useState("");
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
+  const [referredByName, setReferredByName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   // Stripe redirige ici (cancel_url, Stripe.gs) si la cliente quitte le
@@ -95,7 +96,13 @@ export default function BuyPackage() {
 
     setLoading(true);
     try {
-      const res = await createCheckoutSession(selected.templateId, trimmedEmail, trimmedPrenom, nom.trim());
+      const res = await createCheckoutSession(
+        selected.templateId,
+        trimmedEmail,
+        trimmedPrenom,
+        nom.trim(),
+        referredByName.trim() || undefined
+      );
       trackEvent("buy_package_checkout", { location: selected.templateId });
       setStep("redirecting");
       window.location.href = res.checkoutUrl;
@@ -256,6 +263,21 @@ export default function BuyPackage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                className="w-full border border-[#D4C9BD] bg-[#FAFAF9] px-4 py-3 font-sans text-sm text-[#1A1A1A] placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#BF944A] transition-colors"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="referredBy" className="font-sans text-[11px] tracking-[0.15em] uppercase text-[#1A1A1A] block mb-2">
+                Referred by{" "}
+                <span className="font-sans text-[10px] normal-case tracking-normal text-muted-foreground">(optional)</span>
+              </label>
+              <input
+                id="referredBy"
+                type="text"
+                value={referredByName}
+                onChange={(e) => setReferredByName(e.target.value)}
+                placeholder="Full name of the client who referred you"
                 className="w-full border border-[#D4C9BD] bg-[#FAFAF9] px-4 py-3 font-sans text-sm text-[#1A1A1A] placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#BF944A] transition-colors"
               />
             </div>

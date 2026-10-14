@@ -7,6 +7,9 @@ import { WHATSAPP_URL } from "../../lib/booking";
 // jamais être visible tant que la route /buy-package est elle-même désactivée.
 const PACKAGE_PURCHASE_ENABLED = import.meta.env.VITE_PACKAGE_PURCHASE_ENABLED === "true";
 
+// Même principe pour /book-session (VITE_SINGLE_SESSION_BOOKING_ENABLED).
+const SINGLE_SESSION_BOOKING_ENABLED = import.meta.env.VITE_SINGLE_SESSION_BOOKING_ENABLED === "true";
+
 function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -146,6 +149,7 @@ export function Footer() {
                 { label: "Book with your package", href: "/use-package" },
                 { label: "Book From Abroad", href: "/book-abroad" },
                 ...(PACKAGE_PURCHASE_ENABLED ? [{ label: "Buy a Package", href: "/buy-package" }] : []),
+                ...(SINGLE_SESSION_BOOKING_ENABLED ? [{ label: "Book a Single Session", href: "/book-session" }] : []),
               ].map((l) => (
                 <li key={l.label}>
                   <a

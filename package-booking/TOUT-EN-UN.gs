@@ -74,6 +74,8 @@ const TABS = {
   WAITLIST: 'Waitlist',
   // --- Demandes de réservation à l'étranger (/book-abroad) ---
   ABROAD_REQUESTS: 'Abroad_Requests',
+  // --- Tarifs des soins à l'unité (normal + parrainé), achat en ligne sans forfait ---
+  TREATMENT_PRICES: 'Treatment_Prices',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -128,6 +130,11 @@ const HEADERS = {
     'package_template_id', 'nom', 'description', 'soins_inclus',
     'nombre_seances', 'prix_public', 'duree_validite_jours',
     'categorie', 'visibilite', 'statut', 'ordre_affichage', 'notes_internes',
+    // Prix parrainage — ajout en fin de liste, jamais de réordonnancement.
+    // Vide/0 = pas de tarif parrainage pour ce forfait (prix_public
+    // s'applique à tout le monde). Rempli = prix facturé à une cliente dont
+    // le parrainage a été reconnu (resolveReferralTag_), prix_public sinon.
+    'prix_refere',
   ],
 
   [TABS.PAYMENTS]: [
@@ -229,6 +236,14 @@ const HEADERS = {
   [TABS.ABROAD_REQUESTS]: [
     'request_id', 'prenom', 'email', 'country', 'treatment', 'dates', 'message',
     'statut', 'created_at',
+  ],
+
+  // Tarifs des soins à l'unité (pas de forfait) — source de vérité unique
+  // pour /book-session, lue côté serveur uniquement (jamais de prix fourni
+  // par le client). price_referred vide/0 = pas de tarif parrainage pour ce
+  // soin, price_normal s'applique à tout le monde.
+  [TABS.TREATMENT_PRICES]: [
+    'service_id', 'label', 'duration_minutes', 'price_normal', 'price_referred',
   ],
 };
 
@@ -915,6 +930,28 @@ function writeAuditLog_(acteur, action, entite, ancienneValeur, nouvelleValeur, 
 
 function findClientByEmail_(email) {
   return findRowBy_(TABS.CLIENTS, 'email', String(email).trim().toLowerCase());
+}
+
+/**
+ * Transforme le texte libre "Referred by" (self-service, jamais vérifié
+ * manuellement — /buy-package, /book-session) en tag "referred-by:CLIENT_ID"
+ * si — et seulement si — le nom correspond EXACTEMENT à une seule cliente
+ * déjà connue (réutilise findClientsByName_, DataAccess.gs — même règle de
+ * correspondance que le reste du système, rien de dupliqué ici). Plusieurs
+ * résultats (homonymes) : traité comme aucune correspondance, volontairement
+ * strict — mieux vaut aucune réduction qu'une réduction accordée à la
+ * mauvaise personne. Sinon, chaîne vide : le profil est quand même créé,
+ * simplement sans statut parrainé ni tarif réduit.
+ */
+function resolveReferralTag_(referredByName) {
+  const trimmed = String(referredByName || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  const spaceIdx = trimmed.indexOf(' ');
+  if (spaceIdx === -1) return ''; // prénom seul : jamais assez pour identifier qui que ce soit avec certitude
+  const prenom = trimmed.slice(0, spaceIdx);
+  const nom = trimmed.slice(spaceIdx + 1);
+  const matches = findClientsByName_(prenom, nom);
+  return matches.length === 1 ? REFERRAL_TAG_PREFIX + matches[0].client_id : '';
 }
 
 function findPackageById_(packageId) {
@@ -1775,7 +1812,8 @@ function onOpen() {
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Catalogue de forfaits (Phase 2)')
       .addItem('Ajouter un modèle de forfait', 'adminAddPackageTemplate')
       .addItem('Modifier un modèle de forfait', 'adminEditPackageTemplate')
-      .addItem('Activer / désactiver un modèle', 'adminSetPackageTemplateStatus'))
+      .addItem('Activer / désactiver un modèle', 'adminSetPackageTemplateStatus')
+      .addItem('Initialiser les tarifs des soins à l\'unité (Treatment_Prices)', 'adminInitTreatmentPrices'))
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Paiements (Phase 2)')
       .addItem('Enregistrer un paiement', 'adminRecordPayment')
       .addItem('Confirmer un paiement en attente', 'adminConfirmPayment')
@@ -2799,13 +2837,28 @@ function doPost(e) {
       case 'create-checkout-session':
         // Achat en ligne : ouvre une session Stripe Checkout pour le forfait
         // choisi. Prix recalculé côté serveur, jamais fourni par le client.
-        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom);
+        // referredByName : texte libre optionnel, voir resolveReferralTag_.
+        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom, body.referredByName);
         break;
 
       case 'confirm-checkout-session':
         // Achat en ligne : appelée au retour de Stripe (success_url). Vérifie
         // directement auprès de Stripe avant de créer le forfait — idempotent.
+        // Gère aussi bien un vrai forfait qu'une séance unique (/book-session).
         data = confirmCheckoutSession_(body.sessionId);
+        break;
+
+      case 'list-treatment-prices':
+        // /book-session : catalogue des soins vendables à l'unité (sans
+        // forfait), lecture seule, sans authentification.
+        data = listPublicTreatmentPrices_();
+        break;
+
+      case 'create-single-session-checkout':
+        // /book-session : ouvre une session Stripe Checkout pour un soin
+        // unique (pas un forfait). Prix recalculé côté serveur depuis
+        // Treatment_Prices, jamais fourni par le client.
+        data = createSingleSessionCheckoutSession_(body.serviceId, body.email, body.prenom, body.nom, body.referredByName);
         break;
 
       case 'submit-package-claim':
@@ -5957,7 +6010,7 @@ const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 function getStripeSecretKey_() {
   const key = PropertiesService.getScriptProperties().getProperty('STRIPE_SECRET_KEY');
   if (!key) {
-    throw new Error('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
+    throw new BookingBusinessError_('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
   }
   return key;
 }
@@ -6031,7 +6084,12 @@ function stripeRequest_(method, path, params) {
 
   if (status >= 400) {
     const message = body && body.error && body.error.message ? body.error.message : `Erreur Stripe (${status}).`;
-    throw new Error(message);
+    // BookingBusinessError_ (pas Error) : le message Stripe est montrable tel
+    // quel côté client (jamais de secret dedans — juste des erreurs de
+    // configuration/validation côté développeur), contrairement au message
+    // générique renvoyé pour une erreur inattendue. Utile en particulier
+    // pendant la mise en place (clé manquante, prix invalide...).
+    throw new BookingBusinessError_(`Erreur Stripe : ${message}`);
   }
   return body;
 }
@@ -6089,7 +6147,21 @@ function enforceCheckoutRateLimit_(email) {
  *
  * @returns {{checkoutUrl: string}}
  */
-function createCheckoutSession_(templateId, email, prenom, nom) {
+function createCheckoutSession_(templateId, email, prenom, nom, referredByName) {
+  // Filet de sécurité temporaire pour le diagnostic du paiement en ligne :
+  // capture TOUTE erreur inattendue (pas seulement celles de stripeRequest_/
+  // getStripeSecretKey_ déjà couvertes) et la montre telle quelle côté
+  // client, plutôt que de laisser le catch générique de doPost l'avaler. À
+  // retirer une fois le paiement en ligne validé en conditions réelles.
+  try {
+    return createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName);
+  } catch (err) {
+    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
+    throw new BookingBusinessError_('Erreur technique (create-checkout-session) : ' + err);
+  }
+}
+
+function createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
     throw new BookingBusinessError_('Adresse email invalide.');
@@ -6104,7 +6176,14 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
     throw new BookingBusinessError_('Ce forfait n\'est plus disponible à l\'achat en ligne.');
   }
 
-  const price = Number(template.prix_public);
+  // Parrainage self-service : texte libre, jamais vérifié manuellement —
+  // resolveReferralTag_ ne renvoie un tag que si le nom correspond
+  // EXACTEMENT à une seule cliente déjà connue.
+  const referralTag = resolveReferralTag_(referredByName);
+  const referredPrice = Number(template.prix_refere);
+  const useReferredPrice = referralTag && !isNaN(referredPrice) && referredPrice > 0;
+
+  const price = useReferredPrice ? referredPrice : Number(template.prix_public);
   if (isNaN(price) || price <= 0) {
     throw new BookingBusinessError_('Ce forfait n\'a pas de prix valide — contacte-nous directement.');
   }
@@ -6132,6 +6211,7 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
       package_template_id: template.package_template_id,
       prenom: String(prenom || '').trim(),
       nom: String(nom || '').trim(),
+      referral_tag: referralTag,
       // Cliché du forfait au moment du paiement — jamais relu depuis
       // Package_Templates à la confirmation, pour que la cliente reçoive
       // exactement ce qu'elle a vu et payé même si le modèle est ensuite
@@ -6184,14 +6264,21 @@ function confirmCheckoutSession_(sessionId) {
     }
 
     // Contenu du forfait lu depuis le CLICHÉ posé à la création de la session
-    // (jamais depuis Package_Templates, qui a pu changer entre-temps — voir
-    // createCheckoutSession_).
+    // (jamais depuis Package_Templates/Treatment_Prices, qui ont pu changer
+    // entre-temps — voir createCheckoutSession_ / createSingleSessionCheckoutSessionImpl_).
+    // Deux formes possibles selon l'origine de la session : un vrai forfait
+    // (package_template_id posé) ou une séance unique achetée sans forfait
+    // (single_session_service_id posé) — jamais les deux à la fois.
     const meta = session.metadata || {};
-    const templateId = meta.package_template_id;
-    if (!templateId || !meta.snapshot_nom) {
+    const templateId = meta.package_template_id || '';
+    const isSingleSession = !templateId && !!meta.single_session_service_id;
+    if (!templateId && !isSingleSession) {
       // Ne devrait jamais arriver (le cliché est toujours posé à la création
       // de la session) — mais on reste défensif plutôt que de créer un
       // forfait sans contenu défini.
+      throw new Error('Détails du forfait introuvables pour cette session Stripe.');
+    }
+    if (!meta.snapshot_nom) {
       throw new Error('Détails du forfait introuvables pour cette session Stripe.');
     }
 
@@ -6210,13 +6297,16 @@ function confirmCheckoutSession_(sessionId) {
         telephone: '',
         notes_admin: '',
         date_creation: new Date(),
-        tags: '',
+        // Parrainage self-service reconnu à la création de la session
+        // (resolveReferralTag_) — jamais réécrit si la cliente existe déjà.
+        tags: meta.referral_tag || '',
       });
-      writeAuditLog_('system', 'add_client', clientId, '', email, 'Créée via achat en ligne (Stripe)');
+      writeAuditLog_('system', 'add_client', clientId, '', email,
+        'Créée via achat en ligne (Stripe)' + (meta.referral_tag ? ` — parrainage : ${meta.referral_tag}` : ''));
       client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
     }
 
-    const nombreSeances = Number(meta.snapshot_nombre_seances);
+    const nombreSeances = isSingleSession ? 1 : Number(meta.snapshot_nombre_seances);
     const packageId = genId_('PKG');
     const dateExpiration = meta.snapshot_duree_validite_jours
       ? new Date(Date.now() + Number(meta.snapshot_duree_validite_jours) * 24 * 60 * 60 * 1000)
@@ -6234,8 +6324,9 @@ function confirmCheckoutSession_(sessionId) {
       date_expiration: dateExpiration,
       moyen_paiement: PAYMENT_METHOD.STRIPE,
       statut: PACKAGE_STATUS.PENDING_PAYMENT,
-      notes_admin: 'Achat en ligne via Stripe Checkout',
-      package_template_id: templateId,
+      notes_admin: isSingleSession ? 'Séance unique achetée en ligne via Stripe Checkout (sans forfait)' : 'Achat en ligne via Stripe Checkout',
+      // Une séance unique n'a pas de modèle de forfait associé.
+      package_template_id: isSingleSession ? '' : templateId,
     });
 
     const paymentId = genId_('PAY');
@@ -6268,6 +6359,137 @@ function confirmCheckoutSession_(sessionId) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * ============================================================================
+ *  TREATMENTPRICES.gs — Achat en ligne d'une séance unique, sans forfait
+ *  (/book-session). Même principe que PackageTemplates.gs + Stripe Checkout
+ *  pour l'achat de forfait : le prix est TOUJOURS recalculé côté serveur
+ *  depuis Treatment_Prices, jamais fourni par le client. Une séance achetée
+ *  ainsi devient, côté données, un forfait d'1 séance (confirmCheckoutSession_
+ *  gère les deux cas) — pour réutiliser tel quel tout le système de
+ *  réservation déjà construit (/use-package) sans rien dupliquer.
+ * ============================================================================
+ */
+
+function findTreatmentPriceRow_(serviceId) {
+  return findRowBy_(TABS.TREATMENT_PRICES, 'service_id', serviceId);
+}
+
+/** Catalogue public des soins à l'unité — lecture seule, sans authentification. Jamais le prix parrainage (révélé seulement si le parrainage est reconnu, côté création de session). */
+function listPublicTreatmentPrices_() {
+  return readAllRows_(TABS.TREATMENT_PRICES).map((t) => ({
+    serviceId: t.service_id,
+    label: t.label,
+    durationMinutes: Number(t.duration_minutes),
+    priceNormal: Number(t.price_normal),
+  }));
+}
+
+/**
+ * Crée l'onglet Treatment_Prices (si besoin, via initializeSheets() — à
+ * lancer d'abord une fois depuis l'éditeur) puis le pré-remplit avec les
+ * tarifs normal + parrainage de chaque soin. N'écrit QUE si l'onglet est
+ * vide (hors en-têtes) — relancer cette fonction après une première
+ * initialisation ne duplique jamais les lignes.
+ */
+function adminInitTreatmentPrices() {
+  const ui = ui_();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(TABS.TREATMENT_PRICES);
+  if (!sheet) {
+    ui.alert('Onglet Treatment_Prices introuvable — lance d\'abord initializeSheets() depuis l\'éditeur (menu Exécuter), puis relance cette commande.');
+    return;
+  }
+  if (sheet.getLastRow() > 1) {
+    ui.alert('L\'onglet Treatment_Prices contient déjà des données — rien fait, pour ne pas écraser tes modifications. Édite les tarifs directement dans l\'onglet si besoin.');
+    return;
+  }
+
+  // service_id alignés sur PACKAGE_SERVICES (src/lib/packageBooking.ts) et
+  // contraindicationKey (src/lib/contraindications.ts) — garder synchronisé.
+  const rows = [
+    ['lymphatic-1z', 'Lymphatic Drainage · 1 Zone', 60, 150, 120],
+    ['lymphatic-2z', 'Lymphatic Drainage · 2 Zones', 90, 220, 200],
+    ['maderotherapy', 'Maderotherapy', 60, 90, 80],
+    ['cavitation', 'Cavitation Fusion', 90, 150, 120],
+    ['post-op', 'Post-Op Care', 60, 130, 90],
+    ['prenatal', 'Prenatal & Postnatal Massage', 60, 120, 90],
+  ];
+  rows.forEach((r) => {
+    appendRow_(TABS.TREATMENT_PRICES, {
+      service_id: r[0], label: r[1], duration_minutes: r[2], price_normal: r[3], price_referred: r[4],
+    });
+  });
+  ui.alert(`${rows.length} soins initialisés dans Treatment_Prices.`);
+}
+
+function createSingleSessionCheckoutSession_(serviceId, email, prenom, nom, referredByName) {
+  try {
+    return createSingleSessionCheckoutSessionImpl_(serviceId, email, prenom, nom, referredByName);
+  } catch (err) {
+    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
+    throw new BookingBusinessError_('Erreur technique (create-single-session-checkout) : ' + err);
+  }
+}
+
+function createSingleSessionCheckoutSessionImpl_(serviceId, email, prenom, nom, referredByName) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
+    throw new BookingBusinessError_('Adresse email invalide.');
+  }
+  if (!String(prenom || '').trim()) {
+    throw new BookingBusinessError_('Prénom manquant.');
+  }
+  enforceCheckoutRateLimit_(normalizedEmail);
+
+  const treatment = findTreatmentPriceRow_(serviceId);
+  if (!treatment) {
+    throw new BookingBusinessError_('Ce soin n\'est plus disponible à l\'achat en ligne.');
+  }
+
+  const referralTag = resolveReferralTag_(referredByName);
+  const referredPrice = Number(treatment.price_referred);
+  const useReferredPrice = referralTag && !isNaN(referredPrice) && referredPrice > 0;
+
+  const price = useReferredPrice ? referredPrice : Number(treatment.price_normal);
+  if (isNaN(price) || price <= 0) {
+    throw new BookingBusinessError_('Ce soin n\'a pas de prix valide — contacte-nous directement.');
+  }
+  const unitAmountPence = Math.round(price * 100);
+
+  const settings = getSettings();
+  const baseUrl = String(settings.site_base_url || '').replace(/\/$/, '');
+
+  const session = stripeRequest_('post', '/checkout/sessions', {
+    mode: 'payment',
+    customer_email: normalizedEmail,
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: 'gbp',
+          unit_amount: unitAmountPence,
+          product_data: { name: treatment.label },
+        },
+      },
+    ],
+    success_url: `${baseUrl}/book-session/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/book-session?cancelled=1`,
+    metadata: {
+      single_session_service_id: treatment.service_id,
+      prenom: String(prenom || '').trim(),
+      nom: String(nom || '').trim(),
+      referral_tag: referralTag,
+      // Cliché au moment du paiement — jamais relu depuis Treatment_Prices à
+      // la confirmation, même principe que createCheckoutSessionImpl_.
+      snapshot_nom: treatment.label,
+      snapshot_soins_inclus: treatment.service_id,
+    },
+  });
+
+  return { checkoutUrl: session.url };
 }
 
 // ════════════════════════════════════════════════════════════════════════

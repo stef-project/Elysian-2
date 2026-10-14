@@ -40,6 +40,8 @@ const TABS = {
   WAITLIST: 'Waitlist',
   // --- Demandes de réservation à l'étranger (/book-abroad) ---
   ABROAD_REQUESTS: 'Abroad_Requests',
+  // --- Tarifs des soins à l'unité (normal + parrainé), achat en ligne sans forfait ---
+  TREATMENT_PRICES: 'Treatment_Prices',
 };
 
 // En-têtes exacts de chaque onglet (ordre = ordre des colonnes).
@@ -94,6 +96,11 @@ const HEADERS = {
     'package_template_id', 'nom', 'description', 'soins_inclus',
     'nombre_seances', 'prix_public', 'duree_validite_jours',
     'categorie', 'visibilite', 'statut', 'ordre_affichage', 'notes_internes',
+    // Prix parrainage — ajout en fin de liste, jamais de réordonnancement.
+    // Vide/0 = pas de tarif parrainage pour ce forfait (prix_public
+    // s'applique à tout le monde). Rempli = prix facturé à une cliente dont
+    // le parrainage a été reconnu (resolveReferralTag_), prix_public sinon.
+    'prix_refere',
   ],
 
   [TABS.PAYMENTS]: [
@@ -195,6 +202,14 @@ const HEADERS = {
   [TABS.ABROAD_REQUESTS]: [
     'request_id', 'prenom', 'email', 'country', 'treatment', 'dates', 'message',
     'statut', 'created_at',
+  ],
+
+  // Tarifs des soins à l'unité (pas de forfait) — source de vérité unique
+  // pour /book-session, lue côté serveur uniquement (jamais de prix fourni
+  // par le client). price_referred vide/0 = pas de tarif parrainage pour ce
+  // soin, price_normal s'applique à tout le monde.
+  [TABS.TREATMENT_PRICES]: [
+    'service_id', 'label', 'duration_minutes', 'price_normal', 'price_referred',
   ],
 };
 

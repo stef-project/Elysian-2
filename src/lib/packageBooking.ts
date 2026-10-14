@@ -321,11 +321,54 @@ export type PublicPackageTemplate = {
 export const listPublicPackages = () =>
   callWebApp<PublicPackageTemplate[]>("list-public-packages", {});
 
-export const createCheckoutSession = (templateId: string, email: string, prenom: string, nom: string) =>
-  callWebApp<{ checkoutUrl: string }>("create-checkout-session", { templateId, email, prenom, nom });
+// referredByName : texte libre optionnel ("Referred by"), reconnu côté
+// serveur uniquement s'il correspond exactement au prénom + nom d'une
+// cliente déjà connue (resolveReferralTag_, TOUT-EN-UN.gs) — jamais de
+// validation manuelle pour ce parcours self-service.
+export const createCheckoutSession = (
+  templateId: string,
+  email: string,
+  prenom: string,
+  nom: string,
+  referredByName?: string
+) => callWebApp<{ checkoutUrl: string }>("create-checkout-session", { templateId, email, prenom, nom, referredByName });
 
+// Gère aussi bien la confirmation d'un forfait que celle d'une séance
+// unique achetée via /book-session — même action côté serveur.
 export const confirmCheckoutSession = (sessionId: string) =>
   callWebApp<{ packageName: string; totalSessions: number }>("confirm-checkout-session", { sessionId });
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Achat en ligne d'une séance unique, sans forfait (Stripe Checkout) —
+//  page /book-session. Même principe que l'achat de forfait ci-dessus : le
+//  prix affiché est toujours celui du catalogue, jamais recalculé côté
+//  client, jamais envoyé au serveur — seul serviceId l'est.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type PublicTreatmentPrice = {
+  serviceId: string;
+  label: string;
+  durationMinutes: number;
+  priceNormal: number;
+};
+
+export const listTreatmentPrices = () =>
+  callWebApp<PublicTreatmentPrice[]>("list-treatment-prices", {});
+
+export const createSingleSessionCheckoutSession = (
+  serviceId: string,
+  email: string,
+  prenom: string,
+  nom: string,
+  referredByName?: string
+) =>
+  callWebApp<{ checkoutUrl: string }>("create-single-session-checkout", {
+    serviceId,
+    email,
+    prenom,
+    nom,
+    referredByName,
+  });
 
 // ─────────────────────────────────────────────────────────────────────────
 //  Demande de forfait sans email connu (onglet "Register my package" de

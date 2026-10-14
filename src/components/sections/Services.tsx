@@ -16,7 +16,7 @@ const groups = [
         name: "Lymphatic Drainage",
         subtitle: "1 Zone",
         duration: "60 min",
-        price: "£120",
+        price: "£150",
         contraindicationKey: "lymphatic-drainage",
         calendarUrl: "https://calendar.app.google/Ev8ZV3UJwHgaE8uE9",
         description:
@@ -44,7 +44,7 @@ const groups = [
         name: "Maderotherapy",
         subtitle: null,
         duration: "60 min",
-        price: "£120",
+        price: "£90",
         contraindicationKey: "maderotherapy",
         calendarUrl: "https://calendar.app.google/n6jfj1dXiKmJoh6D6",
         description:
@@ -92,7 +92,7 @@ const groups = [
         name: "Prenatal & Postnatal Massage",
         subtitle: null,
         duration: "45 to 60 min",
-        price: "£90",
+        price: "£120",
         contraindicationKey: "prenatal-postnatal",
         calendarUrl: "https://calendar.app.google/ZsAmpyZGnuiGTukW6",
         description:

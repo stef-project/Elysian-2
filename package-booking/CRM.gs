@@ -77,6 +77,28 @@ function promptReferralTag_() {
 }
 
 /**
+ * Transforme le texte libre "Referred by" (self-service, jamais vérifié
+ * manuellement — /buy-package, /book-session) en tag "referred-by:CLIENT_ID"
+ * si — et seulement si — le nom correspond EXACTEMENT à une seule cliente
+ * déjà connue (réutilise findClientsByName_, DataAccess.gs — même règle de
+ * correspondance que promptReferralTag_ ci-dessus, rien de dupliqué ici).
+ * Plusieurs résultats (homonymes) : traité comme aucune correspondance,
+ * volontairement strict — mieux vaut aucune réduction qu'une réduction
+ * accordée à la mauvaise personne. Sinon, chaîne vide : le profil est quand
+ * même créé, simplement sans statut parrainé ni tarif réduit.
+ */
+function resolveReferralTag_(referredByName) {
+  const trimmed = String(referredByName || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  const spaceIdx = trimmed.indexOf(' ');
+  if (spaceIdx === -1) return ''; // prénom seul : jamais assez pour identifier qui que ce soit avec certitude
+  const prenom = trimmed.slice(0, spaceIdx);
+  const nom = trimmed.slice(spaceIdx + 1);
+  const matches = findClientsByName_(prenom, nom);
+  return matches.length === 1 ? REFERRAL_TAG_PREFIX + matches[0].client_id : '';
+}
+
+/**
  * Remise de bienvenue de la cliente parrainée (la filleule) — appelée juste
  * après la création d'une cliente dont le parrainage a été enregistré
  * (adminAddClient, AdminMenu.gs / findOrPromptCreateClient_, PackageOffers.gs).
