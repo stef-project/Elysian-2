@@ -11,12 +11,12 @@ const intents = [
   {
     label: "I want to feel lighter",
     treatment: "Lymphatic Sculpting",
-    detail: "1 or 2 zones · 60–90 min · from £120",
+    detail: "1 or 2 zones · 60–90 min · from £150",
   },
   {
     label: "I want to refine my silhouette",
     treatment: "Body Sculpting",
-    detail: "Maderotherapy & Cavitation Fusion · from £120",
+    detail: "Maderotherapy & Cavitation Fusion · from £90",
   },
   {
     label: "I'm recovering from surgery",
@@ -26,7 +26,7 @@ const intents = [
   {
     label: "I'm pregnant or postpartum",
     treatment: "Maternal Care",
-    detail: "45–60 min · £90",
+    detail: "45–60 min · £120",
   },
 ];
 

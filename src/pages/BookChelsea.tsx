@@ -28,9 +28,9 @@ import { ContraindicationsCheck } from "../components/booking/ContraindicationsC
 // de contre-indications correspondante (src/lib/contraindications.ts) n'est
 // pas toujours identique à l'id du soin.
 const TREATMENTS = [
-  { id: "lymphatic-1z", label: "Lymphatic Drainage", price: 120, contraindicationKey: "lymphatic-drainage" },
+  { id: "lymphatic-1z", label: "Lymphatic Drainage", price: 150, contraindicationKey: "lymphatic-drainage" },
   { id: "post-op", label: "Post-Op Care", price: 130, contraindicationKey: "post-op" },
-  { id: "prenatal", label: "Prenatal & Postnatal Massage", price: 90, contraindicationKey: "prenatal-postnatal" },
+  { id: "prenatal", label: "Prenatal & Postnatal Massage", price: 120, contraindicationKey: "prenatal-postnatal" },
 ] as const;
 
 const DEPOSIT = 50;
