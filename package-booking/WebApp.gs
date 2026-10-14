@@ -131,13 +131,28 @@ function doPost(e) {
       case 'create-checkout-session':
         // Achat en ligne : ouvre une session Stripe Checkout pour le forfait
         // choisi. Prix recalculé côté serveur, jamais fourni par le client.
-        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom);
+        // referredByName : texte libre optionnel, voir resolveReferralTag_.
+        data = createCheckoutSession_(body.templateId, body.email, body.prenom, body.nom, body.referredByName);
         break;
 
       case 'confirm-checkout-session':
         // Achat en ligne : appelée au retour de Stripe (success_url). Vérifie
         // directement auprès de Stripe avant de créer le forfait — idempotent.
+        // Gère aussi bien un vrai forfait qu'une séance unique (/book-session).
         data = confirmCheckoutSession_(body.sessionId);
+        break;
+
+      case 'list-treatment-prices':
+        // /book-session : catalogue des soins vendables à l'unité (sans
+        // forfait), lecture seule, sans authentification.
+        data = listPublicTreatmentPrices_();
+        break;
+
+      case 'create-single-session-checkout':
+        // /book-session : ouvre une session Stripe Checkout pour un soin
+        // unique (pas un forfait). Prix recalculé côté serveur depuis
+        // Treatment_Prices, jamais fourni par le client.
+        data = createSingleSessionCheckoutSession_(body.serviceId, body.email, body.prenom, body.nom, body.referredByName);
         break;
 
       case 'submit-package-claim':

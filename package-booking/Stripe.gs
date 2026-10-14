@@ -40,7 +40,7 @@ const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 function getStripeSecretKey_() {
   const key = PropertiesService.getScriptProperties().getProperty('STRIPE_SECRET_KEY');
   if (!key) {
-    throw new Error('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
+    throw new BookingBusinessError_('Stripe n\'est pas configuré (STRIPE_SECRET_KEY manquante) — voir menu Elysian Admin > Portail web.');
   }
   return key;
 }
@@ -114,7 +114,12 @@ function stripeRequest_(method, path, params) {
 
   if (status >= 400) {
     const message = body && body.error && body.error.message ? body.error.message : `Erreur Stripe (${status}).`;
-    throw new Error(message);
+    // BookingBusinessError_ (pas Error) : le message Stripe est montrable tel
+    // quel côté client (jamais de secret dedans — juste des erreurs de
+    // configuration/validation côté développeur), contrairement au message
+    // générique renvoyé pour une erreur inattendue. Utile en particulier
+    // pendant la mise en place (clé manquante, prix invalide...).
+    throw new BookingBusinessError_(`Erreur Stripe : ${message}`);
   }
   return body;
 }
@@ -172,7 +177,21 @@ function enforceCheckoutRateLimit_(email) {
  *
  * @returns {{checkoutUrl: string}}
  */
-function createCheckoutSession_(templateId, email, prenom, nom) {
+function createCheckoutSession_(templateId, email, prenom, nom, referredByName) {
+  // Filet de sécurité temporaire pour le diagnostic du paiement en ligne :
+  // capture TOUTE erreur inattendue (pas seulement celles de stripeRequest_/
+  // getStripeSecretKey_ déjà couvertes) et la montre telle quelle côté
+  // client, plutôt que de laisser le catch générique de doPost l'avaler. À
+  // retirer une fois le paiement en ligne validé en conditions réelles.
+  try {
+    return createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName);
+  } catch (err) {
+    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
+    throw new BookingBusinessError_('Erreur technique (create-checkout-session) : ' + err);
+  }
+}
+
+function createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
     throw new BookingBusinessError_('Adresse email invalide.');
@@ -187,7 +206,14 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
     throw new BookingBusinessError_('Ce forfait n\'est plus disponible à l\'achat en ligne.');
   }
 
-  const price = Number(template.prix_public);
+  // Parrainage self-service : texte libre, jamais vérifié manuellement —
+  // resolveReferralTag_ ne renvoie un tag que si le nom correspond
+  // EXACTEMENT à une seule cliente déjà connue.
+  const referralTag = resolveReferralTag_(referredByName);
+  const referredPrice = Number(template.prix_refere);
+  const useReferredPrice = referralTag && !isNaN(referredPrice) && referredPrice > 0;
+
+  const price = useReferredPrice ? referredPrice : Number(template.prix_public);
   if (isNaN(price) || price <= 0) {
     throw new BookingBusinessError_('Ce forfait n\'a pas de prix valide — contacte-nous directement.');
   }
@@ -215,6 +241,7 @@ function createCheckoutSession_(templateId, email, prenom, nom) {
       package_template_id: template.package_template_id,
       prenom: String(prenom || '').trim(),
       nom: String(nom || '').trim(),
+      referral_tag: referralTag,
       // Cliché du forfait au moment du paiement — jamais relu depuis
       // Package_Templates à la confirmation, pour que la cliente reçoive
       // exactement ce qu'elle a vu et payé même si le modèle est ensuite
@@ -267,14 +294,21 @@ function confirmCheckoutSession_(sessionId) {
     }
 
     // Contenu du forfait lu depuis le CLICHÉ posé à la création de la session
-    // (jamais depuis Package_Templates, qui a pu changer entre-temps — voir
-    // createCheckoutSession_).
+    // (jamais depuis Package_Templates/Treatment_Prices, qui ont pu changer
+    // entre-temps — voir createCheckoutSession_ / createSingleSessionCheckoutSessionImpl_).
+    // Deux formes possibles selon l'origine de la session : un vrai forfait
+    // (package_template_id posé) ou une séance unique achetée sans forfait
+    // (single_session_service_id posé) — jamais les deux à la fois.
     const meta = session.metadata || {};
-    const templateId = meta.package_template_id;
-    if (!templateId || !meta.snapshot_nom) {
+    const templateId = meta.package_template_id || '';
+    const isSingleSession = !templateId && !!meta.single_session_service_id;
+    if (!templateId && !isSingleSession) {
       // Ne devrait jamais arriver (le cliché est toujours posé à la création
       // de la session) — mais on reste défensif plutôt que de créer un
       // forfait sans contenu défini.
+      throw new Error('Détails du forfait introuvables pour cette session Stripe.');
+    }
+    if (!meta.snapshot_nom) {
       throw new Error('Détails du forfait introuvables pour cette session Stripe.');
     }
 
@@ -293,13 +327,16 @@ function confirmCheckoutSession_(sessionId) {
         telephone: '',
         notes_admin: '',
         date_creation: new Date(),
-        tags: '',
+        // Parrainage self-service reconnu à la création de la session
+        // (resolveReferralTag_) — jamais réécrit si la cliente existe déjà.
+        tags: meta.referral_tag || '',
       });
-      writeAuditLog_('system', 'add_client', clientId, '', email, 'Créée via achat en ligne (Stripe)');
+      writeAuditLog_('system', 'add_client', clientId, '', email,
+        'Créée via achat en ligne (Stripe)' + (meta.referral_tag ? ` — parrainage : ${meta.referral_tag}` : ''));
       client = findRowBy_(TABS.CLIENTS, 'client_id', clientId);
     }
 
-    const nombreSeances = Number(meta.snapshot_nombre_seances);
+    const nombreSeances = isSingleSession ? 1 : Number(meta.snapshot_nombre_seances);
     const packageId = genId_('PKG');
     const dateExpiration = meta.snapshot_duree_validite_jours
       ? new Date(Date.now() + Number(meta.snapshot_duree_validite_jours) * 24 * 60 * 60 * 1000)
@@ -317,8 +354,9 @@ function confirmCheckoutSession_(sessionId) {
       date_expiration: dateExpiration,
       moyen_paiement: PAYMENT_METHOD.STRIPE,
       statut: PACKAGE_STATUS.PENDING_PAYMENT,
-      notes_admin: 'Achat en ligne via Stripe Checkout',
-      package_template_id: templateId,
+      notes_admin: isSingleSession ? 'Séance unique achetée en ligne via Stripe Checkout (sans forfait)' : 'Achat en ligne via Stripe Checkout',
+      // Une séance unique n'a pas de modèle de forfait associé.
+      package_template_id: isSingleSession ? '' : templateId,
     });
 
     const paymentId = genId_('PAY');

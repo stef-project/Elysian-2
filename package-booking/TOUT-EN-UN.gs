@@ -933,32 +933,25 @@ function findClientByEmail_(email) {
 }
 
 /**
- * Correspondance exacte (prénom + nom, insensible à la casse/espaces) pour le
- * parrainage en self-service (/buy-package, /book-session) — une cliente
- * tape qui l'a parrainée, en texte libre. Volontairement STRICT (pas de
- * correspondance floue) : mieux vaut aucune réduction qu'une réduction
- * accordée à la mauvaise personne sur une simple ressemblance de nom.
- */
-function findClientByFullName_(fullName) {
-  const normalized = String(fullName || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  if (!normalized) return null;
-  return readAllRows_(TABS.CLIENTS).find((c) => {
-    const candidate = `${c.prenom || ''} ${c.nom || ''}`.trim().toLowerCase().replace(/\s+/g, ' ');
-    return candidate === normalized && candidate.length > 0;
-  }) || null;
-}
-
-/**
  * Transforme le texte libre "Referred by" (self-service, jamais vérifié
- * manuellement) en tag "referred-by:CLIENT_ID" si — et seulement si — le nom
- * correspond exactement à une cliente déjà connue du système. Sinon, chaîne
- * vide : le profil est quand même créé, simplement sans statut parrainé ni
- * tarif réduit (voir findClientByFullName_ — validation automatique, pas
- * d'approbation manuelle pour ce parcours).
+ * manuellement — /buy-package, /book-session) en tag "referred-by:CLIENT_ID"
+ * si — et seulement si — le nom correspond EXACTEMENT à une seule cliente
+ * déjà connue (réutilise findClientsByName_, DataAccess.gs — même règle de
+ * correspondance que le reste du système, rien de dupliqué ici). Plusieurs
+ * résultats (homonymes) : traité comme aucune correspondance, volontairement
+ * strict — mieux vaut aucune réduction qu'une réduction accordée à la
+ * mauvaise personne. Sinon, chaîne vide : le profil est quand même créé,
+ * simplement sans statut parrainé ni tarif réduit.
  */
 function resolveReferralTag_(referredByName) {
-  const referrer = findClientByFullName_(referredByName);
-  return referrer ? REFERRAL_TAG_PREFIX + referrer.client_id : '';
+  const trimmed = String(referredByName || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  const spaceIdx = trimmed.indexOf(' ');
+  if (spaceIdx === -1) return ''; // prénom seul : jamais assez pour identifier qui que ce soit avec certitude
+  const prenom = trimmed.slice(0, spaceIdx);
+  const nom = trimmed.slice(spaceIdx + 1);
+  const matches = findClientsByName_(prenom, nom);
+  return matches.length === 1 ? REFERRAL_TAG_PREFIX + matches[0].client_id : '';
 }
 
 function findPackageById_(packageId) {
@@ -6185,7 +6178,7 @@ function createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByNa
 
   // Parrainage self-service : texte libre, jamais vérifié manuellement —
   // resolveReferralTag_ ne renvoie un tag que si le nom correspond
-  // EXACTEMENT à une cliente déjà connue (voir findClientByFullName_).
+  // EXACTEMENT à une seule cliente déjà connue.
   const referralTag = resolveReferralTag_(referredByName);
   const referredPrice = Number(template.prix_refere);
   const useReferredPrice = referralTag && !isNaN(referredPrice) && referredPrice > 0;
