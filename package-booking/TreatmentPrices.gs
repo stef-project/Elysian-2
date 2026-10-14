@@ -30,6 +30,11 @@ function listPublicTreatmentPrices_() {
  * tarifs normal + parrainage de chaque soin. N'écrit QUE si l'onglet est
  * vide (hors en-têtes) — relancer cette fonction après une première
  * initialisation ne duplique jamais les lignes.
+ *
+ * ⚠️ Une fois initialisé, cet onglet est la seule source de vérité pour ce
+ * que /book-session facture réellement — il ne se resynchronise jamais tout
+ * seul avec les prix affichés sur le site. Voir PRICING.md à la racine du
+ * dépôt pour la liste complète des endroits à tenir à jour ensemble.
  */
 function adminInitTreatmentPrices() {
   const ui = ui_();
@@ -63,15 +68,6 @@ function adminInitTreatmentPrices() {
 }
 
 function createSingleSessionCheckoutSession_(serviceId, email, prenom, nom, referredByName) {
-  try {
-    return createSingleSessionCheckoutSessionImpl_(serviceId, email, prenom, nom, referredByName);
-  } catch (err) {
-    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
-    throw new BookingBusinessError_('Erreur technique (create-single-session-checkout) : ' + err);
-  }
-}
-
-function createSingleSessionCheckoutSessionImpl_(serviceId, email, prenom, nom, referredByName) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
     throw new BookingBusinessError_('Adresse email invalide.');
@@ -120,7 +116,7 @@ function createSingleSessionCheckoutSessionImpl_(serviceId, email, prenom, nom, 
       nom: String(nom || '').trim(),
       referral_tag: referralTag,
       // Cliché au moment du paiement — jamais relu depuis Treatment_Prices à
-      // la confirmation, même principe que createCheckoutSessionImpl_ (Stripe.gs).
+      // la confirmation, même principe que createCheckoutSession_ (Stripe.gs).
       snapshot_nom: treatment.label,
       snapshot_soins_inclus: treatment.service_id,
     },

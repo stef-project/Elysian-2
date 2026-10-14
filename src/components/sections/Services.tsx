@@ -7,6 +7,9 @@ import { trackBookClick } from "../../lib/analytics";
 // juste approfondie ici avec le détail complet de chaque soin) plutôt
 // qu'en catalogue numéroté 01–06 — aucune donnée réelle n'a changé, seule
 // la présentation est réorganisée.
+//
+// ⚠️ Un changement de prix ici doit être répercuté ailleurs (site + Sheet) —
+// voir PRICING.md à la racine du dépôt pour la liste complète.
 const groups = [
   {
     intent: "I want to feel lighter",

@@ -178,20 +178,6 @@ function enforceCheckoutRateLimit_(email) {
  * @returns {{checkoutUrl: string}}
  */
 function createCheckoutSession_(templateId, email, prenom, nom, referredByName) {
-  // Filet de sécurité temporaire pour le diagnostic du paiement en ligne :
-  // capture TOUTE erreur inattendue (pas seulement celles de stripeRequest_/
-  // getStripeSecretKey_ déjà couvertes) et la montre telle quelle côté
-  // client, plutôt que de laisser le catch générique de doPost l'avaler. À
-  // retirer une fois le paiement en ligne validé en conditions réelles.
-  try {
-    return createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName);
-  } catch (err) {
-    if (err instanceof BookingBusinessError_ || err instanceof RateLimitError_) throw err;
-    throw new BookingBusinessError_('Erreur technique (create-checkout-session) : ' + err);
-  }
-}
-
-function createCheckoutSessionImpl_(templateId, email, prenom, nom, referredByName) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || normalizedEmail.indexOf('@') === -1) {
     throw new BookingBusinessError_('Adresse email invalide.');
@@ -295,7 +281,7 @@ function confirmCheckoutSession_(sessionId) {
 
     // Contenu du forfait lu depuis le CLICHÉ posé à la création de la session
     // (jamais depuis Package_Templates/Treatment_Prices, qui ont pu changer
-    // entre-temps — voir createCheckoutSession_ / createSingleSessionCheckoutSessionImpl_).
+    // entre-temps — voir createCheckoutSession_ / createSingleSessionCheckoutSession_).
     // Deux formes possibles selon l'origine de la session : un vrai forfait
     // (package_template_id posé) ou une séance unique achetée sans forfait
     // (single_session_service_id posé) — jamais les deux à la fois.
