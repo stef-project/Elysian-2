@@ -1,4 +1,4 @@
-import { BOOKING_URL, WHATSAPP_URL } from "../../lib/booking";
+import { WHATSAPP_URL } from "../../lib/booking";
 import { trackBookClick, trackWhatsappClick } from "../../lib/analytics";
 
 interface TopBarProps {
@@ -27,17 +27,8 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
           {location} &nbsp;&middot;&nbsp; By appointment only
         </p>
         <div className="flex items-center gap-5 ml-auto">
-          <a
-            href={BOOKING_URL}
-            data-testid="link-topbar-book"
-            onClick={() => trackBookClick("topbar")}
-            className="inline-block py-2.5 text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
-          >
-            Book
-          </a>
           {SINGLE_SESSION_BOOKING_ENABLED && (
             <>
-              <span className="text-[#F7F5F2]/20 hidden sm:inline">|</span>
               <a
                 href="/book-session"
                 data-testid="link-topbar-referred"
@@ -46,9 +37,9 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
               >
                 Referred? Book here
               </a>
+              <span className="text-[#F7F5F2]/20 hidden sm:inline">|</span>
             </>
           )}
-          <span className="text-[#F7F5F2]/20">|</span>
           {PACKAGE_BOOKING_ENABLED ? (
             <a
               href="/use-package"
