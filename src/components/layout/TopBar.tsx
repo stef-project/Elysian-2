@@ -12,6 +12,13 @@ interface TopBarProps {
 // n'était donc pas le seul accès au contact.
 const PACKAGE_BOOKING_ENABLED = import.meta.env.VITE_PACKAGE_BOOKING_ENABLED === "true";
 
+// Même principe pour /book-session (VITE_SINGLE_SESSION_BOOKING_ENABLED).
+// Masqué sous sm: la barre du haut est déjà serrée sur mobile (voir
+// location, hidden sm:block) — les clientes parrainées reçoivent de toute
+// façon ce lien directement (WhatsApp/email), ce discret rappel vise surtout
+// la visibilité sur desktop.
+const SINGLE_SESSION_BOOKING_ENABLED = import.meta.env.VITE_SINGLE_SESSION_BOOKING_ENABLED === "true";
+
 export function TopBar({ location = "Kensington, London" }: TopBarProps) {
   return (
     <div className="w-full bg-[#1A1A1A] py-2.5 px-4 z-50 relative">
@@ -28,6 +35,19 @@ export function TopBar({ location = "Kensington, London" }: TopBarProps) {
           >
             Book
           </a>
+          {SINGLE_SESSION_BOOKING_ENABLED && (
+            <>
+              <span className="text-[#F7F5F2]/20 hidden sm:inline">|</span>
+              <a
+                href="/book-session"
+                data-testid="link-topbar-referred"
+                onClick={() => trackBookClick("topbar_referred")}
+                className="hidden sm:inline-block py-2.5 text-[11px] uppercase tracking-[0.18em] font-sans font-light text-[#F7F5F2]/70 hover:text-[#BF944A] transition-colors duration-300"
+              >
+                Referred? Book here
+              </a>
+            </>
+          )}
           <span className="text-[#F7F5F2]/20">|</span>
           {PACKAGE_BOOKING_ENABLED ? (
             <a
