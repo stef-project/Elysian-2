@@ -18,8 +18,9 @@ import { Footer } from "../components/layout/Footer";
 import { WhatsAppButton } from "../components/ui/WhatsAppButton";
 import { ContraindicationsCheck } from "../components/booking/ContraindicationsCheck";
 import { TREATMENT_LABELS } from "../lib/contraindications";
-import { trackBookClick, trackEvent } from "../lib/analytics";
+import { trackBookClick, trackEvent, trackWhatsappClick } from "../lib/analytics";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
+import { WHATSAPP_URL } from "../lib/booking";
 
 // "next" arrive dans l'URL (query string) — jamais fait confiance sans
 // vérification : n'importe qui peut fabriquer un lien vers CETTE page (sur
@@ -98,26 +99,41 @@ export default function HealthCheck() {
         </div>
 
         {nextUrl ? (
-          <a
-            href={checked ? nextUrl : undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-disabled={!checked}
-            onClick={(e) => {
-              if (!checked) {
-                e.preventDefault();
-                return;
-              }
-              trackBookClick(`health_check_${treatmentKey}`);
-            }}
-            className={`block w-full text-center font-sans text-xs tracking-[0.2em] uppercase px-10 py-4 transition-colors duration-300 ${
-              checked
-                ? "bg-[#1A1A1A] text-[#F7F5F2] hover:bg-primary cursor-pointer"
-                : "bg-[#1A1A1A]/20 text-[#1A1A1A]/40 cursor-not-allowed"
-            }`}
-          >
-            Continue to booking →
-          </a>
+          <>
+            <a
+              href={checked ? nextUrl : undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!checked}
+              onClick={(e) => {
+                if (!checked) {
+                  e.preventDefault();
+                  return;
+                }
+                trackBookClick(`health_check_${treatmentKey}`);
+              }}
+              className={`block w-full text-center font-sans text-xs tracking-[0.2em] uppercase px-10 py-4 transition-colors duration-300 ${
+                checked
+                  ? "bg-[#1A1A1A] text-[#F7F5F2] hover:bg-primary cursor-pointer"
+                  : "bg-[#1A1A1A]/20 text-[#1A1A1A]/40 cursor-not-allowed"
+              }`}
+            >
+              Continue to booking →
+            </a>
+            <p className="font-sans text-xs text-muted-foreground font-light leading-relaxed mt-6 text-center">
+              If the booking page doesn't confirm right after payment, please don't pay again.{" "}
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackWhatsappClick(`health_check_${treatmentKey}`)}
+                className="underline hover:text-[#BF944A] transition-colors"
+              >
+                Message us on WhatsApp
+              </a>{" "}
+              and we'll secure it for you.
+            </p>
+          </>
         ) : (
           <p className="font-sans text-sm text-red-700">
             Missing booking link. Please go back and try again.
