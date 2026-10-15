@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { trackEvent } from "../../lib/analytics";
 
 // Homepage = curated proof : extraits courts, exacts (jamais reformulés),
 // coupés uniquement à des frontières de phrase qui ne changent pas le sens.
@@ -90,6 +91,7 @@ export function Quotes() {
                 {"fullStoryHref" in cat && cat.fullStoryHref && (
                   <a
                     href={cat.fullStoryHref}
+                    onClick={() => trackEvent("full_story_click", { location: cat.label })}
                     className="font-sans text-[10px] tracking-[0.15em] uppercase text-[#F7F5F2]/40 hover:text-[#F7F5F2]/70 border-b border-[#F7F5F2]/20 hover:border-[#F7F5F2]/50 transition-colors"
                   >
                     {"fullStoryLabel" in cat ? cat.fullStoryLabel : "Full story →"}

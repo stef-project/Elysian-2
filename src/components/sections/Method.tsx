@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { trackBookClick } from "../../lib/analytics";
 
 // Les 4 étapes de la Elysian Paris Method™ — un process visible, pas un
 // paragraphe d'adjectifs. Chaque ligne reprend le contenu réel déjà existant
@@ -89,6 +90,7 @@ export function Method() {
         >
           <a
             href="#treatments"
+            onClick={() => trackBookClick("method_cta")}
             className="inline-block font-sans text-xs tracking-[0.2em] uppercase bg-[#BF944A] text-[#1A1A1A] px-10 py-4 hover:bg-[#E2CAA2] transition-colors duration-300"
           >
             Experience the Method
